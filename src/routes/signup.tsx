@@ -3,7 +3,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { applyInviteCode } from "@/lib/invite.functions";
+import { applyInviteCode, markExternalStudent } from "@/lib/invite.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
