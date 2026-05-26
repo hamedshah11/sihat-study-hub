@@ -16,55 +16,111 @@ export type Database = {
     Tables: {
       batches: {
         Row: {
-          created_at: string
-          description: string | null
+          created_at: string | null
+          current_semester_id: string | null
           id: string
           name: string
+          program_id: string | null
+          start_date: string | null
         }
         Insert: {
-          created_at?: string
-          description?: string | null
+          created_at?: string | null
+          current_semester_id?: string | null
           id?: string
           name: string
+          program_id?: string | null
+          start_date?: string | null
         }
         Update: {
-          created_at?: string
-          description?: string | null
+          created_at?: string | null
+          current_semester_id?: string | null
           id?: string
           name?: string
+          program_id?: string | null
+          start_date?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "batches_current_semester_id_fkey"
+            columns: ["current_semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batches_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chapter_progress: {
+        Row: {
+          attempts: number | null
+          chapter_id: string
+          completed_at: string | null
+          last_attempt_at: string | null
+          mastery_score: number | null
+          user_id: string
+        }
+        Insert: {
+          attempts?: number | null
+          chapter_id: string
+          completed_at?: string | null
+          last_attempt_at?: string | null
+          mastery_score?: number | null
+          user_id: string
+        }
+        Update: {
+          attempts?: number | null
+          chapter_id?: string
+          completed_at?: string | null
+          last_attempt_at?: string | null
+          mastery_score?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_progress_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chapters: {
         Row: {
-          created_at: string
-          display_order: number
+          created_at: string | null
+          display_order: number | null
           id: string
-          status: Database["public"]["Enums"]["chapter_status"]
-          subject_id: string
+          status: string | null
+          subject_id: string | null
           summary_md: string | null
           title: string
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
-          created_at?: string
-          display_order?: number
+          created_at?: string | null
+          display_order?: number | null
           id?: string
-          status?: Database["public"]["Enums"]["chapter_status"]
-          subject_id: string
+          status?: string | null
+          subject_id?: string | null
           summary_md?: string | null
           title: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
-          created_at?: string
-          display_order?: number
+          created_at?: string | null
+          display_order?: number | null
           id?: string
-          status?: Database["public"]["Enums"]["chapter_status"]
-          subject_id?: string
+          status?: string | null
+          subject_id?: string | null
           summary_md?: string | null
           title?: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -76,33 +132,121 @@ export type Database = {
           },
         ]
       }
+      flashcard_reviews: {
+        Row: {
+          difficulty: number | null
+          elapsed_days: number | null
+          flashcard_id: string
+          lapses: number | null
+          last_review: string | null
+          next_review_at: string | null
+          reps: number | null
+          scheduled_days: number | null
+          stability: number | null
+          state: string | null
+          user_id: string
+        }
+        Insert: {
+          difficulty?: number | null
+          elapsed_days?: number | null
+          flashcard_id: string
+          lapses?: number | null
+          last_review?: string | null
+          next_review_at?: string | null
+          reps?: number | null
+          scheduled_days?: number | null
+          stability?: number | null
+          state?: string | null
+          user_id: string
+        }
+        Update: {
+          difficulty?: number | null
+          elapsed_days?: number | null
+          flashcard_id?: string
+          lapses?: number | null
+          last_review?: string | null
+          next_review_at?: string | null
+          reps?: number | null
+          scheduled_days?: number | null
+          stability?: number | null
+          state?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcard_reviews_flashcard_id_fkey"
+            columns: ["flashcard_id"]
+            isOneToOne: false
+            referencedRelation: "flashcards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      flashcards: {
+        Row: {
+          back: string
+          card_type: string | null
+          chapter_id: string | null
+          created_at: string | null
+          front: string
+          hint: string | null
+          id: string
+          status: string | null
+        }
+        Insert: {
+          back: string
+          card_type?: string | null
+          chapter_id?: string | null
+          created_at?: string | null
+          front: string
+          hint?: string | null
+          id?: string
+          status?: string | null
+        }
+        Update: {
+          back?: string
+          card_type?: string | null
+          chapter_id?: string | null
+          created_at?: string | null
+          front?: string
+          hint?: string | null
+          id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcards_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invite_codes: {
         Row: {
           batch_id: string | null
           code: string
-          created_at: string
+          created_at: string | null
           expires_at: string | null
-          id: string
-          max_uses: number
-          used_count: number
+          max_uses: number | null
+          used_count: number | null
         }
         Insert: {
           batch_id?: string | null
           code: string
-          created_at?: string
+          created_at?: string | null
           expires_at?: string | null
-          id?: string
-          max_uses?: number
-          used_count?: number
+          max_uses?: number | null
+          used_count?: number | null
         }
         Update: {
           batch_id?: string | null
           code?: string
-          created_at?: string
+          created_at?: string | null
           expires_at?: string | null
-          id?: string
-          max_uses?: number
-          used_count?: number
+          max_uses?: number | null
+          used_count?: number | null
         }
         Relationships: [
           {
@@ -117,30 +261,30 @@ export type Database = {
       profiles: {
         Row: {
           batch_id: string | null
-          created_at: string
-          display_name: string
-          email: string
+          created_at: string | null
+          display_name: string | null
+          email: string | null
           id: string
-          student_type: Database["public"]["Enums"]["student_type"]
-          updated_at: string
+          role: string | null
+          student_type: string | null
         }
         Insert: {
           batch_id?: string | null
-          created_at?: string
-          display_name?: string
-          email: string
+          created_at?: string | null
+          display_name?: string | null
+          email?: string | null
           id: string
-          student_type?: Database["public"]["Enums"]["student_type"]
-          updated_at?: string
+          role?: string | null
+          student_type?: string | null
         }
         Update: {
           batch_id?: string | null
-          created_at?: string
-          display_name?: string
-          email?: string
+          created_at?: string | null
+          display_name?: string | null
+          email?: string | null
           id?: string
-          student_type?: Database["public"]["Enums"]["student_type"]
-          updated_at?: string
+          role?: string | null
+          student_type?: string | null
         }
         Relationships: [
           {
@@ -152,84 +296,192 @@ export type Database = {
           },
         ]
       }
-      semesters: {
+      programs: {
         Row: {
-          created_at: string
+          created_at: string | null
           id: string
-          name: string | null
-          number: number
-          updated_at: string
+          name: string
+          total_semesters: number
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           id?: string
-          name?: string | null
-          number: number
-          updated_at?: string
+          name: string
+          total_semesters?: number
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           id?: string
-          name?: string | null
-          number?: number
-          updated_at?: string
+          name?: string
+          total_semesters?: number
         }
         Relationships: []
       }
+      questions: {
+        Row: {
+          chapter_id: string | null
+          correct_index: number
+          created_at: string | null
+          difficulty: string | null
+          explanation: string | null
+          id: string
+          options: Json
+          prompt: string
+          status: string | null
+        }
+        Insert: {
+          chapter_id?: string | null
+          correct_index: number
+          created_at?: string | null
+          difficulty?: string | null
+          explanation?: string | null
+          id?: string
+          options: Json
+          prompt: string
+          status?: string | null
+        }
+        Update: {
+          chapter_id?: string | null
+          correct_index?: number
+          created_at?: string | null
+          difficulty?: string | null
+          explanation?: string | null
+          id?: string
+          options?: Json
+          prompt?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_attempts: {
+        Row: {
+          answers: Json | null
+          attempted_at: string | null
+          chapter_id: string | null
+          id: string
+          score: number
+          total_questions: number
+          user_id: string | null
+        }
+        Insert: {
+          answers?: Json | null
+          attempted_at?: string | null
+          chapter_id?: string | null
+          id?: string
+          score: number
+          total_questions: number
+          user_id?: string | null
+        }
+        Update: {
+          answers?: Json | null
+          attempted_at?: string | null
+          chapter_id?: string | null
+          id?: string
+          score?: number
+          total_questions?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_attempts_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      semesters: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          number: number
+          program_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          number: number
+          program_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          number?: number
+          program_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "semesters_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       streaks: {
         Row: {
-          current_streak: number
+          current_streak: number | null
+          freezes_available: number | null
           last_active_date: string | null
-          longest_streak: number
-          updated_at: string
+          longest_streak: number | null
           user_id: string
         }
         Insert: {
-          current_streak?: number
+          current_streak?: number | null
+          freezes_available?: number | null
           last_active_date?: string | null
-          longest_streak?: number
-          updated_at?: string
+          longest_streak?: number | null
           user_id: string
         }
         Update: {
-          current_streak?: number
+          current_streak?: number | null
+          freezes_available?: number | null
           last_active_date?: string | null
-          longest_streak?: number
-          updated_at?: string
+          longest_streak?: number | null
           user_id?: string
         }
         Relationships: []
       }
       subjects: {
         Row: {
-          created_at: string
+          created_at: string | null
           description: string | null
-          display_order: number
+          display_order: number | null
           icon: string | null
           id: string
           name: string
-          semester_id: string
-          updated_at: string
+          semester_id: string | null
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           description?: string | null
-          display_order?: number
+          display_order?: number | null
           icon?: string | null
           id?: string
           name: string
-          semester_id: string
-          updated_at?: string
+          semester_id?: string | null
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           description?: string | null
-          display_order?: number
+          display_order?: number | null
           icon?: string | null
           id?: string
           name?: string
-          semester_id?: string
-          updated_at?: string
+          semester_id?: string | null
         }
         Relationships: [
           {
@@ -241,24 +493,62 @@ export type Database = {
           },
         ]
       }
-      user_roles: {
+      tutor_messages: {
         Row: {
-          created_at: string
+          chapter_id: string | null
+          content: string
+          created_at: string | null
           id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
+          role: string
+          user_id: string | null
         }
         Insert: {
-          created_at?: string
+          chapter_id?: string | null
+          content: string
+          created_at?: string | null
           id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
+          role: string
+          user_id?: string | null
         }
         Update: {
-          created_at?: string
+          chapter_id?: string | null
+          content?: string
+          created_at?: string | null
           id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
+          role?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tutor_messages_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      xp_events: {
+        Row: {
+          amount: number
+          id: string
+          occurred_at: string | null
+          source: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          id?: string
+          occurred_at?: string | null
+          source?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          id?: string
+          occurred_at?: string | null
+          source?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -267,18 +557,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "instructor" | "student"
-      chapter_status: "draft" | "published"
-      student_type: "internal" | "external"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -405,10 +687,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: ["admin", "instructor", "student"],
-      chapter_status: ["draft", "published"],
-      student_type: ["internal", "external"],
-    },
+    Enums: {},
   },
 } as const
