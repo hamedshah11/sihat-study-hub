@@ -46,7 +46,7 @@ function ProfilePage() {
     navigate({ to: "/login" });
   };
 
-  const elevatedRole = data?.roles.find((r) => r === "admin" || r === "instructor");
+  const elevatedRole = data?.role === "admin" || data?.role === "instructor" ? data.role : null;
 
   return (
     <div>
