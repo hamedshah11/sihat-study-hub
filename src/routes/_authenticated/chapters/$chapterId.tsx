@@ -94,7 +94,7 @@ function ChapterDetail() {
         </TabsContent>
 
         <TabsContent value="quiz"><ChapterQuiz chapterId={chapterId} /></TabsContent>
-        <TabsContent value="flashcards"><ComingSoon icon={<Brain className="size-8" />} label="Flashcards coming soon" /></TabsContent>
+        <TabsContent value="flashcards"><ChapterFlashcards chapterId={chapterId} /></TabsContent>
         <TabsContent value="tutor"><ComingSoon icon={<Sparkles className="size-8" />} label="Tutor coming soon" /></TabsContent>
       </Tabs>
     </div>
