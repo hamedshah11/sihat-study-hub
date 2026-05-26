@@ -62,10 +62,22 @@ function SignUp() {
       });
       if (error) { toast.error(error.message); return; }
 
-      if (parsed.data.inviteCode && data.user?.id) {
-        const res = await apply({ data: { userId: data.user.id, code: parsed.data.inviteCode } });
-        if (!res.ok) toast.warning(`Invite code ${res.reason.replace("_", " ")} — continuing as external.`);
-        else toast.success("Invite code applied.");
+      if (data.user?.id) {
+        if (parsed.data.inviteCode) {
+          const res = await apply({ data: { userId: data.user.id, code: parsed.data.inviteCode } });
+          if (!res.ok) {
+            const message =
+              res.reason === "not_found" ? "That invite code doesn't exist. Check it and try again, or continue without one."
+              : res.reason === "expired" ? "That invite code has expired. Ask your coordinator for a new one."
+              : "That invite code has reached its maximum uses. Ask your coordinator for a new one.";
+            toast.error(message);
+            await markExternal({ data: { userId: data.user.id } });
+          } else {
+            toast.success("Invite code applied — you're enrolled as an internal student.");
+          }
+        } else {
+          await markExternal({ data: { userId: data.user.id } });
+        }
       }
 
       if (data.session) {
