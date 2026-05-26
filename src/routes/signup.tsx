@@ -28,6 +28,7 @@ const schema = z.object({
 function SignUp() {
   const navigate = useNavigate();
   const apply = useServerFn(applyInviteCode);
+  const markExternal = useServerFn(markExternalStudent);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
