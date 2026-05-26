@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, Sparkles, Brain } from "lucide-react";
+import { ChevronLeft, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChapterQuiz } from "@/components/ChapterQuiz";
+import { ChapterFlashcards } from "@/components/ChapterFlashcards";
 
 export const Route = createFileRoute("/_authenticated/chapters/$chapterId")({
   head: () => ({ meta: [{ title: "Chapter — Sihat" }] }),
@@ -93,7 +94,7 @@ function ChapterDetail() {
         </TabsContent>
 
         <TabsContent value="quiz"><ChapterQuiz chapterId={chapterId} /></TabsContent>
-        <TabsContent value="flashcards"><ComingSoon icon={<Brain className="size-8" />} label="Flashcards coming soon" /></TabsContent>
+        <TabsContent value="flashcards"><ChapterFlashcards chapterId={chapterId} /></TabsContent>
         <TabsContent value="tutor"><ComingSoon icon={<Sparkles className="size-8" />} label="Tutor coming soon" /></TabsContent>
       </Tabs>
     </div>
