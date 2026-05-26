@@ -14,16 +14,164 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      batches: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      invite_codes: {
+        Row: {
+          batch_id: string | null
+          code: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          max_uses: number
+          used_count: number
+        }
+        Insert: {
+          batch_id?: string | null
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number
+          used_count?: number
+        }
+        Update: {
+          batch_id?: string | null
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          max_uses?: number
+          used_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invite_codes_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          batch_id: string | null
+          created_at: string
+          display_name: string
+          email: string
+          id: string
+          student_type: Database["public"]["Enums"]["student_type"]
+          updated_at: string
+        }
+        Insert: {
+          batch_id?: string | null
+          created_at?: string
+          display_name?: string
+          email: string
+          id: string
+          student_type?: Database["public"]["Enums"]["student_type"]
+          updated_at?: string
+        }
+        Update: {
+          batch_id?: string | null
+          created_at?: string
+          display_name?: string
+          email?: string
+          id?: string
+          student_type?: Database["public"]["Enums"]["student_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      streaks: {
+        Row: {
+          current_streak: number
+          last_active_date: string | null
+          longest_streak: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          current_streak?: number
+          last_active_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          current_streak?: number
+          last_active_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "instructor" | "student"
+      student_type: "internal" | "external"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +298,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "instructor", "student"],
+      student_type: ["internal", "external"],
+    },
   },
 } as const
