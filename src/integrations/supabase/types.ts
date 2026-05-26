@@ -35,6 +35,47 @@ export type Database = {
         }
         Relationships: []
       }
+      chapters: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          status: Database["public"]["Enums"]["chapter_status"]
+          subject_id: string
+          summary_md: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          status?: Database["public"]["Enums"]["chapter_status"]
+          subject_id: string
+          summary_md?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          status?: Database["public"]["Enums"]["chapter_status"]
+          subject_id?: string
+          summary_md?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapters_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invite_codes: {
         Row: {
           batch_id: string | null
@@ -111,6 +152,30 @@ export type Database = {
           },
         ]
       }
+      semesters: {
+        Row: {
+          created_at: string
+          id: string
+          name: string | null
+          number: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name?: string | null
+          number: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string | null
+          number?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       streaks: {
         Row: {
           current_streak: number
@@ -134,6 +199,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      subjects: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          icon: string | null
+          id: string
+          name: string
+          semester_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          icon?: string | null
+          id?: string
+          name: string
+          semester_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          icon?: string | null
+          id?: string
+          name?: string
+          semester_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subjects_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -171,6 +277,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "instructor" | "student"
+      chapter_status: "draft" | "published"
       student_type: "internal" | "external"
     }
     CompositeTypes: {
@@ -300,6 +407,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "instructor", "student"],
+      chapter_status: ["draft", "published"],
       student_type: ["internal", "external"],
     },
   },
