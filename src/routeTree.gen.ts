@@ -9,38 +9,177 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedTutorRouteImport } from './routes/_authenticated/tutor'
+import { Route as AuthenticatedSubjectsRouteImport } from './routes/_authenticated/subjects'
+import { Route as AuthenticatedProgressRouteImport } from './routes/_authenticated/progress'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
 
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedTutorRoute = AuthenticatedTutorRouteImport.update({
+  id: '/tutor',
+  path: '/tutor',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSubjectsRoute = AuthenticatedSubjectsRouteImport.update({
+  id: '/subjects',
+  path: '/subjects',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedProgressRoute = AuthenticatedProgressRouteImport.update({
+  id: '/progress',
+  path: '/progress',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedHomeRoute = AuthenticatedHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/signup': typeof SignupRoute
+  '/home': typeof AuthenticatedHomeRoute
+  '/profile': typeof AuthenticatedProfileRoute
+  '/progress': typeof AuthenticatedProgressRoute
+  '/subjects': typeof AuthenticatedSubjectsRoute
+  '/tutor': typeof AuthenticatedTutorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/signup': typeof SignupRoute
+  '/home': typeof AuthenticatedHomeRoute
+  '/profile': typeof AuthenticatedProfileRoute
+  '/progress': typeof AuthenticatedProgressRoute
+  '/subjects': typeof AuthenticatedSubjectsRoute
+  '/tutor': typeof AuthenticatedTutorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/signup': typeof SignupRoute
+  '/_authenticated/home': typeof AuthenticatedHomeRoute
+  '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/_authenticated/progress': typeof AuthenticatedProgressRoute
+  '/_authenticated/subjects': typeof AuthenticatedSubjectsRoute
+  '/_authenticated/tutor': typeof AuthenticatedTutorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/reset-password'
+    | '/signup'
+    | '/home'
+    | '/profile'
+    | '/progress'
+    | '/subjects'
+    | '/tutor'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/login'
+    | '/reset-password'
+    | '/signup'
+    | '/home'
+    | '/profile'
+    | '/progress'
+    | '/subjects'
+    | '/tutor'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/login'
+    | '/reset-password'
+    | '/signup'
+    | '/_authenticated/home'
+    | '/_authenticated/profile'
+    | '/_authenticated/progress'
+    | '/_authenticated/subjects'
+    | '/_authenticated/tutor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  SignupRoute: typeof SignupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +187,71 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/tutor': {
+      id: '/_authenticated/tutor'
+      path: '/tutor'
+      fullPath: '/tutor'
+      preLoaderRoute: typeof AuthenticatedTutorRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/subjects': {
+      id: '/_authenticated/subjects'
+      path: '/subjects'
+      fullPath: '/subjects'
+      preLoaderRoute: typeof AuthenticatedSubjectsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/progress': {
+      id: '/_authenticated/progress'
+      path: '/progress'
+      fullPath: '/progress'
+      preLoaderRoute: typeof AuthenticatedProgressRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/home': {
+      id: '/_authenticated/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof AuthenticatedHomeRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
+interface AuthenticatedRouteChildren {
+  AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
+  AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedProgressRoute: typeof AuthenticatedProgressRoute
+  AuthenticatedSubjectsRoute: typeof AuthenticatedSubjectsRoute
+  AuthenticatedTutorRoute: typeof AuthenticatedTutorRoute
+}
+
+const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedHomeRoute: AuthenticatedHomeRoute,
+  AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedProgressRoute: AuthenticatedProgressRoute,
+  AuthenticatedSubjectsRoute: AuthenticatedSubjectsRoute,
+  AuthenticatedTutorRoute: AuthenticatedTutorRoute,
+}
+
+const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
+  AuthenticatedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  LoginRoute: LoginRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  SignupRoute: SignupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
