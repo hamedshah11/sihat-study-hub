@@ -12,7 +12,7 @@ export const applyInviteCode = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { data: invite, error: inviteErr } = await supabaseAdmin
       .from("invite_codes")
-      .select("id, batch_id, used_count, max_uses, expires_at")
+      .select("code, batch_id, used_count, max_uses, expires_at")
       .eq("code", data.code)
       .maybeSingle();
 
@@ -21,7 +21,7 @@ export const applyInviteCode = createServerFn({ method: "POST" })
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
       return { ok: false, reason: "expired" as const };
     }
-    if (invite.used_count >= invite.max_uses) {
+    if ((invite.used_count ?? 0) >= (invite.max_uses ?? 0)) {
       return { ok: false, reason: "exhausted" as const };
     }
 
@@ -33,8 +33,8 @@ export const applyInviteCode = createServerFn({ method: "POST" })
 
     const { error: incErr } = await supabaseAdmin
       .from("invite_codes")
-      .update({ used_count: invite.used_count + 1 })
-      .eq("id", invite.id);
+      .update({ used_count: (invite.used_count ?? 0) + 1 })
+      .eq("code", invite.code);
     if (incErr) throw new Error(incErr.message);
 
     return { ok: true as const };
