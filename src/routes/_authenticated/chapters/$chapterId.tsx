@@ -3,11 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, Sparkles } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChapterQuiz } from "@/components/ChapterQuiz";
 import { ChapterFlashcards } from "@/components/ChapterFlashcards";
+import { ChapterTutor } from "@/components/ChapterTutor";
 
 export const Route = createFileRoute("/_authenticated/chapters/$chapterId")({
   head: () => ({ meta: [{ title: "Chapter — Sihat" }] }),
@@ -95,19 +96,8 @@ function ChapterDetail() {
 
         <TabsContent value="quiz"><ChapterQuiz chapterId={chapterId} /></TabsContent>
         <TabsContent value="flashcards"><ChapterFlashcards chapterId={chapterId} /></TabsContent>
-        <TabsContent value="tutor"><ComingSoon icon={<Sparkles className="size-8" />} label="Tutor coming soon" /></TabsContent>
+        <TabsContent value="tutor"><ChapterTutor chapterId={chapterId} /></TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-function ComingSoon({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <div className="mt-4 rounded-xl bg-surface p-10 text-center">
-      <div className="mx-auto inline-flex items-center justify-center rounded-full bg-muted p-4 text-muted-foreground">
-        {icon}
-      </div>
-      <p className="mt-3 text-sm text-muted-foreground">{label}</p>
     </div>
   );
 }
