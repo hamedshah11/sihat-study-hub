@@ -19,11 +19,11 @@ function ProfilePage() {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
-      const [{ data: profile }, { data: roles }, { data: batch }] = await Promise.all([
-        supabase.from("profiles").select("display_name, email, batch_id, student_type").eq("id", user.id).maybeSingle(),
-        supabase.from("user_roles").select("role").eq("user_id", user.id),
-        Promise.resolve({ data: null as { name: string } | null }),
-      ]);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("display_name, email, batch_id, student_type, role")
+        .eq("id", user.id)
+        .maybeSingle();
       let batchName: string | null = null;
       if (profile?.batch_id) {
         const { data: b } = await supabase.from("batches").select("name").eq("id", profile.batch_id).maybeSingle();
@@ -34,7 +34,7 @@ function ProfilePage() {
         email: profile?.email || user.email || "",
         batch: batchName,
         studentType: profile?.student_type,
-        roles: (roles ?? []).map((r) => r.role),
+        role: profile?.role ?? "student",
       };
     },
   });
