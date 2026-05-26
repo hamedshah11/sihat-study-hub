@@ -52,6 +52,7 @@ function SignUp() {
     }
     setSubmitting(true);
     try {
+      console.log("[signup] submitting", { email: parsed.data.email });
       const { data, error } = await supabase.auth.signUp({
         email: parsed.data.email,
         password: parsed.data.password,
@@ -60,31 +61,45 @@ function SignUp() {
           data: { display_name: parsed.data.displayName },
         },
       });
-      if (error) { toast.error(error.message); return; }
+      if (error) {
+        console.error("[signup] failed", error);
+        toast.error(error.message);
+        return;
+      }
+      console.log("[signup] success", { userId: data.user?.id, hasSession: !!data.session });
 
       if (data.user?.id) {
-        if (parsed.data.inviteCode) {
-          const res = await apply({ data: { userId: data.user.id, code: parsed.data.inviteCode } });
-          if (!res.ok) {
-            const message =
-              res.reason === "not_found" ? "That invite code doesn't exist. Check it and try again, or continue without one."
-              : res.reason === "expired" ? "That invite code has expired. Ask your coordinator for a new one."
-              : "That invite code has reached its maximum uses. Ask your coordinator for a new one.";
-            toast.error(message);
-            await markExternal({ data: { userId: data.user.id } });
+        try {
+          if (parsed.data.inviteCode) {
+            const res = await apply({ data: { userId: data.user.id, code: parsed.data.inviteCode } });
+            if (!res.ok) {
+              const message =
+                res.reason === "not_found" ? "That invite code doesn't exist. Check it and try again, or continue without one."
+                : res.reason === "expired" ? "That invite code has expired. Ask your coordinator for a new one."
+                : "That invite code has reached its maximum uses. Ask your coordinator for a new one.";
+              toast.error(message);
+              await markExternal({ data: { userId: data.user.id } }).catch((e) => console.warn("[signup] markExternal failed", e));
+            } else {
+              toast.success("Invite code applied — you're enrolled as an internal student.");
+            }
           } else {
-            toast.success("Invite code applied — you're enrolled as an internal student.");
+            await markExternal({ data: { userId: data.user.id } });
           }
-        } else {
-          await markExternal({ data: { userId: data.user.id } });
+        } catch (e) {
+          // Don't block signup completion if invite/enrollment side-effects fail.
+          console.warn("[signup] post-signup enrollment step failed", e);
         }
       }
 
       if (data.session) {
+        toast.success("Account created. Welcome!");
         navigate({ to: "/home" });
       } else {
         setSent(true);
       }
+    } catch (e) {
+      console.error("[signup] unexpected error", e);
+      toast.error(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
