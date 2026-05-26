@@ -305,10 +305,8 @@ function SecondaryCard({
 }) {
   return (
     <Link
-      // @ts-expect-error dynamic route string
-      to={to}
-      // @ts-expect-error dynamic params
-      params={params}
+      to={to as any}
+      params={params as any}
       className="flex flex-col gap-2 rounded-xl bg-surface p-4 active:scale-[0.98] transition"
     >
       <div className="inline-flex size-9 items-center justify-center rounded-full bg-muted text-primary">
