@@ -2,13 +2,18 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const Input = z.object({
+// Why service-role: invite_codes is no longer readable by authenticated users
+// (see migration tightening RLS), and we need to update profiles.student_type
+// + profiles.batch_id which are protected by a BEFORE UPDATE trigger that
+// reverts those columns for non-admins. The service-role client bypasses both.
+
+const ApplyInput = z.object({
   userId: z.string().uuid(),
   code: z.string().trim().min(1).max(64),
 });
 
 export const applyInviteCode = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => Input.parse(data))
+  .inputValidator((data: unknown) => ApplyInput.parse(data))
   .handler(async ({ data }) => {
     const { data: invite, error: inviteErr } = await supabaseAdmin
       .from("invite_codes")
@@ -17,12 +22,12 @@ export const applyInviteCode = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (inviteErr) throw new Error(inviteErr.message);
-    if (!invite) return { ok: false, reason: "not_found" as const };
+    if (!invite) return { ok: false as const, reason: "not_found" as const };
     if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
-      return { ok: false, reason: "expired" as const };
+      return { ok: false as const, reason: "expired" as const };
     }
     if ((invite.used_count ?? 0) >= (invite.max_uses ?? 0)) {
-      return { ok: false, reason: "exhausted" as const };
+      return { ok: false as const, reason: "exhausted" as const };
     }
 
     const { error: profErr } = await supabaseAdmin
@@ -37,5 +42,21 @@ export const applyInviteCode = createServerFn({ method: "POST" })
       .eq("code", invite.code);
     if (incErr) throw new Error(incErr.message);
 
+    return { ok: true as const };
+  });
+
+// Marks a freshly-signed-up user as an external student when they did not
+// supply an invite code. Uses the service-role client because student_type
+// is a protected profile column.
+const MarkInput = z.object({ userId: z.string().uuid() });
+
+export const markExternalStudent = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => MarkInput.parse(data))
+  .handler(async ({ data }) => {
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ student_type: "external" })
+      .eq("id", data.userId);
+    if (error) throw new Error(error.message);
     return { ok: true as const };
   });

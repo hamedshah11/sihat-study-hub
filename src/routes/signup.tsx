@@ -3,7 +3,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { applyInviteCode } from "@/lib/invite.functions";
+import { applyInviteCode, markExternalStudent } from "@/lib/invite.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,7 @@ const schema = z.object({
 function SignUp() {
   const navigate = useNavigate();
   const apply = useServerFn(applyInviteCode);
+  const markExternal = useServerFn(markExternalStudent);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -61,10 +62,22 @@ function SignUp() {
       });
       if (error) { toast.error(error.message); return; }
 
-      if (parsed.data.inviteCode && data.user?.id) {
-        const res = await apply({ data: { userId: data.user.id, code: parsed.data.inviteCode } });
-        if (!res.ok) toast.warning(`Invite code ${res.reason.replace("_", " ")} — continuing as external.`);
-        else toast.success("Invite code applied.");
+      if (data.user?.id) {
+        if (parsed.data.inviteCode) {
+          const res = await apply({ data: { userId: data.user.id, code: parsed.data.inviteCode } });
+          if (!res.ok) {
+            const message =
+              res.reason === "not_found" ? "That invite code doesn't exist. Check it and try again, or continue without one."
+              : res.reason === "expired" ? "That invite code has expired. Ask your coordinator for a new one."
+              : "That invite code has reached its maximum uses. Ask your coordinator for a new one.";
+            toast.error(message);
+            await markExternal({ data: { userId: data.user.id } });
+          } else {
+            toast.success("Invite code applied — you're enrolled as an internal student.");
+          }
+        } else {
+          await markExternal({ data: { userId: data.user.id } });
+        }
       }
 
       if (data.session) {

@@ -557,6 +557,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_role_admin: { Args: { _user_id: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
     }
