@@ -92,7 +92,7 @@ function ChapterDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="quiz"><ComingSoon icon={<ClipboardList className="size-8" />} label="Quiz coming soon" /></TabsContent>
+        <TabsContent value="quiz"><ChapterQuiz chapterId={chapterId} /></TabsContent>
         <TabsContent value="flashcards"><ComingSoon icon={<Brain className="size-8" />} label="Flashcards coming soon" /></TabsContent>
         <TabsContent value="tutor"><ComingSoon icon={<Sparkles className="size-8" />} label="Tutor coming soon" /></TabsContent>
       </Tabs>
