@@ -67,6 +67,10 @@ function ProfilePage() {
         )}
       </div>
 
+      {(data?.role === "admin" || data?.role === "instructor") && (
+        <TestGenerateContent />
+      )}
+
       <Button
         onClick={handleLogout}
         variant="outline"
