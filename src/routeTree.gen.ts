@@ -18,9 +18,12 @@ import { Route as AuthenticatedTutorRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedProgressRouteImport } from './routes/_authenticated/progress'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedSubjectsIndexRouteImport } from './routes/_authenticated/subjects/index'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedSubjectsSubjectIdRouteImport } from './routes/_authenticated/subjects/$subjectId'
 import { Route as AuthenticatedChaptersChapterIdRouteImport } from './routes/_authenticated/chapters/$chapterId'
+import { Route as AuthenticatedAdminInviteCodesRouteImport } from './routes/_authenticated/admin/invite-codes'
 import { Route as AuthenticatedAdminDiagnosticsRouteImport } from './routes/_authenticated/admin/diagnostics'
 
 const SignupRoute = SignupRouteImport.update({
@@ -67,12 +70,22 @@ const AuthenticatedHomeRoute = AuthenticatedHomeRouteImport.update({
   path: '/home',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedSubjectsIndexRoute =
   AuthenticatedSubjectsIndexRouteImport.update({
     id: '/subjects/',
     path: '/subjects/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
 const AuthenticatedSubjectsSubjectIdRoute =
   AuthenticatedSubjectsSubjectIdRouteImport.update({
     id: '/subjects/$subjectId',
@@ -85,11 +98,17 @@ const AuthenticatedChaptersChapterIdRoute =
     path: '/chapters/$chapterId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminInviteCodesRoute =
+  AuthenticatedAdminInviteCodesRouteImport.update({
+    id: '/invite-codes',
+    path: '/invite-codes',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminDiagnosticsRoute =
   AuthenticatedAdminDiagnosticsRouteImport.update({
-    id: '/admin/diagnostics',
-    path: '/admin/diagnostics',
-    getParentRoute: () => AuthenticatedRoute,
+    id: '/diagnostics',
+    path: '/diagnostics',
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -97,13 +116,16 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/home': typeof AuthenticatedHomeRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/progress': typeof AuthenticatedProgressRoute
   '/tutor': typeof AuthenticatedTutorRoute
   '/admin/diagnostics': typeof AuthenticatedAdminDiagnosticsRoute
+  '/admin/invite-codes': typeof AuthenticatedAdminInviteCodesRoute
   '/chapters/$chapterId': typeof AuthenticatedChaptersChapterIdRoute
   '/subjects/$subjectId': typeof AuthenticatedSubjectsSubjectIdRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
   '/subjects/': typeof AuthenticatedSubjectsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -116,8 +138,10 @@ export interface FileRoutesByTo {
   '/progress': typeof AuthenticatedProgressRoute
   '/tutor': typeof AuthenticatedTutorRoute
   '/admin/diagnostics': typeof AuthenticatedAdminDiagnosticsRoute
+  '/admin/invite-codes': typeof AuthenticatedAdminInviteCodesRoute
   '/chapters/$chapterId': typeof AuthenticatedChaptersChapterIdRoute
   '/subjects/$subjectId': typeof AuthenticatedSubjectsSubjectIdRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
   '/subjects': typeof AuthenticatedSubjectsIndexRoute
 }
 export interface FileRoutesById {
@@ -127,13 +151,16 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/home': typeof AuthenticatedHomeRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/progress': typeof AuthenticatedProgressRoute
   '/_authenticated/tutor': typeof AuthenticatedTutorRoute
   '/_authenticated/admin/diagnostics': typeof AuthenticatedAdminDiagnosticsRoute
+  '/_authenticated/admin/invite-codes': typeof AuthenticatedAdminInviteCodesRoute
   '/_authenticated/chapters/$chapterId': typeof AuthenticatedChaptersChapterIdRoute
   '/_authenticated/subjects/$subjectId': typeof AuthenticatedSubjectsSubjectIdRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/subjects/': typeof AuthenticatedSubjectsIndexRoute
 }
 export interface FileRouteTypes {
@@ -143,13 +170,16 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/admin'
     | '/home'
     | '/profile'
     | '/progress'
     | '/tutor'
     | '/admin/diagnostics'
+    | '/admin/invite-codes'
     | '/chapters/$chapterId'
     | '/subjects/$subjectId'
+    | '/admin/'
     | '/subjects/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -162,8 +192,10 @@ export interface FileRouteTypes {
     | '/progress'
     | '/tutor'
     | '/admin/diagnostics'
+    | '/admin/invite-codes'
     | '/chapters/$chapterId'
     | '/subjects/$subjectId'
+    | '/admin'
     | '/subjects'
   id:
     | '__root__'
@@ -172,13 +204,16 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/_authenticated/admin'
     | '/_authenticated/home'
     | '/_authenticated/profile'
     | '/_authenticated/progress'
     | '/_authenticated/tutor'
     | '/_authenticated/admin/diagnostics'
+    | '/_authenticated/admin/invite-codes'
     | '/_authenticated/chapters/$chapterId'
     | '/_authenticated/subjects/$subjectId'
+    | '/_authenticated/admin/'
     | '/_authenticated/subjects/'
   fileRoutesById: FileRoutesById
 }
@@ -255,12 +290,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHomeRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/subjects/': {
       id: '/_authenticated/subjects/'
       path: '/subjects'
       fullPath: '/subjects/'
       preLoaderRoute: typeof AuthenticatedSubjectsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/subjects/$subjectId': {
       id: '/_authenticated/subjects/$subjectId'
@@ -276,33 +325,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChaptersChapterIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/invite-codes': {
+      id: '/_authenticated/admin/invite-codes'
+      path: '/invite-codes'
+      fullPath: '/admin/invite-codes'
+      preLoaderRoute: typeof AuthenticatedAdminInviteCodesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/diagnostics': {
       id: '/_authenticated/admin/diagnostics'
-      path: '/admin/diagnostics'
+      path: '/diagnostics'
       fullPath: '/admin/diagnostics'
       preLoaderRoute: typeof AuthenticatedAdminDiagnosticsRouteImport
-      parentRoute: typeof AuthenticatedRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
   }
 }
 
+interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminDiagnosticsRoute: typeof AuthenticatedAdminDiagnosticsRoute
+  AuthenticatedAdminInviteCodesRoute: typeof AuthenticatedAdminInviteCodesRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+}
+
+const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminDiagnosticsRoute: AuthenticatedAdminDiagnosticsRoute,
+  AuthenticatedAdminInviteCodesRoute: AuthenticatedAdminInviteCodesRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+}
+
+const AuthenticatedAdminRouteWithChildren =
+  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
+
 interface AuthenticatedRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedProgressRoute: typeof AuthenticatedProgressRoute
   AuthenticatedTutorRoute: typeof AuthenticatedTutorRoute
-  AuthenticatedAdminDiagnosticsRoute: typeof AuthenticatedAdminDiagnosticsRoute
   AuthenticatedChaptersChapterIdRoute: typeof AuthenticatedChaptersChapterIdRoute
   AuthenticatedSubjectsSubjectIdRoute: typeof AuthenticatedSubjectsSubjectIdRoute
   AuthenticatedSubjectsIndexRoute: typeof AuthenticatedSubjectsIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedProgressRoute: AuthenticatedProgressRoute,
   AuthenticatedTutorRoute: AuthenticatedTutorRoute,
-  AuthenticatedAdminDiagnosticsRoute: AuthenticatedAdminDiagnosticsRoute,
   AuthenticatedChaptersChapterIdRoute: AuthenticatedChaptersChapterIdRoute,
   AuthenticatedSubjectsSubjectIdRoute: AuthenticatedSubjectsSubjectIdRoute,
   AuthenticatedSubjectsIndexRoute: AuthenticatedSubjectsIndexRoute,
@@ -322,13 +393,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -236,10 +236,9 @@ function SubjectNode({
             const q = qByChapter[ch.id] ?? { draft: 0, approved: 0 };
             const f = fByChapter[ch.id] ?? { draft: 0, approved: 0 };
             return (
-              <Link
+              <a
                 key={ch.id}
-                to="/admin/chapters/$chapterId"
-                params={{ chapterId: ch.id }}
+                href={`/admin/chapters/${ch.id}`}
                 className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 hover:bg-secondary"
               >
                 <div className="min-w-0">
@@ -249,7 +248,7 @@ function SubjectNode({
                   </p>
                 </div>
                 <StatusBadge status={ch.status ?? "draft"} />
-              </Link>
+              </a>
             );
           })}
         </div>
