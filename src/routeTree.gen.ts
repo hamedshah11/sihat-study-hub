@@ -25,6 +25,7 @@ import { Route as AuthenticatedSubjectsSubjectIdRouteImport } from './routes/_au
 import { Route as AuthenticatedChaptersChapterIdRouteImport } from './routes/_authenticated/chapters/$chapterId'
 import { Route as AuthenticatedAdminInviteCodesRouteImport } from './routes/_authenticated/admin/invite-codes'
 import { Route as AuthenticatedAdminDiagnosticsRouteImport } from './routes/_authenticated/admin/diagnostics'
+import { Route as AuthenticatedAdminChaptersChapterIdRouteImport } from './routes/_authenticated/admin/chapters/$chapterId'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -110,6 +111,12 @@ const AuthenticatedAdminDiagnosticsRoute =
     path: '/diagnostics',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminChaptersChapterIdRoute =
+  AuthenticatedAdminChaptersChapterIdRouteImport.update({
+    id: '/chapters/$chapterId',
+    path: '/chapters/$chapterId',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/subjects/$subjectId': typeof AuthenticatedSubjectsSubjectIdRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/subjects/': typeof AuthenticatedSubjectsIndexRoute
+  '/admin/chapters/$chapterId': typeof AuthenticatedAdminChaptersChapterIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -143,6 +151,7 @@ export interface FileRoutesByTo {
   '/subjects/$subjectId': typeof AuthenticatedSubjectsSubjectIdRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/subjects': typeof AuthenticatedSubjectsIndexRoute
+  '/admin/chapters/$chapterId': typeof AuthenticatedAdminChaptersChapterIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -162,6 +171,7 @@ export interface FileRoutesById {
   '/_authenticated/subjects/$subjectId': typeof AuthenticatedSubjectsSubjectIdRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/subjects/': typeof AuthenticatedSubjectsIndexRoute
+  '/_authenticated/admin/chapters/$chapterId': typeof AuthenticatedAdminChaptersChapterIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -181,6 +191,7 @@ export interface FileRouteTypes {
     | '/subjects/$subjectId'
     | '/admin/'
     | '/subjects/'
+    | '/admin/chapters/$chapterId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/subjects/$subjectId'
     | '/admin'
     | '/subjects'
+    | '/admin/chapters/$chapterId'
   id:
     | '__root__'
     | '/'
@@ -215,6 +227,7 @@ export interface FileRouteTypes {
     | '/_authenticated/subjects/$subjectId'
     | '/_authenticated/admin/'
     | '/_authenticated/subjects/'
+    | '/_authenticated/admin/chapters/$chapterId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -339,6 +352,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDiagnosticsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/chapters/$chapterId': {
+      id: '/_authenticated/admin/chapters/$chapterId'
+      path: '/chapters/$chapterId'
+      fullPath: '/admin/chapters/$chapterId'
+      preLoaderRoute: typeof AuthenticatedAdminChaptersChapterIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
   }
 }
 
@@ -346,12 +366,15 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminDiagnosticsRoute: typeof AuthenticatedAdminDiagnosticsRoute
   AuthenticatedAdminInviteCodesRoute: typeof AuthenticatedAdminInviteCodesRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminChaptersChapterIdRoute: typeof AuthenticatedAdminChaptersChapterIdRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminDiagnosticsRoute: AuthenticatedAdminDiagnosticsRoute,
   AuthenticatedAdminInviteCodesRoute: AuthenticatedAdminInviteCodesRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedAdminChaptersChapterIdRoute:
+    AuthenticatedAdminChaptersChapterIdRoute,
 }
 
 const AuthenticatedAdminRouteWithChildren =
