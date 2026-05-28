@@ -56,7 +56,7 @@ function BottomNav() {
         {items.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
-            to={to}
+            to={to as "/home"}
             className="flex flex-col items-center gap-1 px-3 py-1 text-xs text-muted-foreground data-[status=active]:text-accent"
           >
             <Icon className="size-5" />
@@ -88,7 +88,7 @@ function SideNav() {
         {items.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
-            to={to}
+            to={to as "/home"}
             className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground hover:bg-secondary data-[status=active]:bg-secondary data-[status=active]:text-accent"
           >
             <Icon className="size-4" />
