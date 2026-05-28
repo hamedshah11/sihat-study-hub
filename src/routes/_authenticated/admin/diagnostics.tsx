@@ -1,10 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { requireAdmin } from "@/lib/admin.functions";
-import { Shield, CheckCircle2, XCircle, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Shield, CheckCircle2, XCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/diagnostics")({
   beforeLoad: async () => {
