@@ -152,15 +152,25 @@ RULES:
         if (!q?.prompt || opts.length !== 4 || !Number.isInteger(ci) || ci < 0 || ci > 3) {
           return null;
         }
+        // Fisher-Yates shuffle so the correct answer is evenly distributed
+        // across positions regardless of model bias.
+        const correctValue = opts[ci];
+        const shuffled = opts.slice();
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        const newCorrectIndex = shuffled.indexOf(correctValue);
         return {
           chapter_id: chapterId,
           status: "draft",
           prompt: String(q.prompt),
-          options: opts,
-          correct_index: ci,
+          options: shuffled,
+          correct_index: newCorrectIndex,
           explanation: q?.explanation ? String(q.explanation) : null,
           difficulty: ["easy", "medium", "hard"].includes(diff) ? diff : "medium",
         };
+
       })
       .filter(Boolean);
 
