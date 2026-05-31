@@ -96,6 +96,8 @@ export function ChapterTutor({ chapterId }: { chapterId: string }) {
         qc.invalidateQueries({ queryKey: ["tutor-messages", chapterId] }),
         qc.invalidateQueries({ queryKey: ["tutor-today-count", chapterId] }),
       ]);
+      await recordStudyActivity("tutor");
+      await awardBadgesIfNeeded();
     } catch (err: any) {
       setError(err?.message || "Network error. Please try again.");
     } finally {
