@@ -2,6 +2,7 @@
 // Admin/instructor-only. Generates a chapter summary, 30 MCQs, and 50 flashcards
 // from source material using Anthropic Claude, and saves them as drafts.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { shuffleOptions } from "../_shared/shuffle.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -152,24 +153,18 @@ RULES:
         if (!q?.prompt || opts.length !== 4 || !Number.isInteger(ci) || ci < 0 || ci > 3) {
           return null;
         }
-        // Fisher-Yates shuffle so the correct answer is evenly distributed
-        // across positions regardless of model bias.
-        const correctValue = opts[ci];
-        const shuffled = opts.slice();
-        for (let i = shuffled.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        const newCorrectIndex = shuffled.indexOf(correctValue);
+        // Shuffle to counter LLM positional bias (correct answer skewing to B/C).
+        const shuffled = shuffleOptions({ options: opts, correct_index: ci });
         return {
           chapter_id: chapterId,
           status: "draft",
           prompt: String(q.prompt),
-          options: shuffled,
-          correct_index: newCorrectIndex,
+          options: shuffled.options,
+          correct_index: shuffled.correct_index,
           explanation: q?.explanation ? String(q.explanation) : null,
           difficulty: ["easy", "medium", "hard"].includes(diff) ? diff : "medium",
         };
+
 
       })
       .filter(Boolean);

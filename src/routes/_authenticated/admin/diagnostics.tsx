@@ -1,8 +1,11 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { requireAdmin } from "@/lib/admin.functions";
-import { Shield, CheckCircle2, XCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Shield, CheckCircle2, XCircle, Loader2, Shuffle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/diagnostics")({
   beforeLoad: async () => {
@@ -145,6 +148,24 @@ function DiagnosticsPage() {
 
   const entries = checks ? Object.entries(checks) : [];
 
+  const [reshuffling, setReshuffling] = useState(false);
+
+  const handleReshuffle = async () => {
+    setReshuffling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "backfill-question-options",
+      );
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Reshuffled ${data?.updated ?? 0} questions`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to reshuffle questions");
+    } finally {
+      setReshuffling(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center gap-2">
@@ -154,6 +175,36 @@ function DiagnosticsPage() {
       <p className="mt-1 text-sm text-muted-foreground">
         Admin-only system health checks.
       </p>
+
+      <div className="mt-6 rounded-xl bg-surface p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">
+              Reshuffle MCQ options
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Safe to run once to fix LLM positional bias on existing questions.
+              This button can be removed afterwards.
+            </p>
+          </div>
+          <Button
+            onClick={handleReshuffle}
+            disabled={reshuffling}
+            size="sm"
+            className="shrink-0"
+          >
+            {reshuffling ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Shuffle className="size-4" />
+            )}
+            <span className="ml-2">
+              {reshuffling ? "Reshuffling…" : "Reshuffle all MCQ options"}
+            </span>
+          </Button>
+        </div>
+      </div>
+
 
       <div className="mt-6 space-y-3">
         {isLoading &&
