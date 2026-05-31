@@ -1,13 +1,22 @@
-// Simple spaced repetition scheduler. Replace with full FSRS later.
-// All inputs/outputs are intentionally small and serializable so they map
-// directly onto rows in the `flashcard_reviews` table.
+// FSRS-6 scheduler backed by ts-fsrs. The exported shape is kept stable so
+// that callers (e.g. ChapterFlashcards.tsx) and the `flashcard_reviews` row
+// schema continue to work without any change.
+
+import {
+  createEmptyCard,
+  fsrs,
+  generatorParameters,
+  Rating as FsrsRating,
+  State as FsrsState,
+  type Card as FsrsCard,
+} from "ts-fsrs";
 
 export type Rating = "again" | "hard" | "good" | "easy";
 
 export type ReviewState = {
   reps: number;
   lapses: number;
-  state: "new" | "learning" | "review";
+  state: "new" | "learning" | "review" | "relearning";
   stability: number;
   difficulty: number;
   scheduled_days: number;
@@ -16,69 +25,81 @@ export type ReviewState = {
   next_review_at: string; // YYYY-MM-DD
 };
 
-const INTERVALS: Record<Rating, number> = {
-  again: 1,
-  hard: 2,
-  good: 4,
-  easy: 7,
+export const SESSION_SIZE = 10;
+
+const f = fsrs(generatorParameters({ enable_fuzz: true }));
+
+const RATING_TO_GRADE: Record<Rating, FsrsRating> = {
+  again: FsrsRating.Again,
+  hard: FsrsRating.Hard,
+  good: FsrsRating.Good,
+  easy: FsrsRating.Easy,
 };
 
-function addDaysISO(days: number): string {
-  const d = new Date();
-  d.setUTCHours(0, 0, 0, 0);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
+function mapStringToState(s: ReviewState["state"] | string | null | undefined): FsrsState {
+  switch (s) {
+    case "learning":
+      return FsrsState.Learning;
+    case "review":
+      return FsrsState.Review;
+    case "relearning":
+      return FsrsState.Relearning;
+    case "new":
+    default:
+      return FsrsState.New;
+  }
 }
 
-function daysBetween(fromISO: string | null): number {
-  if (!fromISO) return 0;
-  const from = new Date(fromISO).getTime();
-  const now = Date.now();
-  return Math.max(0, Math.floor((now - from) / 86400000));
+function mapStateToString(s: FsrsState): ReviewState["state"] {
+  switch (s) {
+    case FsrsState.Learning:
+      return "learning";
+    case FsrsState.Review:
+      return "review";
+    case FsrsState.Relearning:
+      return "relearning";
+    case FsrsState.New:
+    default:
+      return "new";
+  }
 }
 
 export function schedule(
   prev: Partial<ReviewState> | null,
   rating: Rating,
 ): ReviewState {
-  const reps = (prev?.reps ?? 0) + 1;
-  const lapses = (prev?.lapses ?? 0) + (rating === "again" ? 1 : 0);
-  const scheduled_days = INTERVALS[rating];
-  const elapsed_days = daysBetween(prev?.last_review ?? null);
-  const nowISO = new Date().toISOString();
+  const now = new Date();
+  const grade = RATING_TO_GRADE[rating];
 
-  // Lightweight stability/difficulty tracking so a future FSRS swap has
-  // something to read. Values are bounded but not used for scheduling yet.
-  const baseDifficulty = prev?.difficulty ?? 5;
-  const difficulty = Math.min(
-    10,
-    Math.max(
-      1,
-      rating === "again"
-        ? baseDifficulty + 1.5
-        : rating === "hard"
-          ? baseDifficulty + 0.5
-          : rating === "easy"
-            ? baseDifficulty - 0.5
-            : baseDifficulty,
-    ),
-  );
-  const stability = rating === "again" ? 1 : (prev?.stability ?? 0) + scheduled_days;
+  let card: FsrsCard;
+  if (!prev) {
+    card = createEmptyCard(now);
+  } else {
+    card = {
+      due: prev.next_review_at ? new Date(prev.next_review_at) : now,
+      stability: prev.stability ?? 0,
+      difficulty: prev.difficulty ?? 0,
+      elapsed_days: prev.elapsed_days ?? 0,
+      scheduled_days: prev.scheduled_days ?? 0,
+      reps: prev.reps ?? 0,
+      lapses: prev.lapses ?? 0,
+      state: mapStringToState(prev.state),
+      last_review: prev.last_review ? new Date(prev.last_review) : undefined,
+      learning_steps: 0,
+    } as FsrsCard;
+  }
 
-  const state: ReviewState["state"] =
-    rating === "again" ? "learning" : reps >= 2 ? "review" : "learning";
+  const { card: next } = f.next(card, now, grade);
 
   return {
-    reps,
-    lapses,
-    state,
-    stability,
-    difficulty,
-    scheduled_days,
-    elapsed_days,
-    last_review: nowISO,
-    next_review_at: addDaysISO(scheduled_days),
+    reps: next.reps,
+    lapses: next.lapses,
+    state: mapStateToString(next.state),
+    stability: next.stability,
+    difficulty: next.difficulty,
+    scheduled_days: next.scheduled_days,
+    elapsed_days: next.elapsed_days,
+    last_review: now.toISOString(),
+    next_review_at: next.due.toISOString().slice(0, 10),
   };
 }
-
-export const SESSION_SIZE = 10;
