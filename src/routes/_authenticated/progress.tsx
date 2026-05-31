@@ -184,7 +184,7 @@ function ProgressPage() {
             {weak.slice(0, 5).map((w) => (
               <div
                 key={w.chapterId}
-                className="flex items-center justify-between gap-3 rounded-xl bg-surface p-3"
+                className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{w.chapterTitle}</p>
