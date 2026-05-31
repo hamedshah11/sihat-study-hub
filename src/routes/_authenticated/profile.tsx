@@ -1,10 +1,13 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
+import { applyInviteCode } from "@/lib/invite.functions";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({ meta: [{ title: "Profile — Sihat" }] }),
@@ -66,7 +69,6 @@ function ProfilePage() {
       <div className="mt-6 rounded-xl bg-surface p-5 space-y-4">
         <Row label="Display name" value={data?.displayName} />
         <Row label="Email" value={data?.email} />
-        <Row label="Batch" value={data?.batch ?? "Not assigned"} />
         <Row label="Student type" value={data?.studentType ?? "—"} />
         {elevatedRole && (
           <div>
@@ -75,6 +77,8 @@ function ProfilePage() {
           </div>
         )}
       </div>
+
+      <BatchSection batch={data?.batch ?? null} />
 
       {(data?.role === "admin" || data?.role === "instructor") && (
         <TestGenerateContent />
@@ -125,6 +129,85 @@ function Row({ label, value }: { label: string; value?: string | null }) {
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="mt-0.5 text-foreground">{value || "—"}</p>
     </div>
+  );
+}
+
+function BatchSection({ batch }: { batch: string | null }) {
+  const qc = useQueryClient();
+  const apply = useServerFn(applyInviteCode);
+  const [showInput, setShowInput] = useState(!batch);
+  const [code, setCode] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+
+  const reasonMap: Record<string, string> = {
+    not_found: "That code isn't valid",
+    expired: "That code has expired",
+    exhausted: "That code has been used up.",
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code.trim() || submitting) return;
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not signed in");
+      const res = await apply({ data: { userId: user.id, code: code.trim() } });
+      if (res.ok) {
+        setMessage({ kind: "success", text: "Joined batch successfully." });
+        setCode("");
+        setShowInput(false);
+        await qc.invalidateQueries({ queryKey: ["profile-page"] });
+      } else {
+        setMessage({ kind: "error", text: reasonMap[res.reason] ?? "Could not apply code." });
+      }
+    } catch (err) {
+      setMessage({ kind: "error", text: err instanceof Error ? err.message : "Something went wrong." });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <section className="mt-6 rounded-xl bg-surface p-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Batch</p>
+          <p className="mt-0.5 text-foreground">{batch ?? "Not assigned"}</p>
+        </div>
+        {batch && !showInput && (
+          <button
+            type="button"
+            onClick={() => { setShowInput(true); setMessage(null); }}
+            className="text-xs text-accent hover:underline"
+          >
+            Change batch
+          </button>
+        )}
+      </div>
+
+      {showInput && (
+        <form onSubmit={handleSubmit} className="mt-3 flex gap-2">
+          <Input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Invite code"
+            disabled={submitting}
+          />
+          <Button type="submit" disabled={submitting || !code.trim()}>
+            {submitting ? <Loader2 className="size-4 animate-spin" /> : "Join batch"}
+          </Button>
+        </form>
+      )}
+
+      {message && (
+        <p className={`mt-2 text-sm ${message.kind === "success" ? "text-accent" : "text-destructive"}`}>
+          {message.text}
+        </p>
+      )}
+    </section>
   );
 }
 
