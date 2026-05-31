@@ -144,8 +144,8 @@ function QuizRunner({
     const pct = Math.round((score / total) * 100);
     const passed = pct >= 80;
     return (
-      <div className="mt-4 rounded-xl bg-surface p-6 text-center">
-        <div className="mx-auto inline-flex items-center justify-center rounded-full bg-muted p-4 text-accent">
+      <div className="mt-4 rounded-xl border bg-card p-6 text-center animate-scale-in">
+        <div className="mx-auto inline-flex items-center justify-center rounded-full bg-accent/10 p-4 text-accent">
           <Trophy className="size-8" />
         </div>
         <p className="mt-3 text-3xl font-bold text-primary">{score}/{total}</p>
