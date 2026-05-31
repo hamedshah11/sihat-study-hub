@@ -338,8 +338,7 @@ function HeroTile({
   );
 }
 
-  );
-}
+
 
 function MasteryBadge({ score }: { score: number | null }) {
   if (score === null || score === undefined) {
