@@ -3,6 +3,9 @@ project_id = "xiuofoymjrashpxvuose"
 [functions.tutor-ask]
 verify_jwt = true
 
+[functions.tutor-practice]
+verify_jwt = true
+
 [functions.generate-content]
 verify_jwt = true
 
