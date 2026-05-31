@@ -21,7 +21,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   head: () => ({ meta: [{ title: "Admin Console — Sihat" }] }),
@@ -172,6 +172,7 @@ function AdminDashboard() {
                 key={s.id}
                 subject={s}
                 semesterName={sem?.name ?? "—"}
+                semesters={tree.semesters}
                 chapters={subjectChapters}
                 qByChapter={tree.qByChapter}
                 fByChapter={tree.fByChapter}
@@ -200,12 +201,14 @@ function StatTile({ label, value, sub }: { label: string; value: string; sub?: s
 function SubjectNode({
   subject,
   semesterName,
+  semesters,
   chapters,
   qByChapter,
   fByChapter,
 }: {
   subject: SubjectRow;
   semesterName: string;
+  semesters: SemesterRow[];
   chapters: ChapterRow[];
   qByChapter: Record<string, { draft: number; approved: number }>;
   fByChapter: Record<string, { draft: number; approved: number }>;
@@ -213,11 +216,11 @@ function SubjectNode({
   const [open, setOpen] = useState(false);
   return (
     <div className="rounded-xl bg-surface">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between p-4 text-left"
-      >
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between p-4">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex flex-1 items-center gap-2 text-left"
+        >
           {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
           <div>
             <p className="font-medium text-foreground">{subject.name}</p>
@@ -225,8 +228,9 @@ function SubjectNode({
               {semesterName} · {chapters.length} chapter{chapters.length === 1 ? "" : "s"}
             </p>
           </div>
-        </div>
-      </button>
+        </button>
+        <EditSubjectDialog subject={subject} semesters={semesters} />
+      </div>
       {open && (
         <div className="border-t border-border px-2 pb-2">
           {chapters.length === 0 && (
@@ -402,6 +406,128 @@ function NewChapterDialog({ subjects }: { subjects: SubjectRow[] }) {
         <DialogFooter>
           <Button onClick={submit} disabled={busy || !title || !subjectId}>
             {busy ? "Saving…" : "Create"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditSubjectDialog({
+  subject,
+  semesters,
+}: {
+  subject: SubjectRow;
+  semesters: SemesterRow[];
+}) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [semesterId, setSemesterId] = useState(subject.semester_id ?? "");
+  const [name, setName] = useState(subject.name);
+  const [description, setDescription] = useState("");
+  const [icon, setIcon] = useState("");
+  const [order, setOrder] = useState(String(subject.display_order ?? 0));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const loadFresh = async () => {
+    const { data } = await supabase
+      .from("subjects")
+      .select("name, description, icon, display_order, semester_id")
+      .eq("id", subject.id)
+      .maybeSingle();
+    if (data) {
+      setName(data.name ?? "");
+      setDescription(data.description ?? "");
+      setIcon(data.icon ?? "");
+      setOrder(String(data.display_order ?? 0));
+      setSemesterId(data.semester_id ?? "");
+    }
+  };
+
+  const submit = async () => {
+    setBusy(true);
+    setErr(null);
+    const { error } = await supabase
+      .from("subjects")
+      .update({
+        semester_id: semesterId || null,
+        name,
+        description: description || null,
+        icon: icon || null,
+        display_order: Number(order) || 0,
+      })
+      .eq("id", subject.id);
+    setBusy(false);
+    if (error) {
+      setErr(error.message);
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["admin-content-tree"] });
+    qc.invalidateQueries({ queryKey: ["subjects-list"] });
+    setOpen(false);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) {
+          setErr(null);
+          loadFresh();
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Edit subject"
+        >
+          <Pencil className="size-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit subject</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Field label="Semester">
+            <Select value={semesterId} onValueChange={setSemesterId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select semester" />
+              </SelectTrigger>
+              <SelectContent>
+                {semesters.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Changing the semester changes which students can see this subject.
+            </p>
+          </Field>
+          <Field label="Name">
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <Field label="Description">
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+          </Field>
+          <Field label="Icon (lucide name or emoji)">
+            <Input value={icon} onChange={(e) => setIcon(e.target.value)} />
+          </Field>
+          <Field label="Display order">
+            <Input type="number" value={order} onChange={(e) => setOrder(e.target.value)} />
+          </Field>
+          {err && <p className="text-sm text-destructive">{err}</p>}
+        </div>
+        <DialogFooter>
+          <Button onClick={submit} disabled={busy || !name || !semesterId}>
+            {busy ? "Saving…" : "Save changes"}
           </Button>
         </DialogFooter>
       </DialogContent>
