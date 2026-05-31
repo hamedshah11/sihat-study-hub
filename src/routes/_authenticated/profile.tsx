@@ -152,9 +152,7 @@ function BatchSection({ batch }: { batch: string | null }) {
     setSubmitting(true);
     setMessage(null);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not signed in");
-      const res = await apply({ data: { userId: user.id, code: code.trim() } });
+      const res = await apply({ data: { code: code.trim() } });
       if (res.ok) {
         setMessage({ kind: "success", text: "Joined batch successfully." });
         setCode("");
