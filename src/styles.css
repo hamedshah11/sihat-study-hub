@@ -33,14 +33,14 @@
 }
 
 :root {
-  --radius: 0.5rem;
-  /* white */
-  --background: oklch(1 0 0);
+  --radius: 0.75rem;
+  /* warm neutral app background ~#FAFAF7 */
+  --background: oklch(0.985 0.005 90);
   /* deep navy #1F3A5F */
   --foreground: oklch(0.32 0.06 250);
-  /* light gray #F7F9FB for cards */
-  --surface: oklch(0.98 0.005 240);
-  --card: oklch(0.98 0.005 240);
+  /* white cards for figure/ground separation */
+  --surface: oklch(1 0 0);
+  --card: oklch(1 0 0);
   --card-foreground: oklch(0.32 0.06 250);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.32 0.06 250);
@@ -55,12 +55,16 @@
   /* accent = teal #2D9D9B */
   --accent: oklch(0.63 0.09 195);
   --accent-foreground: oklch(0.99 0 0);
-  --destructive: oklch(0.6 0.22 27);
+  /* warm orange #F97316 — streak only */
+  --streak: oklch(0.7 0.18 45);
+  --streak-foreground: oklch(0.99 0 0);
+  --destructive: oklch(0.6 0.18 27);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.92 0.01 240);
-  --input: oklch(0.92 0.01 240);
+  --border: oklch(0.92 0.01 90);
+  --input: oklch(0.92 0.01 90);
   --ring: oklch(0.63 0.09 195);
 }
+
 
 @layer base {
   * { border-color: var(--color-border); }
