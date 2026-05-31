@@ -69,7 +69,6 @@ function ProfilePage() {
       <div className="mt-6 rounded-xl bg-surface p-5 space-y-4">
         <Row label="Display name" value={data?.displayName} />
         <Row label="Email" value={data?.email} />
-        <Row label="Batch" value={data?.batch ?? "Not assigned"} />
         <Row label="Student type" value={data?.studentType ?? "—"} />
         {elevatedRole && (
           <div>
@@ -78,6 +77,8 @@ function ProfilePage() {
           </div>
         )}
       </div>
+
+      <BatchSection batch={data?.batch ?? null} />
 
       {(data?.role === "admin" || data?.role === "instructor") && (
         <TestGenerateContent />
