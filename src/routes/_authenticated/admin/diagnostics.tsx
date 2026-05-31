@@ -176,6 +176,36 @@ function DiagnosticsPage() {
         Admin-only system health checks.
       </p>
 
+      <div className="mt-6 rounded-xl bg-surface p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">
+              Reshuffle MCQ options
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Safe to run once to fix LLM positional bias on existing questions.
+              This button can be removed afterwards.
+            </p>
+          </div>
+          <Button
+            onClick={handleReshuffle}
+            disabled={reshuffling}
+            size="sm"
+            className="shrink-0"
+          >
+            {reshuffling ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Shuffle className="size-4" />
+            )}
+            <span className="ml-2">
+              {reshuffling ? "Reshuffling…" : "Reshuffle all MCQ options"}
+            </span>
+          </Button>
+        </div>
+      </div>
+
+
       <div className="mt-6 space-y-3">
         {isLoading &&
           Array.from({ length: 7 }).map((_, i) => (
