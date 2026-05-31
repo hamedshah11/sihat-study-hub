@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Flame, Sparkles, BookOpen, Layers, ClipboardList, MessageCircle, ArrowRight } from "lucide-react";
+import { levelFromXp } from "@/lib/levels";
 
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({ meta: [{ title: "Home — Sihat" }] }),
