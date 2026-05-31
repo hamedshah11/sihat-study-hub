@@ -80,6 +80,34 @@ function ProfilePage() {
         <TestGenerateContent />
       )}
 
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold text-primary">Badges</h2>
+        <div className="mt-3 grid grid-cols-4 gap-3">
+          {(data?.badges ?? []).map((b) => {
+            const earned = !!b.earnedAt;
+            return (
+              <div
+                key={b.id}
+                title={earned ? `Earned ${new Date(b.earnedAt!).toLocaleDateString()}` : b.description}
+                className={`flex flex-col items-center text-center rounded-xl border p-3 ${
+                  earned ? "bg-accent/10 border-accent/30" : "bg-muted/40 border-muted opacity-60"
+                }`}
+              >
+                <span className={`text-2xl ${earned ? "" : "grayscale"}`}>{b.icon}</span>
+                <p className={`mt-1 text-xs font-semibold leading-tight ${earned ? "text-foreground" : "text-muted-foreground"}`}>
+                  {b.name}
+                </p>
+                <p className="mt-1 text-[10px] text-muted-foreground leading-tight line-clamp-2">
+                  {earned
+                    ? new Date(b.earnedAt!).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                    : b.description}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       <Button
         onClick={handleLogout}
         variant="outline"
