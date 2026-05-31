@@ -84,12 +84,20 @@
   .prose h1 { @apply text-2xl font-bold text-primary mt-6 mb-3; }
   .prose h2 { @apply text-xl font-bold text-primary mt-5 mb-2; }
   .prose h3 { @apply text-lg font-semibold mt-4 mb-2; }
-  .prose p { @apply mb-3 leading-relaxed text-foreground; }
-  .prose ul { @apply list-disc pl-6 mb-3 space-y-1; }
-  .prose ol { @apply list-decimal pl-6 mb-3 space-y-1; }
+  .prose p { @apply mb-4 leading-7 text-foreground; }
+  .prose ul { @apply list-disc pl-6 mb-4 space-y-1.5 leading-7; }
+  .prose ol { @apply list-decimal pl-6 mb-4 space-y-1.5 leading-7; }
   .prose strong { @apply font-semibold; }
   .prose code { @apply px-1.5 py-0.5 rounded bg-muted text-sm font-mono; }
+
+  .card-lift { @apply transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-[0.99]; }
+  .caption { @apply text-xs uppercase tracking-wide text-muted-foreground font-medium; }
 }
+
+@layer base {
+  :focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+}
+
 
 
 @keyframes scale-in {
