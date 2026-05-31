@@ -172,6 +172,7 @@ function AdminDashboard() {
                 key={s.id}
                 subject={s}
                 semesterName={sem?.name ?? "—"}
+                semesters={tree.semesters}
                 chapters={subjectChapters}
                 qByChapter={tree.qByChapter}
                 fByChapter={tree.fByChapter}
