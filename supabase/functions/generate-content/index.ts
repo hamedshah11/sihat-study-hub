@@ -2,6 +2,7 @@
 // Admin/instructor-only. Generates a chapter summary, 30 MCQs, and 50 flashcards
 // from source material using Anthropic Claude, and saves them as drafts.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { shuffleOptions } from "../_shared/shuffle.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
