@@ -89,10 +89,10 @@ function SubjectsList() {
             key={s.id}
             to="/subjects/$subjectId"
             params={{ subjectId: s.id }}
-            className="block rounded-xl bg-surface p-5 transition-colors hover:bg-secondary"
+            className="block rounded-xl border bg-card p-5 transition-colors hover:border-accent/40 hover:bg-accent/5 active:scale-[0.99]"
           >
             <div className="flex items-start gap-3">
-              <div className="rounded-lg bg-accent/10 p-2.5">
+              <div className="inline-flex size-10 items-center justify-center rounded-lg bg-accent/10 text-accent">
                 <SubjectIcon name={s.icon} />
               </div>
               <div className="flex-1 min-w-0">
