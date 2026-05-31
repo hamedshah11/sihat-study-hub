@@ -5,3 +5,7 @@ verify_jwt = true
 
 [functions.generate-content]
 verify_jwt = true
+
+[functions.award-badges]
+verify_jwt = true
+
