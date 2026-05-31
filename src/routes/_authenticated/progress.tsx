@@ -42,9 +42,12 @@ function ProgressPage() {
 
       const xpTotal = (xpRows ?? []).reduce((acc, r: any) => acc + (r.amount ?? 0), 0);
       const quizzesCompleted = (quizAttempts ?? []).length;
-      const avgScore = quizzesCompleted > 0
-        ? Math.round((quizAttempts as any[]).reduce((acc, q) => acc + Number(q.score ?? 0), 0) / quizzesCompleted)
-        : 0;
+      const pctSum = (quizAttempts as any[] ?? []).reduce((acc, q) => {
+        const total = Number(q.total_questions ?? 0);
+        if (!total) return acc;
+        return acc + (Number(q.score ?? 0) / total) * 100;
+      }, 0);
+      const avgScore = quizzesCompleted > 0 ? Math.round(pctSum / quizzesCompleted) : 0;
       const cardsReviewed = (flashcardReviews ?? []).length;
 
       // Fetch chapter and subject names for progress rows
