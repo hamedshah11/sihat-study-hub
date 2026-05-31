@@ -132,6 +132,85 @@ function Row({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+function BatchSection({ batch }: { batch: string | null }) {
+  const qc = useQueryClient();
+  const apply = useServerFn(applyInviteCode);
+  const [showInput, setShowInput] = useState(!batch);
+  const [code, setCode] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+
+  const reasonMap: Record<string, string> = {
+    not_found: "That code isn't valid",
+    expired: "That code has expired",
+    exhausted: "That code has been used up.",
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code.trim() || submitting) return;
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not signed in");
+      const res = await apply({ data: { userId: user.id, code: code.trim() } });
+      if (res.ok) {
+        setMessage({ kind: "success", text: "Joined batch successfully." });
+        setCode("");
+        setShowInput(false);
+        await qc.invalidateQueries({ queryKey: ["profile-page"] });
+      } else {
+        setMessage({ kind: "error", text: reasonMap[res.reason] ?? "Could not apply code." });
+      }
+    } catch (err) {
+      setMessage({ kind: "error", text: err instanceof Error ? err.message : "Something went wrong." });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <section className="mt-6 rounded-xl bg-surface p-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Batch</p>
+          <p className="mt-0.5 text-foreground">{batch ?? "Not assigned"}</p>
+        </div>
+        {batch && !showInput && (
+          <button
+            type="button"
+            onClick={() => { setShowInput(true); setMessage(null); }}
+            className="text-xs text-accent hover:underline"
+          >
+            Change batch
+          </button>
+        )}
+      </div>
+
+      {showInput && (
+        <form onSubmit={handleSubmit} className="mt-3 flex gap-2">
+          <Input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Invite code"
+            disabled={submitting}
+          />
+          <Button type="submit" disabled={submitting || !code.trim()}>
+            {submitting ? <Loader2 className="size-4 animate-spin" /> : "Join batch"}
+          </Button>
+        </form>
+      )}
+
+      {message && (
+        <p className={`mt-2 text-sm ${message.kind === "success" ? "text-accent" : "text-destructive"}`}>
+          {message.text}
+        </p>
+      )}
+    </section>
+  );
+}
+
 const SAMPLE_SOURCE = `Cells are the fundamental structural, functional, and biological units of all known living organisms. Often called the "building blocks of life," cells were first described by Robert Hooke in 1665 when he observed cork tissue under a primitive microscope and noted small compartments that reminded him of monks' rooms, or "cellae." Since then, advances in microscopy and molecular biology have revealed the extraordinary complexity hidden within these microscopic units.
 
 There are two broad categories of cells: prokaryotic and eukaryotic. Prokaryotic cells, found in bacteria and archaea, lack a true nucleus and membrane-bound organelles. Their genetic material floats freely in a region called the nucleoid. Eukaryotic cells, which make up plants, animals, fungi, and protists, are larger and far more complex. They contain a defined nucleus that houses DNA and a variety of specialized organelles, each performing distinct tasks.
