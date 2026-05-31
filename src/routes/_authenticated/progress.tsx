@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Flame, Sparkles, ClipboardList, Layers, AlertCircle, ArrowRight } from "lucide-react";
+import { Flame, Sparkles, ClipboardList, Layers, AlertCircle, ArrowRight, Trophy, Target } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/progress")({
   head: () => ({ meta: [{ title: "Progress — Sihat" }] }),
@@ -137,41 +137,51 @@ function ProgressPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-primary">Your progress</h1>
+      <h1 className="text-[26px] font-bold text-primary tracking-tight">Your Progress</h1>
 
-      {/* Stats grid */}
+      {/* Hero tiles */}
       <section className="grid grid-cols-2 gap-3">
-        <StatCard
-          icon={<Flame className="size-5 text-accent" />}
+        <HeroTile
+          tone="streak"
+          icon={<Flame className="size-6" />}
           label="Current streak"
-          value={`${data?.streak ?? 0} day${(data?.streak ?? 0) === 1 ? "" : "s"}`}
+          value={`${data?.streak ?? 0}`}
+          suffix={`day${(data?.streak ?? 0) === 1 ? "" : "s"}`}
         />
-        <StatCard
-          icon={<Sparkles className="size-5 text-accent" />}
+        <HeroTile
+          tone="accent"
+          icon={<Sparkles className="size-6" />}
           label="Total XP"
           value={`${data?.xpTotal ?? 0}`}
+          suffix="XP"
         />
+      </section>
+
+      {/* Secondary 2x2 */}
+      <section className="grid grid-cols-2 gap-3">
         <StatCard
-          icon={<ClipboardList className="size-5 text-accent" />}
+          icon={<ClipboardList className="size-5" />}
           label="Quizzes done"
           value={`${data?.quizzesCompleted ?? 0}`}
         />
         <StatCard
-          icon={<ClipboardList className="size-5 text-accent" />}
+          icon={<Target className="size-5" />}
           label="Avg score"
           value={`${data?.avgScore ?? 0}%`}
         />
         <StatCard
-          icon={<Layers className="size-5 text-accent" />}
+          icon={<Layers className="size-5" />}
           label="Cards reviewed"
           value={`${data?.cardsReviewed ?? 0}`}
         />
         <StatCard
-          icon={<Flame className="size-5 text-accent" />}
+          icon={<Trophy className="size-5" />}
           label="Best streak"
-          value={`${data?.longestStreak ?? 0} day${(data?.longestStreak ?? 0) === 1 ? "" : "s"}`}
+          value={`${data?.longestStreak ?? 0}`}
+          suffix={`day${(data?.longestStreak ?? 0) === 1 ? "" : "s"}`}
         />
       </section>
+
 
       {/* Weak areas */}
       {weak.length > 0 && (
@@ -263,23 +273,72 @@ function StatCard({
   icon,
   label,
   value,
+  suffix,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
+  suffix?: string;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+    <div className="card-lift flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm">
       <div className="inline-flex size-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
         {icon}
       </div>
       <div>
-        <p className="text-lg font-bold text-foreground">{value}</p>
+        <p className="text-lg font-bold text-foreground">
+          {value}
+          {suffix && <span className="ml-1 text-xs font-medium text-muted-foreground">{suffix}</span>}
+        </p>
         <p className="text-xs text-muted-foreground">{label}</p>
       </div>
     </div>
   );
 }
+
+function HeroTile({
+  tone,
+  icon,
+  label,
+  value,
+  suffix,
+}: {
+  tone: "streak" | "accent";
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  suffix?: string;
+}) {
+  const isStreak = tone === "streak";
+  return (
+    <div
+      className="card-lift rounded-2xl border p-5 shadow-sm"
+      style={
+        isStreak
+          ? { background: "rgba(249,115,22,0.08)", borderColor: "rgba(249,115,22,0.25)" }
+          : { background: "rgba(45,157,155,0.08)", borderColor: "rgba(45,157,155,0.25)" }
+      }
+    >
+      <div
+        className="inline-flex size-11 items-center justify-center rounded-xl"
+        style={
+          isStreak
+            ? { background: "rgba(249,115,22,0.18)", color: "#C2410C" }
+            : { background: "rgba(45,157,155,0.18)", color: "#0F766E" }
+        }
+      >
+        {icon}
+      </div>
+      <p className="mt-3 text-3xl font-bold text-foreground tabular-nums">
+        {value}
+        {suffix && <span className="ml-1.5 text-sm font-medium text-muted-foreground">{suffix}</span>}
+      </p>
+      <p className="mt-0.5 text-xs font-medium text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+
 
 function MasteryBadge({ score }: { score: number | null }) {
   if (score === null || score === undefined) {

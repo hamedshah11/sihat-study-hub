@@ -38,9 +38,12 @@ function useNavItems(): NavItem[] {
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto w-full max-w-[480px] md:max-w-[768px] px-4 pt-6 pb-28 md:pb-6 md:pl-[220px]">
-        {children}
+    <div className="min-h-dvh bg-background">
+      <div
+        className="w-full max-w-[480px] mx-auto px-4 pt-6 md:max-w-none md:mx-0 md:ml-[200px] md:pl-8 md:pr-8"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6rem)" }}
+      >
+        <div className="md:max-w-[740px]">{children}</div>
       </div>
       <BottomNav />
       <SideNav />
@@ -51,15 +54,20 @@ export function AppShell({ children }: { children: ReactNode }) {
 function BottomNav() {
   const items = useNavItems();
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background md:hidden">
-      <div className="mx-auto max-w-[480px] flex items-center justify-around px-2 py-2">
+    <nav
+      className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+    >
+      <div className="mx-auto max-w-[480px] flex items-center justify-around px-2 py-1.5">
         {items.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to as "/home"}
-            className="flex flex-col items-center gap-1 px-3 py-1 text-xs text-muted-foreground data-[status=active]:text-accent"
+            className="group flex min-h-[44px] min-w-[44px] flex-col items-center justify-center gap-0.5 rounded-full px-3 py-1 text-[11px] font-medium text-muted-foreground transition-colors data-[status=active]:text-accent"
           >
-            <Icon className="size-5" />
+            <span className="flex h-7 w-12 items-center justify-center rounded-full transition-colors group-data-[status=active]:bg-accent/10">
+              <Icon className="size-5" />
+            </span>
             <span>{label}</span>
           </Link>
         ))}
@@ -67,6 +75,7 @@ function BottomNav() {
     </nav>
   );
 }
+
 
 function SideNav() {
   const items = useNavItems();
