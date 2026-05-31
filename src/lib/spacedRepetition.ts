@@ -30,11 +30,11 @@ export const SESSION_SIZE = 10;
 
 const f = fsrs(generatorParameters({ enable_fuzz: true }));
 
-const RATING_TO_GRADE: Record<Rating, FsrsRating> = {
-  again: FsrsRating.Again,
-  hard: FsrsRating.Hard,
-  good: FsrsRating.Good,
-  easy: FsrsRating.Easy,
+const RATING_TO_GRADE: Record<Rating, Grade> = {
+  again: FsrsRating.Again as Grade,
+  hard: FsrsRating.Hard as Grade,
+  good: FsrsRating.Good as Grade,
+  easy: FsrsRating.Easy as Grade,
 };
 
 function mapStringToState(s: ReviewState["state"] | string | null | undefined): FsrsState {
