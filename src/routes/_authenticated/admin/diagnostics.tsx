@@ -148,6 +148,24 @@ function DiagnosticsPage() {
 
   const entries = checks ? Object.entries(checks) : [];
 
+  const [reshuffling, setReshuffling] = useState(false);
+
+  const handleReshuffle = async () => {
+    setReshuffling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "backfill-question-options",
+      );
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Reshuffled ${data?.updated ?? 0} questions`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to reshuffle questions");
+    } finally {
+      setReshuffling(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center gap-2">
