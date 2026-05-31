@@ -355,5 +355,6 @@ async function persistResults({
   );
 
   await recordStudyActivity(passed ? "quiz_pass" : "quiz");
+  await awardBadgesIfNeeded();
 }
 
