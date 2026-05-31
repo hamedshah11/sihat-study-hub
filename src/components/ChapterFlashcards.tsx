@@ -5,6 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Brain, Sparkles } from "lucide-react";
 import { schedule, SESSION_SIZE, type Rating, type ReviewState } from "@/lib/spacedRepetition";
+import { recordStudyActivity } from "@/lib/study-activity";
+import { awardBadgesIfNeeded } from "@/lib/award-badges";
 
 type Flashcard = {
   id: string;
