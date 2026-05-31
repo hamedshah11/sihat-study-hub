@@ -262,6 +262,29 @@ function HomePage() {
         );
       })()}
 
+      {/* Leaderboard peek */}
+      {data?.peek && (
+        <Link
+          to="/leaderboard"
+          className="flex items-center justify-between rounded-xl border bg-card px-4 py-3 transition-colors hover:border-accent/40 hover:bg-accent/5"
+        >
+          <div className="flex items-center gap-2.5">
+            <Trophy className="size-4 text-accent" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                You're #{data.peek.rank}{data.peek.batchName ? ` in ${data.peek.batchName}` : ""}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {data.peek.rank === 1
+                  ? "Leading this week"
+                  : `${data.peek.gap} XP behind the next spot`}
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="size-4 text-muted-foreground" />
+        </Link>
+      )}
+
       {/* Main card */}
       {rec?.kind === "empty" ? (
         <section className="rounded-2xl bg-surface p-6 text-center">
