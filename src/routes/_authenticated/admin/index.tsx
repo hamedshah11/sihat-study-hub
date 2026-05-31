@@ -21,6 +21,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { Pencil } from "lucide-react";
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
