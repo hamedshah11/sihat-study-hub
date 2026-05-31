@@ -326,9 +326,9 @@ function SecondaryCard({
     <Link
       to={to as any}
       params={params as any}
-      className="flex flex-col gap-2 rounded-xl bg-surface p-4 active:scale-[0.98] transition"
+      className="flex flex-col gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-accent/40 hover:bg-accent/5 active:scale-[0.98]"
     >
-      <div className="inline-flex size-9 items-center justify-center rounded-full bg-muted text-primary">
+      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
         {icon}
       </div>
       <div>
