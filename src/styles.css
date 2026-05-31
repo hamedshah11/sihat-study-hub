@@ -84,3 +84,14 @@
   .prose code { @apply px-1.5 py-0.5 rounded bg-muted text-sm font-mono; }
 }
 
+
+@keyframes scale-in {
+  0% { transform: scale(0.92); opacity: 0; }
+  60% { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-scale-in { animation: scale-in 0.4s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-scale-in { animation: none; }
+}

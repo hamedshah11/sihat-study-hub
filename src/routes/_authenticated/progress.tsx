@@ -184,7 +184,7 @@ function ProgressPage() {
             {weak.slice(0, 5).map((w) => (
               <div
                 key={w.chapterId}
-                className="flex items-center justify-between gap-3 rounded-xl bg-surface p-3"
+                className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{w.chapterTitle}</p>
@@ -220,7 +220,7 @@ function ProgressPage() {
                   {g.chapters.map((ch) => (
                     <div
                       key={ch.chapterId}
-                      className="flex items-center justify-between gap-3 rounded-xl bg-surface p-3"
+                      className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-foreground">{ch.chapterTitle}</p>
@@ -269,8 +269,10 @@ function StatCard({
   value: string;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl bg-surface p-4">
-      <div className="inline-flex size-8 items-center justify-center rounded-full bg-muted">{icon}</div>
+    <div className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
+        {icon}
+      </div>
       <div>
         <p className="text-lg font-bold text-foreground">{value}</p>
         <p className="text-xs text-muted-foreground">{label}</p>

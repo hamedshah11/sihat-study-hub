@@ -1,9 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Flame, Sparkles, BookOpen, Layers, ClipboardList, MessageCircle, ArrowRight, Trophy } from "lucide-react";
 import { levelFromXp } from "@/lib/levels";
+import { checkLevelUp } from "@/lib/celebrate";
 
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({ meta: [{ title: "Home — Sihat" }] }),
@@ -188,6 +190,13 @@ function HomePage() {
   });
 
   const rec = data?.recommendation;
+
+  // Celebrate level-ups (fires once per detected increase, throttled inside celebrate).
+  useEffect(() => {
+    if (typeof data?.xpTotal !== "number") return;
+    const lvl = levelFromXp(data.xpTotal).level;
+    checkLevelUp(lvl);
+  }, [data?.xpTotal]);
 
   function recHeadline(): string {
     if (!rec) return "";
