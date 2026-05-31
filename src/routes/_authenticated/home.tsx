@@ -191,6 +191,13 @@ function HomePage() {
 
   const rec = data?.recommendation;
 
+  // Celebrate level-ups (fires once per detected increase, throttled inside celebrate).
+  useEffect(() => {
+    if (typeof data?.xpTotal !== "number") return;
+    const lvl = levelFromXp(data.xpTotal).level;
+    checkLevelUp(lvl);
+  }, [data?.xpTotal]);
+
   function recHeadline(): string {
     if (!rec) return "";
     if (rec.kind === "flashcards") {
