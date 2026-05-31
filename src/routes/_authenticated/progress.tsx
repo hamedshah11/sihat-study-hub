@@ -273,21 +273,71 @@ function StatCard({
   icon,
   label,
   value,
+  suffix,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
+  suffix?: string;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+    <div className="card-lift flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm">
       <div className="inline-flex size-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
         {icon}
       </div>
       <div>
-        <p className="text-lg font-bold text-foreground">{value}</p>
+        <p className="text-lg font-bold text-foreground">
+          {value}
+          {suffix && <span className="ml-1 text-xs font-medium text-muted-foreground">{suffix}</span>}
+        </p>
         <p className="text-xs text-muted-foreground">{label}</p>
       </div>
     </div>
+  );
+}
+
+function HeroTile({
+  tone,
+  icon,
+  label,
+  value,
+  suffix,
+}: {
+  tone: "streak" | "accent";
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  suffix?: string;
+}) {
+  const isStreak = tone === "streak";
+  return (
+    <div
+      className="card-lift rounded-2xl border p-5 shadow-sm"
+      style={
+        isStreak
+          ? { background: "rgba(249,115,22,0.08)", borderColor: "rgba(249,115,22,0.25)" }
+          : { background: "rgba(45,157,155,0.08)", borderColor: "rgba(45,157,155,0.25)" }
+      }
+    >
+      <div
+        className="inline-flex size-11 items-center justify-center rounded-xl"
+        style={
+          isStreak
+            ? { background: "rgba(249,115,22,0.18)", color: "#C2410C" }
+            : { background: "rgba(45,157,155,0.18)", color: "#0F766E" }
+        }
+      >
+        {icon}
+      </div>
+      <p className="mt-3 text-3xl font-bold text-foreground tabular-nums">
+        {value}
+        {suffix && <span className="ml-1.5 text-sm font-medium text-muted-foreground">{suffix}</span>}
+      </p>
+      <p className="mt-0.5 text-xs font-medium text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
   );
 }
 
