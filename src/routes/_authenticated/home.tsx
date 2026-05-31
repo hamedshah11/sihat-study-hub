@@ -247,6 +247,9 @@ function HomePage() {
         </div>
       </header>
 
+      <InstallPrompt />
+
+
       {/* Level bar */}
       {(() => {
         const lvl = levelFromXp(data?.xpTotal ?? 0);
