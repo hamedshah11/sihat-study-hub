@@ -220,7 +220,7 @@ function ProgressPage() {
                   {g.chapters.map((ch) => (
                     <div
                       key={ch.chapterId}
-                      className="flex items-center justify-between gap-3 rounded-xl bg-surface p-3"
+                      className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-foreground">{ch.chapterTitle}</p>
