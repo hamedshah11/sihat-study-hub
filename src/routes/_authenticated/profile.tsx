@@ -21,22 +21,31 @@ function ProfilePage() {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("display_name, email, batch_id, student_type, role")
-        .eq("id", user.id)
-        .maybeSingle();
+      const [{ data: profile }, { data: allBadges }, { data: earned }] = await Promise.all([
+        supabase.from("profiles").select("display_name, email, batch_id, student_type, role").eq("id", user.id).maybeSingle(),
+        supabase.from("badges").select("id, name, description, icon"),
+        supabase.from("user_badges").select("badge_id, earned_at").eq("user_id", user.id),
+      ]);
       let batchName: string | null = null;
       if (profile?.batch_id) {
         const { data: b } = await supabase.from("batches").select("name").eq("id", profile.batch_id).maybeSingle();
         batchName = b?.name ?? null;
       }
+      const earnedMap = new Map((earned ?? []).map((e: any) => [e.badge_id as string, e.earned_at as string]));
+      const badges = (allBadges ?? []).map((b: any) => ({
+        id: b.id as string,
+        name: b.name as string,
+        description: b.description as string,
+        icon: (b.icon ?? "🏅") as string,
+        earnedAt: earnedMap.get(b.id) ?? null,
+      })).sort((a, b) => Number(!!b.earnedAt) - Number(!!a.earnedAt));
       return {
         displayName: profile?.display_name || "—",
         email: profile?.email || user.email || "",
         batch: batchName,
         studentType: profile?.student_type,
         role: profile?.role ?? "student",
+        badges,
       };
     },
   });
@@ -70,6 +79,34 @@ function ProfilePage() {
       {(data?.role === "admin" || data?.role === "instructor") && (
         <TestGenerateContent />
       )}
+
+      <section className="mt-8">
+        <h2 className="text-lg font-semibold text-primary">Badges</h2>
+        <div className="mt-3 grid grid-cols-4 gap-3">
+          {(data?.badges ?? []).map((b) => {
+            const earned = !!b.earnedAt;
+            return (
+              <div
+                key={b.id}
+                title={earned ? `Earned ${new Date(b.earnedAt!).toLocaleDateString()}` : b.description}
+                className={`flex flex-col items-center text-center rounded-xl border p-3 ${
+                  earned ? "bg-accent/10 border-accent/30" : "bg-muted/40 border-muted opacity-60"
+                }`}
+              >
+                <span className={`text-2xl ${earned ? "" : "grayscale"}`}>{b.icon}</span>
+                <p className={`mt-1 text-xs font-semibold leading-tight ${earned ? "text-foreground" : "text-muted-foreground"}`}>
+                  {b.name}
+                </p>
+                <p className="mt-1 text-[10px] text-muted-foreground leading-tight line-clamp-2">
+                  {earned
+                    ? new Date(b.earnedAt!).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                    : b.description}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <Button
         onClick={handleLogout}

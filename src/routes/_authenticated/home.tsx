@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Flame, Sparkles, BookOpen, Layers, ClipboardList, MessageCircle, ArrowRight } from "lucide-react";
+import { Flame, Sparkles, BookOpen, Layers, ClipboardList, MessageCircle, ArrowRight, Trophy } from "lucide-react";
 import { levelFromXp } from "@/lib/levels";
 
 export const Route = createFileRoute("/_authenticated/home")({
@@ -40,6 +40,7 @@ function HomePage() {
         { data: xpRows },
         { data: dueReviews },
         { data: progressRows },
+        { data: leaderboard },
       ] = await Promise.all([
         supabase.from("profiles").select("display_name, batch_id").eq("id", uid).maybeSingle(),
         supabase.from("streaks").select("current_streak").eq("user_id", uid).maybeSingle(),
@@ -50,6 +51,7 @@ function HomePage() {
           .eq("user_id", uid)
           .lte("next_review_at", todayIso),
         supabase.from("chapter_progress").select("chapter_id, mastery_score, completed_at, last_attempt_at").eq("user_id", uid),
+        supabase.rpc("batch_weekly_leaderboard"),
       ]);
 
       const xpTotal = (xpRows ?? []).reduce((acc, r: any) => acc + (r.amount ?? 0), 0);
@@ -158,12 +160,29 @@ function HomePage() {
         recommendation = { kind: "empty" };
       }
 
+      // Leaderboard peek: find my rank and gap to next spot
+      const rows = (leaderboard ?? []) as Array<{ user_id: string; first_name: string | null; weekly_xp: number }>;
+      let peek: { rank: number; gap: number; total: number; batchName: string | null } | null = null;
+      if (rows.length) {
+        const idx = rows.findIndex((r) => r.user_id === uid);
+        if (idx >= 0) {
+          let batchName: string | null = null;
+          if (profile?.batch_id) {
+            const { data: b } = await supabase.from("batches").select("name").eq("id", profile.batch_id).maybeSingle();
+            batchName = b?.name ?? null;
+          }
+          const gap = idx === 0 ? 0 : rows[idx - 1].weekly_xp - rows[idx].weekly_xp;
+          peek = { rank: idx + 1, gap, total: rows.length, batchName };
+        }
+      }
+
       return {
         name: profile?.display_name || "there",
         streak: streak?.current_streak ?? 0,
         xpTotal,
         recommendation,
         continueChapter: nextChapter,
+        peek,
       };
     },
   });
@@ -242,6 +261,29 @@ function HomePage() {
           </section>
         );
       })()}
+
+      {/* Leaderboard peek */}
+      {data?.peek && (
+        <Link
+          to="/leaderboard"
+          className="flex items-center justify-between rounded-xl border bg-card px-4 py-3 transition-colors hover:border-accent/40 hover:bg-accent/5"
+        >
+          <div className="flex items-center gap-2.5">
+            <Trophy className="size-4 text-accent" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                You're #{data.peek.rank}{data.peek.batchName ? ` in ${data.peek.batchName}` : ""}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {data.peek.rank === 1
+                  ? "Leading this week"
+                  : `${data.peek.gap} XP behind the next spot`}
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="size-4 text-muted-foreground" />
+        </Link>
+      )}
 
       {/* Main card */}
       {rec?.kind === "empty" ? (
