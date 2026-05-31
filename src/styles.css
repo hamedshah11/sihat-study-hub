@@ -30,7 +30,10 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-surface: var(--surface);
+  --color-streak: var(--streak);
+  --color-streak-foreground: var(--streak-foreground);
 }
+
 
 :root {
   --radius: 0.75rem;
