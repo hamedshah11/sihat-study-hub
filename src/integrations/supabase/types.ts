@@ -604,6 +604,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      batch_weekly_leaderboard: {
+        Args: never
+        Returns: {
+          first_name: string
+          user_id: string
+          weekly_xp: number
+        }[]
+      }
       has_role_admin: { Args: { _user_id: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
