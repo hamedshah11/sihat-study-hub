@@ -5,6 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, Send, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { recordStudyActivity } from "@/lib/study-activity";
+import { awardBadgesIfNeeded } from "@/lib/award-badges";
 
 type Msg = {
   id: string;
