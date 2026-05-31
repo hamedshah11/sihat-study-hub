@@ -2,7 +2,7 @@
    Bump CACHE_VERSION on every deploy to invalidate old caches. */
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js");
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 workbox.core.setCacheNameDetails({ prefix: "sihat", suffix: CACHE_VERSION });
 
 self.addEventListener("install", (event) => {
@@ -26,12 +26,12 @@ const { CacheFirst, NetworkFirst, StaleWhileRevalidate } = workbox.strategies;
 const { CacheableResponsePlugin } = workbox.cacheableResponse;
 const { ExpirationPlugin } = workbox.expiration;
 
-// HTML navigations — network first, fall back to cache
+// HTML navigations — stale-while-revalidate for instant loads on mobile.
+// Serves the cached shell immediately, then updates in the background.
 registerRoute(
   ({ request }) => request.mode === "navigate",
-  new NetworkFirst({
+  new StaleWhileRevalidate({
     cacheName: `sihat-html-${CACHE_VERSION}`,
-    networkTimeoutSeconds: 3,
     plugins: [new CacheableResponsePlugin({ statuses: [0, 200] })],
   }),
 );
