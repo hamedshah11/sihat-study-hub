@@ -201,12 +201,14 @@ function StatTile({ label, value, sub }: { label: string; value: string; sub?: s
 function SubjectNode({
   subject,
   semesterName,
+  semesters,
   chapters,
   qByChapter,
   fByChapter,
 }: {
   subject: SubjectRow;
   semesterName: string;
+  semesters: SemesterRow[];
   chapters: ChapterRow[];
   qByChapter: Record<string, { draft: number; approved: number }>;
   fByChapter: Record<string, { draft: number; approved: number }>;
@@ -214,11 +216,11 @@ function SubjectNode({
   const [open, setOpen] = useState(false);
   return (
     <div className="rounded-xl bg-surface">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between p-4 text-left"
-      >
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between p-4">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex flex-1 items-center gap-2 text-left"
+        >
           {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
           <div>
             <p className="font-medium text-foreground">{subject.name}</p>
@@ -226,8 +228,9 @@ function SubjectNode({
               {semesterName} · {chapters.length} chapter{chapters.length === 1 ? "" : "s"}
             </p>
           </div>
-        </div>
-      </button>
+        </button>
+        <EditSubjectDialog subject={subject} semesters={semesters} />
+      </div>
       {open && (
         <div className="border-t border-border px-2 pb-2">
           {chapters.length === 0 && (
