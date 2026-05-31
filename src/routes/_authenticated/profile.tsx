@@ -21,22 +21,31 @@ function ProfilePage() {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("display_name, email, batch_id, student_type, role")
-        .eq("id", user.id)
-        .maybeSingle();
+      const [{ data: profile }, { data: allBadges }, { data: earned }] = await Promise.all([
+        supabase.from("profiles").select("display_name, email, batch_id, student_type, role").eq("id", user.id).maybeSingle(),
+        supabase.from("badges").select("id, name, description, icon"),
+        supabase.from("user_badges").select("badge_id, earned_at").eq("user_id", user.id),
+      ]);
       let batchName: string | null = null;
       if (profile?.batch_id) {
         const { data: b } = await supabase.from("batches").select("name").eq("id", profile.batch_id).maybeSingle();
         batchName = b?.name ?? null;
       }
+      const earnedMap = new Map((earned ?? []).map((e: any) => [e.badge_id as string, e.earned_at as string]));
+      const badges = (allBadges ?? []).map((b: any) => ({
+        id: b.id as string,
+        name: b.name as string,
+        description: b.description as string,
+        icon: (b.icon ?? "🏅") as string,
+        earnedAt: earnedMap.get(b.id) ?? null,
+      })).sort((a, b) => Number(!!b.earnedAt) - Number(!!a.earnedAt));
       return {
         displayName: profile?.display_name || "—",
         email: profile?.email || user.email || "",
         batch: batchName,
         studentType: profile?.student_type,
         role: profile?.role ?? "student",
+        badges,
       };
     },
   });
