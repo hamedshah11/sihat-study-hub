@@ -113,8 +113,15 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 import { Toaster } from "@/components/ui/sonner";
 
+import { useEffect } from "react";
+import { registerServiceWorker } from "@/lib/register-sw";
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -123,3 +130,4 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
+
