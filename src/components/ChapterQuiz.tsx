@@ -125,18 +125,21 @@ function QuizRunner({
     }
     // Finish
     setSaving(true);
+    const finalAnswers = answers; // already includes the just-revealed answer
+    const finalScore = finalAnswers.filter((a) => a.correct).length;
     try {
       await persistResults({
         chapterId,
-        score: answers.filter((a) => a.correct).length,
+        score: finalScore,
         total,
-        answers,
+        answers: finalAnswers,
       });
     } catch (e) {
       console.error("Failed to save quiz results", e);
     } finally {
       setSaving(false);
       setFinished(true);
+      if (finalScore >= 4) celebrate(finalScore === total ? "big" : "small");
     }
   };
 
