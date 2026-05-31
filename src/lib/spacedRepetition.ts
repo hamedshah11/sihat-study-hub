@@ -9,6 +9,7 @@ import {
   Rating as FsrsRating,
   State as FsrsState,
   type Card as FsrsCard,
+  type Grade,
 } from "ts-fsrs";
 
 export type Rating = "again" | "hard" | "good" | "easy";
