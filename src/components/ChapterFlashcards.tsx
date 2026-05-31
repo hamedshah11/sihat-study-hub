@@ -174,18 +174,14 @@ function FlashcardRunner({
         { onConflict: "user_id,flashcard_id" },
       );
 
-      await supabase.from("xp_events").insert({
-        user_id: userId,
-        amount: 1,
-        source: "flashcard",
-      });
-
-      await bumpStreak(userId);
+      await recordStudyActivity("flashcard");
 
       const newReviewed = reviewed + 1;
       setReviewed(newReviewed);
       if (index + 1 >= queue.length) {
         setDone(true);
+        // Only check badges at end-of-session, not per card.
+        void awardBadgesIfNeeded();
       } else {
         setIndex(index + 1);
         setShowBack(false);
