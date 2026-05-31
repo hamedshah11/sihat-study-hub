@@ -85,9 +85,9 @@ function SubjectDetail() {
               key={c.id}
               to="/chapters/$chapterId"
               params={{ chapterId: c.id }}
-              className="flex items-center gap-3 rounded-xl bg-surface p-4 transition-colors hover:bg-secondary"
+              className="flex items-center gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-accent/40 hover:bg-accent/5 active:scale-[0.99]"
             >
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-accent/10 text-sm font-semibold text-accent">
+              <span className="inline-flex size-9 items-center justify-center rounded-lg bg-accent/10 text-sm font-semibold text-accent">
                 {String(idx + 1).padStart(2, "0")}
               </span>
               <span className="flex-1 font-medium text-foreground">{c.title}</span>
