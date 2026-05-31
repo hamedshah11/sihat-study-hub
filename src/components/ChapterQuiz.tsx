@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CheckCircle2, XCircle, ClipboardList, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { recordStudyActivity } from "@/lib/study-activity";
 
 type Question = {
   id: string;
@@ -352,43 +353,6 @@ async function persistResults({
     { onConflict: "user_id,chapter_id" },
   );
 
-  // 3. XP
-  const xp = 10 + (passed ? 5 : 0);
-  await supabase.from("xp_events").insert({
-    user_id: userId,
-    amount: xp,
-    source: "quiz",
-    occurred_at: now,
-  });
-
-  // 4. Streak — increment once per day
-  const today = new Date().toISOString().slice(0, 10);
-  const { data: streak } = await supabase
-    .from("streaks")
-    .select("current_streak, longest_streak, last_active_date, freezes_available")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (streak && streak.last_active_date !== today) {
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    const continued = streak.last_active_date === yesterday;
-    const newCurrent = continued ? (streak.current_streak ?? 0) + 1 : 1;
-    const newLongest = Math.max(streak.longest_streak ?? 0, newCurrent);
-    await supabase
-      .from("streaks")
-      .update({
-        current_streak: newCurrent,
-        longest_streak: newLongest,
-        last_active_date: today,
-      })
-      .eq("user_id", userId);
-  } else if (!streak) {
-    await supabase.from("streaks").insert({
-      user_id: userId,
-      current_streak: 1,
-      longest_streak: 1,
-      last_active_date: today,
-      freezes_available: 1,
-    });
-  }
+  await recordStudyActivity(passed ? "quiz_pass" : "quiz");
 }
+
