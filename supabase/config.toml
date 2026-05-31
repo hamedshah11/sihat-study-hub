@@ -9,3 +9,7 @@ verify_jwt = true
 [functions.award-badges]
 verify_jwt = true
 
+[functions.backfill-question-options]
+verify_jwt = true
+
+
