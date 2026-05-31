@@ -2,7 +2,7 @@
    Bump CACHE_VERSION on every deploy to invalidate old caches. */
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js");
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 workbox.core.setCacheNameDetails({ prefix: "sihat", suffix: CACHE_VERSION });
 
 self.addEventListener("install", (event) => {
