@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Flame, Sparkles, BookOpen, Layers, ClipboardList, MessageCircle, ArrowRight, Trophy } from "lucide-react";
 import { levelFromXp } from "@/lib/levels";
 import { checkLevelUp } from "@/lib/celebrate";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({ meta: [{ title: "Home — Sihat" }] }),
@@ -246,6 +247,9 @@ function HomePage() {
           <span className="text-sm font-semibold">{data?.streak ?? 0}</span>
         </div>
       </header>
+
+      <InstallPrompt />
+
 
       {/* Level bar */}
       {(() => {
