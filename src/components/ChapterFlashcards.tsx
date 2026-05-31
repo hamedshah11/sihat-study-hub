@@ -250,37 +250,3 @@ function FlashcardRunner({
     </div>
   );
 }
-
-async function bumpStreak(userId: string) {
-  const today = new Date().toISOString().slice(0, 10);
-  const { data: streak } = await supabase
-    .from("streaks")
-    .select("current_streak, longest_streak, last_active_date")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (!streak) {
-    await supabase.from("streaks").insert({
-      user_id: userId,
-      current_streak: 1,
-      longest_streak: 1,
-      last_active_date: today,
-      freezes_available: 1,
-    });
-    return;
-  }
-  if (streak.last_active_date === today) return;
-
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const continued = streak.last_active_date === yesterday;
-  const newCurrent = continued ? (streak.current_streak ?? 0) + 1 : 1;
-  const newLongest = Math.max(streak.longest_streak ?? 0, newCurrent);
-  await supabase
-    .from("streaks")
-    .update({
-      current_streak: newCurrent,
-      longest_streak: newLongest,
-      last_active_date: today,
-    })
-    .eq("user_id", userId);
-}
