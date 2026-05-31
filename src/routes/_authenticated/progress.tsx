@@ -137,41 +137,51 @@ function ProgressPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold text-primary">Your progress</h1>
+      <h1 className="text-[26px] font-bold text-primary tracking-tight">Your Progress</h1>
 
-      {/* Stats grid */}
+      {/* Hero tiles */}
       <section className="grid grid-cols-2 gap-3">
-        <StatCard
-          icon={<Flame className="size-5 text-accent" />}
+        <HeroTile
+          tone="streak"
+          icon={<Flame className="size-6" />}
           label="Current streak"
-          value={`${data?.streak ?? 0} day${(data?.streak ?? 0) === 1 ? "" : "s"}`}
+          value={`${data?.streak ?? 0}`}
+          suffix={`day${(data?.streak ?? 0) === 1 ? "" : "s"}`}
         />
-        <StatCard
-          icon={<Sparkles className="size-5 text-accent" />}
+        <HeroTile
+          tone="accent"
+          icon={<Sparkles className="size-6" />}
           label="Total XP"
           value={`${data?.xpTotal ?? 0}`}
+          suffix="XP"
         />
+      </section>
+
+      {/* Secondary 2x2 */}
+      <section className="grid grid-cols-2 gap-3">
         <StatCard
-          icon={<ClipboardList className="size-5 text-accent" />}
+          icon={<ClipboardList className="size-5" />}
           label="Quizzes done"
           value={`${data?.quizzesCompleted ?? 0}`}
         />
         <StatCard
-          icon={<ClipboardList className="size-5 text-accent" />}
+          icon={<Target className="size-5" />}
           label="Avg score"
           value={`${data?.avgScore ?? 0}%`}
         />
         <StatCard
-          icon={<Layers className="size-5 text-accent" />}
+          icon={<Layers className="size-5" />}
           label="Cards reviewed"
           value={`${data?.cardsReviewed ?? 0}`}
         />
         <StatCard
-          icon={<Flame className="size-5 text-accent" />}
+          icon={<Trophy className="size-5" />}
           label="Best streak"
-          value={`${data?.longestStreak ?? 0} day${(data?.longestStreak ?? 0) === 1 ? "" : "s"}`}
+          value={`${data?.longestStreak ?? 0}`}
+          suffix={`day${(data?.longestStreak ?? 0) === 1 ? "" : "s"}`}
         />
       </section>
+
 
       {/* Weak areas */}
       {weak.length > 0 && (
