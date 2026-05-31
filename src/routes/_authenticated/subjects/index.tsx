@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import * as Icons from "lucide-react";
 import { BookOpen } from "lucide-react";
@@ -15,10 +14,25 @@ function toPascal(s: string) {
   return s.split(/[-_\s]/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join("");
 }
 
-function SubjectIcon({ name }: { name?: string | null }) {
+function SubjectIcon({ name, className }: { name?: string | null; className?: string }) {
   const key = name ? toPascal(name) : "";
   const Cmp = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[key] || BookOpen;
-  return <Cmp className="size-6 text-accent" />;
+  return <Cmp className={className ?? "size-6"} />;
+}
+
+// Stable subtle accent per subject (hash → palette)
+const ACCENTS = [
+  { bar: "#2D9D9B", chipBg: "rgba(45,157,155,0.10)", chipFg: "#1F7A78" },
+  { bar: "#1F3A5F", chipBg: "rgba(31,58,95,0.08)",  chipFg: "#1F3A5F" },
+  { bar: "#7C3AED", chipBg: "rgba(124,58,237,0.10)", chipFg: "#5B21B6" },
+  { bar: "#0EA5A4", chipBg: "rgba(14,165,164,0.10)", chipFg: "#0F766E" },
+  { bar: "#D97706", chipBg: "rgba(217,119,6,0.10)",  chipFg: "#92400E" },
+  { bar: "#DB2777", chipBg: "rgba(219,39,119,0.10)", chipFg: "#9D174D" },
+];
+function accentFor(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return ACCENTS[h % ACCENTS.length];
 }
 
 function SubjectsList() {
@@ -69,40 +83,54 @@ function SubjectsList() {
   return (
     <div>
       <header>
-        <h1 className="text-2xl font-bold text-primary">Your Subjects</h1>
-        <p className="text-sm text-muted-foreground mt-1">{data?.semesterName ?? "…"}</p>
+        <h1 className="text-[26px] font-bold text-primary tracking-tight">Your Subjects</h1>
+        <p className="caption mt-1">{data?.semesterName ?? "…"}</p>
       </header>
 
       <div className="mt-6 grid gap-4 grid-cols-1 md:grid-cols-2">
         {isLoading && Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-36 rounded-xl" />
+          <Skeleton key={i} className="h-36 rounded-2xl" />
         ))}
 
         {!isLoading && data?.subjects.length === 0 && (
-          <div className="md:col-span-2 rounded-xl bg-surface p-6 text-sm text-muted-foreground">
-            No subjects are published yet. Check back soon.
+          <div className="md:col-span-2 rounded-2xl border bg-card p-8 text-center shadow-sm">
+            <div className="mx-auto inline-flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <BookOpen className="size-5" />
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              No subjects are published yet — check back soon.
+            </p>
           </div>
         )}
 
-        {!isLoading && data?.subjects.map(s => (
-          <Link
-            key={s.id}
-            to="/subjects/$subjectId"
-            params={{ subjectId: s.id }}
-            className="block rounded-xl border bg-card p-5 transition-colors hover:border-accent/40 hover:bg-accent/5 active:scale-[0.99]"
-          >
-            <div className="flex items-start gap-3">
-              <div className="inline-flex size-10 items-center justify-center rounded-lg bg-accent/10 text-accent">
-                <SubjectIcon name={s.icon} />
+        {!isLoading && data?.subjects.map(s => {
+          const a = accentFor(s.id);
+          return (
+            <Link
+              key={s.id}
+              to="/subjects/$subjectId"
+              params={{ subjectId: s.id }}
+              className="card-lift block overflow-hidden rounded-2xl border bg-card p-5 shadow-sm"
+              style={{ borderLeft: `3px solid ${a.bar}` }}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl"
+                  style={{ background: a.chipBg, color: a.chipFg }}
+                >
+                  <SubjectIcon name={s.icon} className="size-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-foreground leading-tight">{s.name}</h3>
+                  {s.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{s.description}</p>
+                  )}
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-foreground">{s.name}</h3>
-                <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{s.description}</p>
-              </div>
-            </div>
-            <Progress value={0} className="mt-4 h-1.5" />
-          </Link>
-        ))}
+              <p className="mt-4 text-xs text-muted-foreground">Not started</p>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
