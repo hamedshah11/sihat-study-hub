@@ -5,6 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Brain, Sparkles } from "lucide-react";
 import { schedule, SESSION_SIZE, type Rating, type ReviewState } from "@/lib/spacedRepetition";
+import { recordStudyActivity } from "@/lib/study-activity";
+import { awardBadgesIfNeeded } from "@/lib/award-badges";
 
 type Flashcard = {
   id: string;
@@ -172,18 +174,14 @@ function FlashcardRunner({
         { onConflict: "user_id,flashcard_id" },
       );
 
-      await supabase.from("xp_events").insert({
-        user_id: userId,
-        amount: 1,
-        source: "flashcard",
-      });
-
-      await bumpStreak(userId);
+      await recordStudyActivity("flashcard");
 
       const newReviewed = reviewed + 1;
       setReviewed(newReviewed);
       if (index + 1 >= queue.length) {
         setDone(true);
+        // Only check badges at end-of-session, not per card.
+        void awardBadgesIfNeeded();
       } else {
         setIndex(index + 1);
         setShowBack(false);
@@ -251,38 +249,4 @@ function FlashcardRunner({
       )}
     </div>
   );
-}
-
-async function bumpStreak(userId: string) {
-  const today = new Date().toISOString().slice(0, 10);
-  const { data: streak } = await supabase
-    .from("streaks")
-    .select("current_streak, longest_streak, last_active_date")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (!streak) {
-    await supabase.from("streaks").insert({
-      user_id: userId,
-      current_streak: 1,
-      longest_streak: 1,
-      last_active_date: today,
-      freezes_available: 1,
-    });
-    return;
-  }
-  if (streak.last_active_date === today) return;
-
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const continued = streak.last_active_date === yesterday;
-  const newCurrent = continued ? (streak.current_streak ?? 0) + 1 : 1;
-  const newLongest = Math.max(streak.longest_streak ?? 0, newCurrent);
-  await supabase
-    .from("streaks")
-    .update({
-      current_streak: newCurrent,
-      longest_streak: newLongest,
-      last_active_date: today,
-    })
-    .eq("user_id", userId);
 }

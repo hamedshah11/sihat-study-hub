@@ -7,6 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CheckCircle2, XCircle, ClipboardList, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { recordStudyActivity } from "@/lib/study-activity";
+import { awardBadgesIfNeeded } from "@/lib/award-badges";
 
 type Question = {
   id: string;
@@ -354,5 +355,6 @@ async function persistResults({
   );
 
   await recordStudyActivity(passed ? "quiz_pass" : "quiz");
+  await awardBadgesIfNeeded();
 }
 

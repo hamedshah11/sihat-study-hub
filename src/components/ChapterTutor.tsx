@@ -5,6 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, Send, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { recordStudyActivity } from "@/lib/study-activity";
+import { awardBadgesIfNeeded } from "@/lib/award-badges";
 
 type Msg = {
   id: string;
@@ -94,6 +96,8 @@ export function ChapterTutor({ chapterId }: { chapterId: string }) {
         qc.invalidateQueries({ queryKey: ["tutor-messages", chapterId] }),
         qc.invalidateQueries({ queryKey: ["tutor-today-count", chapterId] }),
       ]);
+      await recordStudyActivity("tutor");
+      await awardBadgesIfNeeded();
     } catch (err: any) {
       setError(err?.message || "Network error. Please try again.");
     } finally {
