@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Flame, Sparkles, BookOpen, Layers, ClipboardList, MessageCircle, ArrowRight } from "lucide-react";
+import { levelFromXp } from "@/lib/levels";
 
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({ meta: [{ title: "Home — Sihat" }] }),
@@ -212,17 +213,35 @@ function HomePage() {
           <p className="text-sm text-muted-foreground">Hello,</p>
           <h1 className="text-2xl font-bold text-primary">{data?.name}</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-full bg-surface px-3 py-1.5">
-            <Flame className="size-4 text-accent" />
-            <span className="text-sm font-semibold">{data?.streak ?? 0}</span>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-full bg-surface px-3 py-1.5">
-            <Sparkles className="size-4 text-accent" />
-            <span className="text-sm font-semibold">{data?.xpTotal ?? 0} XP</span>
-          </div>
+        <div className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-orange-700">
+          <Flame className="size-4" />
+          <span className="text-sm font-semibold">{data?.streak ?? 0}</span>
         </div>
       </header>
+
+      {/* Level bar */}
+      {(() => {
+        const lvl = levelFromXp(data?.xpTotal ?? 0);
+        const pct = lvl.xpForLevel > 0 ? Math.min(100, (lvl.xpIntoLevel / lvl.xpForLevel) * 100) : 0;
+        return (
+          <section className="rounded-xl border bg-card p-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-semibold text-primary">
+                {lvl.name} · Level {lvl.level}
+              </span>
+              <span className="text-muted-foreground tabular-nums">
+                {lvl.xpIntoLevel} / {lvl.xpForLevel} XP
+              </span>
+            </div>
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-accent transition-all"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Main card */}
       {rec?.kind === "empty" ? (
@@ -307,9 +326,9 @@ function SecondaryCard({
     <Link
       to={to as any}
       params={params as any}
-      className="flex flex-col gap-2 rounded-xl bg-surface p-4 active:scale-[0.98] transition"
+      className="flex flex-col gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-accent/40 hover:bg-accent/5 active:scale-[0.98]"
     >
-      <div className="inline-flex size-9 items-center justify-center rounded-full bg-muted text-primary">
+      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
         {icon}
       </div>
       <div>
