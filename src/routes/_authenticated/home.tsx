@@ -40,6 +40,7 @@ function HomePage() {
         { data: xpRows },
         { data: dueReviews },
         { data: progressRows },
+        { data: leaderboard },
       ] = await Promise.all([
         supabase.from("profiles").select("display_name, batch_id").eq("id", uid).maybeSingle(),
         supabase.from("streaks").select("current_streak").eq("user_id", uid).maybeSingle(),
@@ -50,6 +51,7 @@ function HomePage() {
           .eq("user_id", uid)
           .lte("next_review_at", todayIso),
         supabase.from("chapter_progress").select("chapter_id, mastery_score, completed_at, last_attempt_at").eq("user_id", uid),
+        supabase.rpc("batch_weekly_leaderboard"),
       ]);
 
       const xpTotal = (xpRows ?? []).reduce((acc, r: any) => acc + (r.amount ?? 0), 0);
