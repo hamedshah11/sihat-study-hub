@@ -8,6 +8,7 @@ import { CheckCircle2, XCircle, ClipboardList, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { recordStudyActivity } from "@/lib/study-activity";
 import { awardBadgesIfNeeded } from "@/lib/award-badges";
+import { celebrate } from "@/lib/celebrate";
 
 type Question = {
   id: string;
