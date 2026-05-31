@@ -160,12 +160,29 @@ function HomePage() {
         recommendation = { kind: "empty" };
       }
 
+      // Leaderboard peek: find my rank and gap to next spot
+      const rows = (leaderboard ?? []) as Array<{ user_id: string; first_name: string | null; weekly_xp: number }>;
+      let peek: { rank: number; gap: number; total: number; batchName: string | null } | null = null;
+      if (rows.length) {
+        const idx = rows.findIndex((r) => r.user_id === uid);
+        if (idx >= 0) {
+          let batchName: string | null = null;
+          if (profile?.batch_id) {
+            const { data: b } = await supabase.from("batches").select("name").eq("id", profile.batch_id).maybeSingle();
+            batchName = b?.name ?? null;
+          }
+          const gap = idx === 0 ? 0 : rows[idx - 1].weekly_xp - rows[idx].weekly_xp;
+          peek = { rank: idx + 1, gap, total: rows.length, batchName };
+        }
+      }
+
       return {
         name: profile?.display_name || "there",
         streak: streak?.current_streak ?? 0,
         xpTotal,
         recommendation,
         continueChapter: nextChapter,
+        peek,
       };
     },
   });
