@@ -559,3 +559,75 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
+
+function DeleteChapterButton({ chapterId, chapterTitle }: { chapterId: string; chapterTitle: string }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const onDelete = async () => {
+    setBusy(true);
+    setErr(null);
+    // Delete dependent rows first (no FK cascade), then the chapter itself.
+    const { data: fc } = await supabase.from("flashcards").select("id").eq("chapter_id", chapterId);
+    const fcIds = (fc ?? []).map((r) => r.id);
+    if (fcIds.length > 0) {
+      const { error: e1 } = await supabase.from("flashcard_reviews").delete().in("flashcard_id", fcIds);
+      if (e1) { setBusy(false); setErr(e1.message); return; }
+    }
+    const steps: Array<Promise<{ error: { message: string } | null }>> = [
+      supabase.from("flashcards").delete().eq("chapter_id", chapterId),
+      supabase.from("questions").delete().eq("chapter_id", chapterId),
+      supabase.from("quiz_attempts").delete().eq("chapter_id", chapterId),
+      supabase.from("chapter_progress").delete().eq("chapter_id", chapterId),
+      supabase.from("tutor_messages").delete().eq("chapter_id", chapterId),
+    ];
+    for (const p of steps) {
+      const { error } = await p;
+      if (error) { setBusy(false); setErr(error.message); return; }
+    }
+    const { error } = await supabase.from("chapters").delete().eq("id", chapterId);
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    qc.invalidateQueries({ queryKey: ["admin-content-tree"] });
+    qc.invalidateQueries({ queryKey: ["admin-stats"] });
+    setOpen(false);
+  };
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Delete chapter"
+          onClick={(e) => e.stopPropagation()}
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete chapter?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently delete <span className="font-semibold">{chapterTitle}</span> along
+            with all its questions, flashcards, quiz attempts, and progress. This cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {err && <p className="text-sm text-destructive">{err}</p>}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onDelete}
+            disabled={busy}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {busy ? "Deleting…" : "Delete"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
