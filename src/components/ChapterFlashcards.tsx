@@ -73,7 +73,17 @@ export function ChapterFlashcards({ chapterId }: { chapterId: string }) {
       if (!r) fresh.push(c);
       else if (!r.next_review_at || r.next_review_at <= today) due.push(c);
     }
-    const ordered = [...due, ...fresh].slice(0, SESSION_SIZE);
+    // Shuffle each bucket so users don't see the same 10 cards in the same
+    // order every session. Due cards still come before fresh ones.
+    const shuffle = <T,>(arr: T[]): T[] => {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+    const ordered = [...shuffle(due), ...shuffle(fresh)].slice(0, SESSION_SIZE);
     return { queue: ordered, reviewByCard };
   }, [data]);
 
