@@ -117,8 +117,8 @@ RULES:
 
     const [summaryRes, questionsRes, flashcardsRes] = await Promise.all([
       callAnthropic(anthropicKey, summarySystem, userContent, 2000),
-      callAnthropic(anthropicKey, questionsSystem, userContent, 4000),
-      callAnthropic(anthropicKey, flashcardsSystem, userContent, 4000),
+      callAnthropic(anthropicKey, questionsSystem, userContent, 8000),
+      callAnthropic(anthropicKey, flashcardsSystem, userContent, 8000),
     ]);
 
     if (!summaryRes.ok || !questionsRes.ok || !flashcardsRes.ok) {
