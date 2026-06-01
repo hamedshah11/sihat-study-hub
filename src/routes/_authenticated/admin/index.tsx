@@ -251,19 +251,24 @@ function SubjectNode({
             const q = qByChapter[ch.id] ?? { draft: 0, approved: 0 };
             const f = fByChapter[ch.id] ?? { draft: 0, approved: 0 };
             return (
-              <a
+              <div
                 key={ch.id}
-                href={`/admin/chapters/${ch.id}`}
-                className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 hover:bg-secondary"
+                className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 hover:bg-secondary"
               >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">{ch.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Q: {q.draft}d/{q.approved}a · FC: {f.draft}d/{f.approved}a
-                  </p>
-                </div>
-                <StatusBadge status={ch.status ?? "draft"} />
-              </a>
+                <a
+                  href={`/admin/chapters/${ch.id}`}
+                  className="flex min-w-0 flex-1 items-center justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">{ch.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Q: {q.draft}d/{q.approved}a · FC: {f.draft}d/{f.approved}a
+                    </p>
+                  </div>
+                  <StatusBadge status={ch.status ?? "draft"} />
+                </a>
+                <DeleteChapterButton chapterId={ch.id} chapterTitle={ch.title} />
+              </div>
             );
           })}
         </div>
