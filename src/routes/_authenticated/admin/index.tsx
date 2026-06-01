@@ -576,16 +576,15 @@ function DeleteChapterButton({ chapterId, chapterTitle }: { chapterId: string; c
       const { error: e1 } = await supabase.from("flashcard_reviews").delete().in("flashcard_id", fcIds);
       if (e1) { setBusy(false); setErr(e1.message); return; }
     }
-    const steps: Array<Promise<{ error: { message: string } | null }>> = [
-      supabase.from("flashcards").delete().eq("chapter_id", chapterId),
-      supabase.from("questions").delete().eq("chapter_id", chapterId),
-      supabase.from("quiz_attempts").delete().eq("chapter_id", chapterId),
-      supabase.from("chapter_progress").delete().eq("chapter_id", chapterId),
-      supabase.from("tutor_messages").delete().eq("chapter_id", chapterId),
+    const steps = [
+      await supabase.from("flashcards").delete().eq("chapter_id", chapterId),
+      await supabase.from("questions").delete().eq("chapter_id", chapterId),
+      await supabase.from("quiz_attempts").delete().eq("chapter_id", chapterId),
+      await supabase.from("chapter_progress").delete().eq("chapter_id", chapterId),
+      await supabase.from("tutor_messages").delete().eq("chapter_id", chapterId),
     ];
-    for (const p of steps) {
-      const { error } = await p;
-      if (error) { setBusy(false); setErr(error.message); return; }
+    for (const s of steps) {
+      if (s.error) { setBusy(false); setErr(s.error.message); return; }
     }
     const { error } = await supabase.from("chapters").delete().eq("id", chapterId);
     setBusy(false);
