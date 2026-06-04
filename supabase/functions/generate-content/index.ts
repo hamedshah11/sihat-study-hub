@@ -116,9 +116,9 @@ RULES:
     const userContent = `Chapter title: ${chapter.title}\n\nSOURCE MATERIAL:\n"""\n${sourceMaterial}\n"""`;
 
     const [summaryRes, questionsRes, flashcardsRes] = await Promise.all([
-      callAnthropic(anthropicKey, summarySystem, userContent, 2000),
-      callAnthropic(anthropicKey, questionsSystem, userContent, 8000),
-      callAnthropic(anthropicKey, flashcardsSystem, userContent, 8000),
+      callAnthropic(anthropicKey, summarySystem, userContent, 64000),
+      callAnthropic(anthropicKey, questionsSystem, userContent, 16000),
+      callAnthropic(anthropicKey, flashcardsSystem, userContent, 16000),
     ]);
 
     if (!summaryRes.ok || !questionsRes.ok || !flashcardsRes.ok) {
