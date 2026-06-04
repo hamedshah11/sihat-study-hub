@@ -247,7 +247,7 @@ function SubjectNode({
           {chapters.length === 0 && (
             <p className="px-3 py-3 text-sm text-muted-foreground">No chapters.</p>
           )}
-          {chapters.map((ch) => {
+          {chapters.map((ch, idx) => {
             const q = qByChapter[ch.id] ?? { draft: 0, approved: 0 };
             const f = fByChapter[ch.id] ?? { draft: 0, approved: 0 };
             return (
@@ -267,6 +267,10 @@ function SubjectNode({
                   </div>
                   <StatusBadge status={ch.status ?? "draft"} />
                 </a>
+                <ReorderChapterButtons
+                  chapters={chapters}
+                  index={idx}
+                />
                 <DeleteChapterButton chapterId={ch.id} chapterTitle={ch.title} />
               </div>
             );
