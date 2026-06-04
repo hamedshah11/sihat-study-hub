@@ -21,7 +21,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { ChevronDown, ChevronRight, Plus, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -247,7 +247,7 @@ function SubjectNode({
           {chapters.length === 0 && (
             <p className="px-3 py-3 text-sm text-muted-foreground">No chapters.</p>
           )}
-          {chapters.map((ch) => {
+          {chapters.map((ch, idx) => {
             const q = qByChapter[ch.id] ?? { draft: 0, approved: 0 };
             const f = fByChapter[ch.id] ?? { draft: 0, approved: 0 };
             return (
@@ -267,6 +267,10 @@ function SubjectNode({
                   </div>
                   <StatusBadge status={ch.status ?? "draft"} />
                 </a>
+                <ReorderChapterButtons
+                  chapters={chapters}
+                  index={idx}
+                />
                 <DeleteChapterButton chapterId={ch.id} chapterTitle={ch.title} />
               </div>
             );
@@ -628,5 +632,59 @@ function DeleteChapterButton({ chapterId, chapterTitle }: { chapterId: string; c
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+function ReorderChapterButtons({
+  chapters,
+  index,
+}: {
+  chapters: ChapterRow[];
+  index: number;
+}) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  const swap = async (dir: -1 | 1) => {
+    const target = index + dir;
+    if (target < 0 || target >= chapters.length) return;
+    const a = chapters[index];
+    const b = chapters[target];
+    const aOrder = a.display_order ?? index;
+    const bOrder = b.display_order ?? target;
+    setBusy(true);
+    // If orders are equal, assign sequential values around them
+    const newA = bOrder === aOrder ? target : bOrder;
+    const newB = bOrder === aOrder ? index : aOrder;
+    const r1 = await supabase.from("chapters").update({ display_order: newA }).eq("id", a.id);
+    const r2 = await supabase.from("chapters").update({ display_order: newB }).eq("id", b.id);
+    setBusy(false);
+    if (r1.error || r2.error) return;
+    qc.invalidateQueries({ queryKey: ["admin-content-tree"] });
+  };
+
+  return (
+    <div className="flex flex-col">
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Move up"
+        disabled={busy || index === 0}
+        onClick={(e) => { e.stopPropagation(); e.preventDefault(); swap(-1); }}
+        className="h-6 w-6"
+      >
+        <ArrowUp className="size-3" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Move down"
+        disabled={busy || index === chapters.length - 1}
+        onClick={(e) => { e.stopPropagation(); e.preventDefault(); swap(1); }}
+        className="h-6 w-6"
+      >
+        <ArrowDown className="size-3" />
+      </Button>
+    </div>
   );
 }
