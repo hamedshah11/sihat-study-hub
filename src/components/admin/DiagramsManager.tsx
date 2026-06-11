@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Trash2, Save, ImagePlus, FileText } from "lucide-react";
+import { Loader2, Trash2, Save, FileText } from "lucide-react";
 
 type Pin = { id: string; x: number; y: number; label: string; aliases: string[] };
 type Diagram = {
@@ -19,6 +19,49 @@ type Diagram = {
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
+}
+
+/** Resolve a storage path to a signed URL (bucket is private; public buckets blocked by policy). */
+function useDiagramUrl(path: string | null | undefined) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!path) {
+      setUrl(null);
+      return;
+    }
+    let cancelled = false;
+    supabase.storage
+      .from("diagrams")
+      .createSignedUrl(path, 60 * 60)
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.error("[diagrams] signed url error", path, error);
+          setUrl(null);
+        } else {
+          setUrl(data?.signedUrl ?? null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [path]);
+  return url;
+}
+
+function Thumb({ path }: { path: string }) {
+  const url = useDiagramUrl(path);
+  if (!url) return <div className="size-12 rounded bg-background" />;
+  return (
+    <img
+      src={url}
+      alt=""
+      className="size-12 rounded object-cover bg-background"
+      onError={(e) => {
+        (e.currentTarget as HTMLImageElement).style.display = "none";
+      }}
+    />
+  );
 }
 
 export function DiagramsManager({ chapterId }: { chapterId: string }) {
@@ -43,7 +86,6 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
   });
 
   const selected = diagrams.find((d) => d.id === selectedId) ?? null;
-
   const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-diagrams", chapterId] });
 
   const handleCreate = async (file: File) => {
@@ -53,16 +95,17 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
       const ext = file.name.split(".").pop() || "png";
       const path = `${chapterId}/${uid()}.${ext}`;
       const up = await supabase.storage.from("diagrams").upload(path, file, {
-        contentType: file.type || undefined,
-        upsert: false,
+        contentType: file.type || "image/svg+xml",
+        upsert: true,
       });
       if (up.error) throw up.error;
+      console.log("[diagrams] uploaded", up.data?.path ?? path);
       const ins = await supabase
         .from("diagram_labels")
         .insert({
           chapter_id: chapterId,
           title: newTitle.trim(),
-          image_path: path,
+          image_path: up.data?.path ?? path,
           pins: [],
           status: "draft",
           display_order: diagrams.length,
@@ -129,12 +172,13 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
             <div
               key={d.id}
               className={
-                "rounded-xl bg-surface p-3 flex items-center justify-between gap-2 cursor-pointer border " +
+                "rounded-xl bg-surface p-3 flex items-center gap-3 cursor-pointer border " +
                 (selectedId === d.id ? "border-primary" : "border-transparent")
               }
               onClick={() => setSelectedId(d.id === selectedId ? null : d.id)}
             >
-              <div className="min-w-0">
+              <Thumb path={d.image_path} />
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium truncate">{d.title}</p>
                 <p className="text-xs text-muted-foreground">{(d.pins ?? []).length} pins</p>
               </div>
@@ -175,18 +219,15 @@ function DiagramEditor({
   const [pins, setPins] = useState<Pin[]>(diagram.pins ?? []);
   const [title, setTitle] = useState(diagram.title);
   const [status, setStatus] = useState(diagram.status);
-  const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
-  const imgRef = useRef<HTMLImageElement | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const signedUrl = useDiagramUrl(diagram.image_path);
 
   useEffect(() => {
-    supabase.storage
-      .from("diagrams")
-      .createSignedUrl(diagram.image_path, 60 * 60)
-      .then(({ data }) => setSignedUrl(data?.signedUrl ?? null));
-  }, [diagram.image_path]);
+    setLoadError(null);
+  }, [signedUrl]);
 
   const dirty = useMemo(
     () =>
@@ -249,7 +290,6 @@ function DiagramEditor({
     alert("Inserted into chapter notes.");
   };
 
-  // Drag move
   useEffect(() => {
     if (!dragId) return;
     const onMove = (e: MouseEvent) => {
@@ -297,19 +337,25 @@ function DiagramEditor({
 
       <div
         ref={containerRef}
-        className="relative inline-block max-w-full select-none"
+        className="relative w-full select-none"
         onClick={handleImageClick}
       >
         {signedUrl ? (
           <img
-            ref={imgRef}
             src={signedUrl}
             alt={title}
-            className="block max-w-full h-auto rounded-lg pointer-events-none"
+            style={{ width: "100%", height: "auto", display: "block" }}
+            className="rounded-lg pointer-events-none"
             draggable={false}
+            onError={() => setLoadError(signedUrl)}
           />
         ) : (
           <div className="p-6 text-sm text-muted-foreground">Loading image…</div>
+        )}
+        {loadError && (
+          <p className="absolute inset-x-0 top-0 p-2 text-xs text-destructive bg-background/80 break-all">
+            Failed to load image from: {loadError}
+          </p>
         )}
         {pins.map((pin, idx) => (
           <button
@@ -327,6 +373,16 @@ function DiagramEditor({
           </button>
         ))}
       </div>
+
+      {signedUrl && (
+        <p className="text-xs text-muted-foreground break-all">
+          Image URL:{" "}
+          <a href={signedUrl} target="_blank" rel="noreferrer" className="underline">
+            {signedUrl}
+          </a>
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground">Storage path: {diagram.image_path}</p>
 
       <div className="space-y-2">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Pins</p>
