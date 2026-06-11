@@ -409,6 +409,71 @@ function DiagramEditor({
       )}
       <p className="text-xs text-muted-foreground">Storage path: {diagram.image_path}</p>
 
+      <div className="rounded-lg bg-background p-3 space-y-2">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          Blank image (shown to students during tests)
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            ref={baseFileRef}
+            type="file"
+            accept=".svg,.png,.webp,.jpg,.jpeg,image/svg+xml,image/png,image/webp,image/jpeg"
+            disabled={uploadingBase}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadBaseImage(f);
+            }}
+            className="sm:max-w-[320px]"
+          />
+          {uploadingBase && (
+            <span className="text-xs text-muted-foreground inline-flex items-center gap-2">
+              <Loader2 className="size-3 animate-spin" /> Uploading…
+            </span>
+          )}
+          {basePath && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive"
+              onClick={() => setBasePath(null)}
+            >
+              <Trash2 className="size-4" /> Remove
+            </Button>
+          )}
+        </div>
+        {basePath ? (
+          <div className="flex items-start gap-3">
+            {baseSignedUrl ? (
+              <img
+                src={baseSignedUrl}
+                alt="Blank version"
+                className="max-h-32 rounded border bg-background"
+              />
+            ) : (
+              <div className="size-20 rounded bg-background" />
+            )}
+            <div className="min-w-0 flex-1 space-y-1">
+              {baseSignedUrl && (
+                <p className="text-xs text-muted-foreground break-all">
+                  Blank URL:{" "}
+                  <a href={baseSignedUrl} target="_blank" rel="noreferrer" className="underline">
+                    {baseSignedUrl}
+                  </a>
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground break-all">Storage path: {basePath}</p>
+              <p className="text-xs text-muted-foreground">
+                Remember to click Save to persist this blank image.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            No blank image yet — students will see the labelled image during tests until one is set.
+          </p>
+        )}
+      </div>
+
       <div className="space-y-2">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Pins</p>
         {pins.length === 0 && <p className="text-sm text-muted-foreground">No pins yet — click the image to add.</p>}
