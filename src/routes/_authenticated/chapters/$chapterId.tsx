@@ -10,6 +10,8 @@ import remarkGfm from "remark-gfm";
 import { ChapterQuiz } from "@/components/ChapterQuiz";
 import { ChapterFlashcards } from "@/components/ChapterFlashcards";
 import { ChapterTutor } from "@/components/ChapterTutor";
+import { ChapterDiagramTest } from "@/components/ChapterDiagramTest";
+import { ChapterNoteDiagrams } from "@/components/ChapterNoteDiagrams";
 
 export const Route = createFileRoute("/_authenticated/chapters/$chapterId")({
   head: () => ({ meta: [{ title: "Chapter — Sihat" }] }),
@@ -73,10 +75,11 @@ function ChapterDetail() {
       <h1 className="mt-2 text-2xl font-bold text-primary">{chapter.title}</h1>
 
       <Tabs defaultValue="notes" className="mt-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="quiz">Quiz</TabsTrigger>
           <TabsTrigger value="flashcards">Flashcards</TabsTrigger>
+          <TabsTrigger value="diagrams">Diagrams</TabsTrigger>
           <TabsTrigger value="tutor">Tutor</TabsTrigger>
         </TabsList>
 
@@ -87,6 +90,7 @@ function ChapterDetail() {
                 {chapter.summary_md || "_No notes yet._"}
               </ReactMarkdown>
             </div>
+            <ChapterNoteDiagrams chapterId={chapterId} />
           </div>
           {updated && (
             <div className="mt-3 rounded-xl bg-surface px-4 py-3 text-xs text-muted-foreground">
@@ -97,6 +101,7 @@ function ChapterDetail() {
 
         <TabsContent value="quiz"><ChapterQuiz chapterId={chapterId} /></TabsContent>
         <TabsContent value="flashcards"><ChapterFlashcards chapterId={chapterId} /></TabsContent>
+        <TabsContent value="diagrams"><ChapterDiagramTest chapterId={chapterId} /></TabsContent>
         <TabsContent value="tutor"><ChapterTutor chapterId={chapterId} /></TabsContent>
       </Tabs>
     </div>
