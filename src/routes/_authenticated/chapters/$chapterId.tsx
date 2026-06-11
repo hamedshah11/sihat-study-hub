@@ -83,7 +83,7 @@ function ChapterDetail() {
         <TabsContent value="notes">
           <div className="rounded-xl bg-surface p-5 mt-4">
             <div className="prose">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: DiagramMarkdownImage }}>
                 {chapter.summary_md || "_No notes yet._"}
               </ReactMarkdown>
             </div>
