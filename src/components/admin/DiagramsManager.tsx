@@ -220,11 +220,15 @@ function DiagramEditor({
   const [pins, setPins] = useState<Pin[]>(diagram.pins ?? []);
   const [title, setTitle] = useState(diagram.title);
   const [status, setStatus] = useState(diagram.status);
+  const [basePath, setBasePath] = useState<string | null>(diagram.base_image_path ?? null);
+  const [uploadingBase, setUploadingBase] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const baseFileRef = useRef<HTMLInputElement | null>(null);
   const signedUrl = useDiagramUrl(diagram.image_path);
+  const baseSignedUrl = useDiagramUrl(basePath);
 
   useEffect(() => {
     setLoadError(null);
