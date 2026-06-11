@@ -234,17 +234,20 @@ function HomePage() {
 
   const minutes = rec ? estimateMinutes(rec) : 0;
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <header className="flex items-start justify-between gap-4">
+      <header className="animate-fade-up flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">Hello,</p>
-          <h1 className="text-2xl font-bold text-primary">{data?.name}</h1>
+          <p className="text-sm text-muted-foreground">{greeting},</p>
+          <h1 className="font-display text-[26px] font-bold text-primary">{data?.name}</h1>
         </div>
-        <div className="flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-orange-700">
-          <Flame className="size-4" />
-          <span className="text-sm font-semibold">{data?.streak ?? 0}</span>
+        <div className="flex items-center gap-1.5 rounded-full border border-streak/30 bg-streak/10 px-3.5 py-2 text-streak shadow-soft">
+          <Flame className={`size-4 ${(data?.streak ?? 0) > 0 ? "animate-flame fill-streak/30" : ""}`} />
+          <span className="text-sm font-bold tabular-nums">{data?.streak ?? 0}</span>
         </div>
       </header>
 
@@ -256,18 +259,21 @@ function HomePage() {
         const lvl = levelFromXp(data?.xpTotal ?? 0);
         const pct = lvl.xpForLevel > 0 ? Math.min(100, (lvl.xpIntoLevel / lvl.xpForLevel) * 100) : 0;
         return (
-          <section className="rounded-xl border bg-card p-4">
+          <section className="animate-fade-up stagger-1 rounded-2xl border bg-card p-4 shadow-soft">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-semibold text-primary">
-                {lvl.name} · Level {lvl.level}
+              <span className="flex items-center gap-2 font-semibold text-primary">
+                <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-accent to-primary text-[11px] font-bold text-primary-foreground">
+                  {lvl.level}
+                </span>
+                {lvl.name}
               </span>
-              <span className="text-muted-foreground tabular-nums">
+              <span className="text-xs text-muted-foreground tabular-nums">
                 {lvl.xpIntoLevel} / {lvl.xpForLevel} XP
               </span>
             </div>
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-accent transition-all"
+                className="progress-shine h-full rounded-full bg-gradient-to-r from-accent to-accent/70 transition-all duration-700"
                 style={{ width: `${pct}%` }}
               />
             </div>
@@ -279,10 +285,12 @@ function HomePage() {
       {data?.peek && (
         <Link
           to="/leaderboard"
-          className="flex items-center justify-between rounded-xl border bg-card px-4 py-3 transition-colors hover:border-accent/40 hover:bg-accent/5"
+          className="animate-fade-up stagger-2 group flex items-center justify-between rounded-2xl border bg-card px-4 py-3.5 shadow-soft transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lifted"
         >
-          <div className="flex items-center gap-2.5">
-            <Trophy className="size-4 text-accent" />
+          <div className="flex items-center gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
+              <Trophy className="size-4" />
+            </span>
             <div>
               <p className="text-sm font-semibold text-foreground">
                 You're #{data.peek.rank}{data.peek.batchName ? ` in ${data.peek.batchName}` : ""}
@@ -294,35 +302,37 @@ function HomePage() {
               </p>
             </div>
           </div>
-          <ArrowRight className="size-4 text-muted-foreground" />
+          <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
         </Link>
       )}
 
       {/* Main card */}
       {rec?.kind === "empty" ? (
-        <section className="rounded-2xl bg-surface p-6 text-center">
-          <div className="mx-auto inline-flex items-center justify-center rounded-full bg-muted p-4 text-muted-foreground">
+        <section className="animate-fade-up stagger-3 rounded-2xl border bg-card p-6 text-center shadow-soft">
+          <div className="mx-auto inline-flex items-center justify-center rounded-full bg-accent/10 p-4 text-accent">
             <Sparkles className="size-6" />
           </div>
-          <h2 className="mt-3 text-lg font-bold text-primary">You're all caught up</h2>
+          <h2 className="mt-3 font-display text-lg font-bold text-primary">You're all caught up</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             No flashcards due and no new chapters right now. Browse subjects to explore more.
           </p>
           <Link
             to="/subjects"
-            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] active:scale-[0.98]"
           >
             Browse subjects <ArrowRight className="size-4" />
           </Link>
         </section>
       ) : (
-        <section className="rounded-2xl bg-gradient-to-br from-primary to-primary/80 p-6 text-primary-foreground shadow-sm">
-          <p className="text-xs uppercase tracking-wide opacity-80">Your session</p>
-          <h2 className="mt-1 text-xl font-bold leading-snug">{recHeadline()}</h2>
-          <p className="mt-2 text-sm opacity-90">Estimated time: {minutes} minute{minutes === 1 ? "" : "s"}</p>
+        <section className="hero-gradient animate-fade-up stagger-3 rounded-2xl p-6 text-primary-foreground shadow-lifted">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest opacity-80">
+            <Sparkles className="size-3.5" /> Your session
+          </p>
+          <h2 className="font-display mt-2 text-xl font-bold leading-snug">{recHeadline()}</h2>
+          <p className="mt-2 text-sm opacity-80">Estimated time: {minutes} minute{minutes === 1 ? "" : "s"}</p>
           <button
             onClick={startStudying}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-background text-primary px-5 py-3 text-sm font-semibold"
+            className="relative mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-background px-5 py-3.5 text-sm font-bold text-primary shadow-lifted transition-transform hover:scale-[1.02] active:scale-[0.98]"
           >
             Start studying <ArrowRight className="size-4" />
           </button>
@@ -332,6 +342,8 @@ function HomePage() {
       {/* Secondary cards */}
       <section className="grid grid-cols-2 gap-3">
         <SecondaryCard
+          tone="navy"
+          stagger="stagger-3"
           icon={<BookOpen className="size-5" />}
           label="Continue chapter"
           sublabel={data?.continueChapter?.chapterTitle ?? "Browse subjects"}
@@ -339,6 +351,8 @@ function HomePage() {
           params={data?.continueChapter ? { chapterId: data.continueChapter.chapterId } : undefined}
         />
         <SecondaryCard
+          tone="teal"
+          stagger="stagger-4"
           icon={<Layers className="size-5" />}
           label="Review flashcards"
           sublabel={rec?.kind === "flashcards" ? `${rec.dueCount} due today` : "Open a chapter"}
@@ -346,6 +360,8 @@ function HomePage() {
           params={rec?.kind === "flashcards" ? { chapterId: rec.chapterId } : undefined}
         />
         <SecondaryCard
+          tone="amber"
+          stagger="stagger-5"
           icon={<ClipboardList className="size-5" />}
           label="Take a quiz"
           sublabel={rec?.kind === "quiz" ? rec.chapterTitle : "Test yourself"}
@@ -353,6 +369,8 @@ function HomePage() {
           params={rec?.kind === "quiz" ? { chapterId: rec.chapterId } : undefined}
         />
         <SecondaryCard
+          tone="violet"
+          stagger="stagger-6"
           icon={<MessageCircle className="size-5" />}
           label="Ask tutor"
           sublabel={data?.continueChapter?.chapterTitle ?? "Pick a chapter"}
@@ -364,26 +382,41 @@ function HomePage() {
   );
 }
 
+const CARD_TONES = {
+  navy: { bg: "rgba(31,58,95,0.08)", fg: "#1F3A5F" },
+  teal: { bg: "rgba(45,157,155,0.10)", fg: "#1F7A78" },
+  amber: { bg: "rgba(217,119,6,0.10)", fg: "#92400E" },
+  violet: { bg: "rgba(124,58,237,0.10)", fg: "#5B21B6" },
+} as const;
+
 function SecondaryCard({
+  tone,
+  stagger,
   icon,
   label,
   sublabel,
   to,
   params,
 }: {
+  tone: keyof typeof CARD_TONES;
+  stagger: string;
   icon: React.ReactNode;
   label: string;
   sublabel: string;
   to: string;
   params?: Record<string, string>;
 }) {
+  const t = CARD_TONES[tone];
   return (
     <Link
       to={to as any}
       params={params as any}
-      className="flex flex-col gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-accent/40 hover:bg-accent/5 active:scale-[0.98]"
+      className={`card-lift animate-fade-up ${stagger} flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-soft`}
     >
-      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
+      <div
+        className="inline-flex size-10 items-center justify-center rounded-xl"
+        style={{ background: t.bg, color: t.fg }}
+      >
         {icon}
       </div>
       <div>

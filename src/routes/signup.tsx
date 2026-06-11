@@ -160,16 +160,25 @@ function Field({ label, error, hint, children }: { label: string; error?: string
 
 export function AuthShell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto w-full max-w-[480px] md:max-w-[480px] px-6 pt-10 pb-12">
-        <Link to="/" className="inline-flex items-center gap-2 mb-8">
-          <div className="size-8 rounded-lg bg-primary text-primary-foreground grid place-items-center font-bold text-sm">S</div>
-          <span className="text-lg font-bold text-primary">Sihat</span>
+    <div className="relative isolate min-h-screen overflow-hidden bg-background">
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        <div className="animate-float-slow absolute -top-28 -right-20 size-[380px] rounded-full bg-accent/15 blur-3xl" />
+        <div className="absolute top-1/2 -left-32 size-[360px] rounded-full bg-primary/[0.08] blur-3xl" />
+        <div className="animate-float-slow absolute -bottom-36 right-1/3 size-[320px] rounded-full bg-streak/[0.07] blur-3xl [animation-delay:-4s]" />
+      </div>
+      <div className="mx-auto w-full max-w-[480px] px-6 pt-10 pb-12">
+        <Link to="/" className="animate-fade-up mb-8 inline-flex items-center gap-2.5">
+          <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-accent text-sm font-bold text-primary-foreground shadow-glow">
+            S
+          </div>
+          <span className="font-display text-xl font-bold text-primary">Sihat</span>
         </Link>
-        <h1 className="text-2xl font-bold text-primary">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-muted-foreground mb-8">{subtitle}</p>}
+        <h1 className="animate-fade-up stagger-1 font-display text-[26px] font-bold text-primary">{title}</h1>
+        {subtitle && <p className="animate-fade-up stagger-1 mt-1 text-sm text-muted-foreground mb-7" >{subtitle}</p>}
         {!subtitle && <div className="mb-6" />}
-        {children}
+        <div className="animate-fade-up stagger-2 rounded-2xl border bg-card p-6 shadow-soft">
+          {children}
+        </div>
       </div>
     </div>
   );

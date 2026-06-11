@@ -63,35 +63,56 @@ function SubjectDetail() {
 
   return (
     <div>
-      <Link to="/subjects" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
-        <ChevronLeft className="size-4" /> Subjects
-      </Link>
-      <h1 className="mt-2 text-2xl font-bold text-primary">{data.subject.name}</h1>
-      {data.subject.description && (
-        <p className="mt-1 text-sm text-muted-foreground">{data.subject.description}</p>
-      )}
+      <header className="animate-fade-up">
+        <Link
+          to="/subjects"
+          className="inline-flex items-center gap-1 rounded-full border bg-card py-1.5 pl-2 pr-3.5 text-sm font-medium text-muted-foreground shadow-soft transition-colors hover:text-foreground"
+        >
+          <ChevronLeft className="size-4" /> Subjects
+        </Link>
+        <h1 className="font-display mt-4 text-2xl font-bold text-primary">{data.subject.name}</h1>
+        {data.subject.description && (
+          <p className="mt-1 text-sm text-muted-foreground">{data.subject.description}</p>
+        )}
+      </header>
 
-      <h2 className="mt-8 text-lg font-semibold text-primary">Chapters</h2>
-      <div className="mt-3 space-y-2">
+      <h2 className="animate-fade-up stagger-1 caption mt-8">Chapters</h2>
+      <div className="mt-3 space-y-2.5">
         {data.chapters.length === 0 && (
-          <div className="rounded-xl bg-surface p-6 text-sm text-muted-foreground">
+          <div className="rounded-2xl border bg-card p-6 text-sm text-muted-foreground shadow-soft">
             No chapters published yet.
           </div>
         )}
         {data.chapters.map((c, idx) => {
-          const m = masteryBadge(data.progressMap.get(c.id) ?? null);
+          const score = data.progressMap.get(c.id) ?? null;
+          const m = masteryBadge(score);
+          const done = score != null && score >= 80;
           return (
             <Link
               key={c.id}
               to="/chapters/$chapterId"
               params={{ chapterId: c.id }}
-              className="flex items-center gap-3 rounded-xl border bg-card p-4 transition-colors hover:border-accent/40 hover:bg-accent/5 active:scale-[0.99]"
+              className={`card-lift animate-fade-up stagger-${Math.min(idx + 1, 6)} flex items-center gap-3.5 rounded-2xl border bg-card p-4 shadow-soft`}
             >
-              <span className="inline-flex size-9 items-center justify-center rounded-lg bg-accent/10 text-sm font-semibold text-accent">
+              <span
+                className={`inline-flex size-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${
+                  done
+                    ? "bg-gradient-to-br from-accent to-primary text-primary-foreground shadow-glow"
+                    : "bg-accent/10 text-accent"
+                }`}
+              >
                 {String(idx + 1).padStart(2, "0")}
               </span>
-              <span className="flex-1 font-medium text-foreground">{c.title}</span>
-              <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${m.cls}`}>{m.label}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium text-foreground">{c.title}</span>
+                <span className="mt-1.5 block h-1.5 w-full max-w-[160px] overflow-hidden rounded-full bg-muted">
+                  <span
+                    className="block h-full rounded-full bg-gradient-to-r from-accent to-accent/70 transition-all duration-700"
+                    style={{ width: `${Math.max(0, Math.min(100, score ?? 0))}%` }}
+                  />
+                </span>
+              </span>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${m.cls}`}>{m.label}</span>
             </Link>
           );
         })}
