@@ -238,9 +238,29 @@ function DiagramEditor({
     () =>
       title !== diagram.title ||
       status !== diagram.status ||
+      basePath !== (diagram.base_image_path ?? null) ||
       JSON.stringify(pins) !== JSON.stringify(diagram.pins ?? []),
-    [title, status, pins, diagram],
+    [title, status, basePath, pins, diagram],
   );
+
+  const uploadBaseImage = async (file: File) => {
+    setUploadingBase(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const path = `${chapterId}/${uid()}-blank.${ext}`;
+      const up = await supabase.storage.from("diagrams").upload(path, file, {
+        contentType: file.type || "image/png",
+        upsert: true,
+      });
+      if (up.error) throw up.error;
+      setBasePath(up.data?.path ?? path);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploadingBase(false);
+      if (baseFileRef.current) baseFileRef.current.value = "";
+    }
+  };
 
   const getCoords = (e: React.MouseEvent) => {
     const el = containerRef.current;
