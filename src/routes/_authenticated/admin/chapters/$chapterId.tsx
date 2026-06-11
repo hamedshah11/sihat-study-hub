@@ -26,6 +26,8 @@ import {
 import { ChevronLeft, Loader2, Trash2, Check, X, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { DiagramsManager } from "@/components/admin/DiagramsManager";
+import { DiagramMarkdownImage } from "@/components/DiagramMarkdownImage";
 
 export const Route = createFileRoute("/_authenticated/admin/chapters/$chapterId")({
   head: () => ({ meta: [{ title: "Chapter — Admin" }] }),
