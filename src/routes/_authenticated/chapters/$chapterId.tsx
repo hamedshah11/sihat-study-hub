@@ -59,32 +59,37 @@ function ChapterDetail() {
 
   return (
     <div>
-      {subject ? (
-        <Link
-          to="/subjects/$subjectId"
-          params={{ subjectId: subject.id }}
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="size-4" /> {subject.name}
-        </Link>
-      ) : (
-        <Link to="/subjects" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
-          <ChevronLeft className="size-4" /> Subjects
-        </Link>
-      )}
-      <h1 className="mt-2 text-2xl font-bold text-primary">{chapter.title}</h1>
+      <header className="animate-fade-up">
+        {subject ? (
+          <Link
+            to="/subjects/$subjectId"
+            params={{ subjectId: subject.id }}
+            className="inline-flex items-center gap-1 rounded-full border bg-card py-1.5 pl-2 pr-3.5 text-sm font-medium text-muted-foreground shadow-soft transition-colors hover:text-foreground"
+          >
+            <ChevronLeft className="size-4" /> {subject.name}
+          </Link>
+        ) : (
+          <Link
+            to="/subjects"
+            className="inline-flex items-center gap-1 rounded-full border bg-card py-1.5 pl-2 pr-3.5 text-sm font-medium text-muted-foreground shadow-soft transition-colors hover:text-foreground"
+          >
+            <ChevronLeft className="size-4" /> Subjects
+          </Link>
+        )}
+        <h1 className="font-display mt-4 text-2xl font-bold text-primary">{chapter.title}</h1>
+      </header>
 
-      <Tabs defaultValue="notes" className="mt-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="notes">Notes</TabsTrigger>
-          <TabsTrigger value="quiz">Quiz</TabsTrigger>
-          <TabsTrigger value="flashcards">Flashcards</TabsTrigger>
-          <TabsTrigger value="diagrams">Diagrams</TabsTrigger>
-          <TabsTrigger value="tutor">Tutor</TabsTrigger>
+      <Tabs defaultValue="notes" className="animate-fade-up stagger-1 mt-6">
+        <TabsList className="grid h-auto w-full grid-cols-5 rounded-xl border bg-secondary/80 p-1 shadow-soft">
+          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="notes">Notes</TabsTrigger>
+          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="quiz">Quiz</TabsTrigger>
+          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="flashcards">Flashcards</TabsTrigger>
+          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="diagrams">Diagrams</TabsTrigger>
+          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="tutor">Tutor</TabsTrigger>
         </TabsList>
 
         <TabsContent value="notes">
-          <div className="rounded-xl bg-surface p-5 mt-4">
+          <div className="rounded-2xl border bg-card p-5 mt-4 shadow-soft">
             <div className="prose">
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: DiagramMarkdownImage }}>
                 {chapter.summary_md || "_No notes yet._"}
@@ -93,7 +98,7 @@ function ChapterDetail() {
             <ChapterNoteDiagrams chapterId={chapterId} />
           </div>
           {updated && (
-            <div className="mt-3 rounded-xl bg-surface px-4 py-3 text-xs text-muted-foreground">
+            <div className="mt-3 rounded-xl border bg-card px-4 py-3 text-xs text-muted-foreground shadow-soft">
               Last updated {updated}
             </div>
           )}

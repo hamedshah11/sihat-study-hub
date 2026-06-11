@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import * as Icons from "lucide-react";
-import { BookOpen } from "lucide-react";
+import { ArrowRight, BookOpen } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/subjects/")({
   head: () => ({ meta: [{ title: "Subjects — Sihat" }] }),
@@ -82,8 +82,8 @@ function SubjectsList() {
 
   return (
     <div>
-      <header>
-        <h1 className="text-[26px] font-bold text-primary tracking-tight">Your Subjects</h1>
+      <header className="animate-fade-up">
+        <h1 className="font-display text-[26px] font-bold text-primary tracking-tight">Your Subjects</h1>
         <p className="caption mt-1">{data?.semesterName ?? "…"}</p>
       </header>
 
@@ -103,29 +103,39 @@ function SubjectsList() {
           </div>
         )}
 
-        {!isLoading && data?.subjects.map(s => {
+        {!isLoading && data?.subjects.map((s, i) => {
           const a = accentFor(s.id);
           return (
             <Link
               key={s.id}
               to="/subjects/$subjectId"
               params={{ subjectId: s.id }}
-              className="card-lift block overflow-hidden rounded-2xl border bg-card p-5 shadow-sm"
-              style={{ borderLeft: `3px solid ${a.bar}` }}
+              className={`card-lift animate-fade-up stagger-${Math.min(i + 1, 6)} group relative block overflow-hidden rounded-2xl border bg-card p-5 shadow-soft`}
             >
+              <span
+                aria-hidden
+                className="absolute inset-x-0 top-0 h-1"
+                style={{ background: `linear-gradient(90deg, ${a.bar}, transparent 85%)` }}
+              />
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full opacity-[0.07] transition-transform duration-300 group-hover:scale-125"
+                style={{ background: a.bar }}
+              />
               <div className="flex items-start gap-3">
                 <div
-                  className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl"
+                  className="inline-flex size-12 shrink-0 items-center justify-center rounded-xl shadow-soft"
                   style={{ background: a.chipBg, color: a.chipFg }}
                 >
                   <SubjectIcon name={s.icon} className="size-6" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground leading-tight">{s.name}</h3>
+                  <h3 className="font-display font-semibold text-foreground leading-tight">{s.name}</h3>
                   {s.description && (
                     <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{s.description}</p>
                   )}
                 </div>
+                <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
               </div>
               <p className="mt-4 text-xs text-muted-foreground">Not started</p>
             </Link>

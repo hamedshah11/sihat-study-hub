@@ -137,10 +137,10 @@ function ProgressPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-[26px] font-bold text-primary tracking-tight">Your Progress</h1>
+      <h1 className="animate-fade-up font-display text-[26px] font-bold text-primary tracking-tight">Your Progress</h1>
 
       {/* Hero tiles */}
-      <section className="grid grid-cols-2 gap-3">
+      <section className="animate-fade-up stagger-1 grid grid-cols-2 gap-3">
         <HeroTile
           tone="streak"
           icon={<Flame className="size-6" />}
@@ -158,7 +158,7 @@ function ProgressPage() {
       </section>
 
       {/* Secondary 2x2 */}
-      <section className="grid grid-cols-2 gap-3">
+      <section className="animate-fade-up stagger-2 grid grid-cols-2 gap-3">
         <StatCard
           icon={<ClipboardList className="size-5" />}
           label="Quizzes done"
@@ -185,16 +185,18 @@ function ProgressPage() {
 
       {/* Weak areas */}
       {weak.length > 0 && (
-        <section className="space-y-3">
+        <section className="animate-fade-up stagger-3 space-y-3">
           <div className="flex items-center gap-2">
-            <AlertCircle className="size-5 text-destructive" />
+            <span className="grid size-7 place-items-center rounded-lg bg-destructive/10 text-destructive">
+              <AlertCircle className="size-4" />
+            </span>
             <h2 className="text-base font-semibold text-foreground">Weak areas</h2>
           </div>
           <div className="space-y-2">
             {weak.slice(0, 5).map((w) => (
               <div
                 key={w.chapterId}
-                className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-l-4 border-l-destructive/50 bg-card p-4 shadow-soft"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{w.chapterTitle}</p>
@@ -217,7 +219,7 @@ function ProgressPage() {
       )}
 
       {/* Chapter mastery */}
-      <section className="space-y-4">
+      <section className="animate-fade-up stagger-4 space-y-4">
         <h2 className="text-base font-semibold text-foreground">Chapter mastery</h2>
         {data?.grouped && data.grouped.length > 0 ? (
           <div className="space-y-5">
@@ -230,10 +232,16 @@ function ProgressPage() {
                   {g.chapters.map((ch) => (
                     <div
                       key={ch.chapterId}
-                      className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4"
+                      className="flex items-center justify-between gap-3 rounded-2xl border bg-card p-4 shadow-soft transition-shadow hover:shadow-lifted"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-foreground">{ch.chapterTitle}</p>
+                        <div className="mt-1.5 h-1.5 w-full max-w-[180px] overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-accent to-accent/70 transition-all duration-700"
+                            style={{ width: `${Math.max(0, Math.min(100, ch.masteryScore ?? 0))}%` }}
+                          />
+                        </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <MasteryBadge score={ch.masteryScore} />
@@ -281,14 +289,14 @@ function StatCard({
   suffix?: string;
 }) {
   return (
-    <div className="card-lift flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm">
-      <div className="inline-flex size-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
+    <div className="card-lift flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-soft">
+      <div className="inline-flex size-9 items-center justify-center rounded-xl bg-accent/10 text-accent">
         {icon}
       </div>
       <div>
-        <p className="text-lg font-bold text-foreground">
+        <p className="font-display text-lg font-bold text-foreground tabular-nums">
           {value}
-          {suffix && <span className="ml-1 text-xs font-medium text-muted-foreground">{suffix}</span>}
+          {suffix && <span className="ml-1 font-sans text-xs font-medium text-muted-foreground">{suffix}</span>}
         </p>
         <p className="text-xs text-muted-foreground">{label}</p>
       </div>
@@ -312,15 +320,22 @@ function HeroTile({
   const isStreak = tone === "streak";
   return (
     <div
-      className="card-lift rounded-2xl border p-5 shadow-sm"
+      className="card-lift relative overflow-hidden rounded-2xl border p-5 shadow-soft"
       style={
         isStreak
-          ? { background: "rgba(249,115,22,0.08)", borderColor: "rgba(249,115,22,0.25)" }
-          : { background: "rgba(45,157,155,0.08)", borderColor: "rgba(45,157,155,0.25)" }
+          ? { background: "linear-gradient(135deg, rgba(249,115,22,0.14), rgba(249,115,22,0.04))", borderColor: "rgba(249,115,22,0.25)" }
+          : { background: "linear-gradient(135deg, rgba(45,157,155,0.14), rgba(45,157,155,0.04))", borderColor: "rgba(45,157,155,0.25)" }
       }
     >
       <div
-        className="inline-flex size-11 items-center justify-center rounded-xl"
+        aria-hidden
+        className="absolute -bottom-5 -right-4 opacity-[0.1] [&>svg]:size-24"
+        style={{ color: isStreak ? "#C2410C" : "#0F766E" }}
+      >
+        {icon}
+      </div>
+      <div
+        className="inline-flex size-11 items-center justify-center rounded-xl shadow-soft"
         style={
           isStreak
             ? { background: "rgba(249,115,22,0.18)", color: "#C2410C" }
@@ -329,9 +344,9 @@ function HeroTile({
       >
         {icon}
       </div>
-      <p className="mt-3 text-3xl font-bold text-foreground tabular-nums">
+      <p className="font-display mt-3 text-3xl font-bold text-foreground tabular-nums">
         {value}
-        {suffix && <span className="ml-1.5 text-sm font-medium text-muted-foreground">{suffix}</span>}
+        {suffix && <span className="ml-1.5 font-sans text-sm font-medium text-muted-foreground">{suffix}</span>}
       </p>
       <p className="mt-0.5 text-xs font-medium text-muted-foreground">{label}</p>
     </div>

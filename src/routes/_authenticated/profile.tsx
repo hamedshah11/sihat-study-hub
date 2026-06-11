@@ -62,20 +62,35 @@ function ProfilePage() {
 
   const elevatedRole = data?.role === "admin" || data?.role === "instructor" ? data.role : null;
 
+  const initials = (data?.displayName ?? "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("") || "?";
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-primary">Profile</h1>
+      <h1 className="animate-fade-up font-display text-2xl font-bold text-primary">Profile</h1>
 
-      <div className="mt-6 rounded-xl bg-surface p-5 space-y-4">
+      {/* Identity card */}
+      <div className="hero-gradient animate-fade-up stagger-1 mt-6 flex items-center gap-4 rounded-2xl p-5 text-primary-foreground shadow-lifted">
+        <span className="grid size-14 shrink-0 place-items-center rounded-full bg-white/15 font-display text-xl font-bold backdrop-blur-sm ring-2 ring-white/25">
+          {initials}
+        </span>
+        <div className="min-w-0">
+          <p className="font-display truncate text-lg font-bold">{data?.displayName}</p>
+          <p className="truncate text-sm opacity-80">{data?.email}</p>
+          {elevatedRole && (
+            <Badge className="mt-1.5 bg-white/15 text-primary-foreground capitalize backdrop-blur-sm">{elevatedRole}</Badge>
+          )}
+        </div>
+      </div>
+
+      <div className="animate-fade-up stagger-2 mt-4 rounded-2xl border bg-card p-5 shadow-soft space-y-4">
         <Row label="Display name" value={data?.displayName} />
         <Row label="Email" value={data?.email} />
         <Row label="Student type" value={data?.studentType ?? "—"} />
-        {elevatedRole && (
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Role</p>
-            <Badge className="mt-1 bg-accent text-accent-foreground capitalize">{elevatedRole}</Badge>
-          </div>
-        )}
       </div>
 
       <BatchSection batch={data?.batch ?? null} />
@@ -84,8 +99,8 @@ function ProfilePage() {
         <TestGenerateContent />
       )}
 
-      <section className="mt-8">
-        <h2 className="text-lg font-semibold text-primary">Badges</h2>
+      <section className="animate-fade-up stagger-3 mt-8">
+        <h2 className="font-display text-lg font-semibold text-primary">Badges</h2>
         <div className="mt-3 grid grid-cols-4 gap-3">
           {(data?.badges ?? []).map((b) => {
             const earned = !!b.earnedAt;
@@ -93,11 +108,13 @@ function ProfilePage() {
               <div
                 key={b.id}
                 title={earned ? `Earned ${new Date(b.earnedAt!).toLocaleDateString()}` : b.description}
-                className={`flex flex-col items-center text-center rounded-xl border p-3 ${
-                  earned ? "bg-accent/10 border-accent/30" : "bg-muted/40 border-muted opacity-60"
+                className={`flex flex-col items-center text-center rounded-2xl border p-3 transition-all ${
+                  earned
+                    ? "border-accent/30 bg-gradient-to-b from-accent/15 to-accent/5 shadow-soft hover:-translate-y-0.5 hover:shadow-glow"
+                    : "bg-muted/40 border-muted opacity-60"
                 }`}
               >
-                <span className={`text-2xl ${earned ? "" : "grayscale"}`}>{b.icon}</span>
+                <span className={`text-2xl ${earned ? "drop-shadow-sm" : "grayscale"}`}>{b.icon}</span>
                 <p className={`mt-1 text-xs font-semibold leading-tight ${earned ? "text-foreground" : "text-muted-foreground"}`}>
                   {b.name}
                 </p>
@@ -169,7 +186,7 @@ function BatchSection({ batch }: { batch: string | null }) {
   };
 
   return (
-    <section className="mt-6 rounded-xl bg-surface p-5">
+    <section className="mt-4 rounded-2xl border bg-card p-5 shadow-soft">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Batch</p>
