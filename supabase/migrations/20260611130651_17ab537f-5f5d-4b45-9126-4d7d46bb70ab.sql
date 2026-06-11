@@ -1,0 +1,1 @@
+ALTER TABLE public.diagram_labels ADD COLUMN IF NOT EXISTS base_image_path text;

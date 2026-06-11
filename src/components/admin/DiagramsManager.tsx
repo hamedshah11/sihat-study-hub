@@ -12,6 +12,7 @@ type Diagram = {
   chapter_id: string;
   title: string;
   image_path: string;
+  base_image_path: string | null;
   pins: Pin[];
   status: string;
   display_order: number;
@@ -219,11 +220,15 @@ function DiagramEditor({
   const [pins, setPins] = useState<Pin[]>(diagram.pins ?? []);
   const [title, setTitle] = useState(diagram.title);
   const [status, setStatus] = useState(diagram.status);
+  const [basePath, setBasePath] = useState<string | null>(diagram.base_image_path ?? null);
+  const [uploadingBase, setUploadingBase] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const baseFileRef = useRef<HTMLInputElement | null>(null);
   const signedUrl = useDiagramUrl(diagram.image_path);
+  const baseSignedUrl = useDiagramUrl(basePath);
 
   useEffect(() => {
     setLoadError(null);
@@ -233,9 +238,29 @@ function DiagramEditor({
     () =>
       title !== diagram.title ||
       status !== diagram.status ||
+      basePath !== (diagram.base_image_path ?? null) ||
       JSON.stringify(pins) !== JSON.stringify(diagram.pins ?? []),
-    [title, status, pins, diagram],
+    [title, status, basePath, pins, diagram],
   );
+
+  const uploadBaseImage = async (file: File) => {
+    setUploadingBase(true);
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const path = `${chapterId}/${uid()}-blank.${ext}`;
+      const up = await supabase.storage.from("diagrams").upload(path, file, {
+        contentType: file.type || "image/png",
+        upsert: true,
+      });
+      if (up.error) throw up.error;
+      setBasePath(up.data?.path ?? path);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploadingBase(false);
+      if (baseFileRef.current) baseFileRef.current.value = "";
+    }
+  };
 
   const getCoords = (e: React.MouseEvent) => {
     const el = containerRef.current;
@@ -263,7 +288,7 @@ function DiagramEditor({
     try {
       const { error } = await supabase
         .from("diagram_labels")
-        .update({ title, status, pins: pins as unknown as never })
+        .update({ title, status, pins: pins as unknown as never, base_image_path: basePath })
         .eq("id", diagram.id);
       if (error) throw error;
       onChange();
@@ -383,6 +408,71 @@ function DiagramEditor({
         </p>
       )}
       <p className="text-xs text-muted-foreground">Storage path: {diagram.image_path}</p>
+
+      <div className="rounded-lg bg-background p-3 space-y-2">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          Blank image (shown to students during tests)
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            ref={baseFileRef}
+            type="file"
+            accept=".svg,.png,.webp,.jpg,.jpeg,image/svg+xml,image/png,image/webp,image/jpeg"
+            disabled={uploadingBase}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadBaseImage(f);
+            }}
+            className="sm:max-w-[320px]"
+          />
+          {uploadingBase && (
+            <span className="text-xs text-muted-foreground inline-flex items-center gap-2">
+              <Loader2 className="size-3 animate-spin" /> Uploading…
+            </span>
+          )}
+          {basePath && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive"
+              onClick={() => setBasePath(null)}
+            >
+              <Trash2 className="size-4" /> Remove
+            </Button>
+          )}
+        </div>
+        {basePath ? (
+          <div className="flex items-start gap-3">
+            {baseSignedUrl ? (
+              <img
+                src={baseSignedUrl}
+                alt="Blank version"
+                className="max-h-32 rounded border bg-background"
+              />
+            ) : (
+              <div className="size-20 rounded bg-background" />
+            )}
+            <div className="min-w-0 flex-1 space-y-1">
+              {baseSignedUrl && (
+                <p className="text-xs text-muted-foreground break-all">
+                  Blank URL:{" "}
+                  <a href={baseSignedUrl} target="_blank" rel="noreferrer" className="underline">
+                    {baseSignedUrl}
+                  </a>
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground break-all">Storage path: {basePath}</p>
+              <p className="text-xs text-muted-foreground">
+                Remember to click Save to persist this blank image.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            No blank image yet — students will see the labelled image during tests until one is set.
+          </p>
+        )}
+      </div>
 
       <div className="space-y-2">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Pins</p>

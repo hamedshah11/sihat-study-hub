@@ -155,6 +155,7 @@ export type Database = {
       }
       diagram_labels: {
         Row: {
+          base_image_path: string | null
           chapter_id: string
           created_at: string
           display_order: number
@@ -166,6 +167,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          base_image_path?: string | null
           chapter_id: string
           created_at?: string
           display_order?: number
@@ -177,6 +179,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          base_image_path?: string | null
           chapter_id?: string
           created_at?: string
           display_order?: number
