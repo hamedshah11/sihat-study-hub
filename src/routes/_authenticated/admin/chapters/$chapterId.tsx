@@ -26,6 +26,8 @@ import {
 import { ChevronLeft, Loader2, Trash2, Check, X, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { DiagramsManager } from "@/components/admin/DiagramsManager";
+import { DiagramMarkdownImage } from "@/components/DiagramMarkdownImage";
 
 export const Route = createFileRoute("/_authenticated/admin/chapters/$chapterId")({
   head: () => ({ meta: [{ title: "Chapter — Admin" }] }),
@@ -152,11 +154,12 @@ function AdminChapterDetail() {
       </p>
 
       <Tabs defaultValue="source" className="mt-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="source">Source</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="questions">Questions</TabsTrigger>
           <TabsTrigger value="flashcards">Flashcards</TabsTrigger>
+          <TabsTrigger value="diagrams">Diagrams</TabsTrigger>
         </TabsList>
 
         <TabsContent value="source">
@@ -170,6 +173,9 @@ function AdminChapterDetail() {
         </TabsContent>
         <TabsContent value="flashcards">
           <FlashcardsTab chapterId={chapterId} />
+        </TabsContent>
+        <TabsContent value="diagrams">
+          <DiagramsManager chapterId={chapterId} />
         </TabsContent>
       </Tabs>
     </div>
@@ -369,7 +375,7 @@ function NotesTab({ chapter, onSaved }: { chapter: Chapter; onSaved: () => void 
       </div>
       <div className="rounded-xl bg-surface p-5">
         <div className="prose">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: DiagramMarkdownImage }}>
             {chapter.summary_md || "_No notes yet._"}
           </ReactMarkdown>
         </div>

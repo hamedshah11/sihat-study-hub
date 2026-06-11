@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { DiagramMarkdownImage } from "@/components/DiagramMarkdownImage";
 import remarkGfm from "remark-gfm";
 import { ChapterQuiz } from "@/components/ChapterQuiz";
 import { ChapterFlashcards } from "@/components/ChapterFlashcards";
@@ -82,7 +83,7 @@ function ChapterDetail() {
         <TabsContent value="notes">
           <div className="rounded-xl bg-surface p-5 mt-4">
             <div className="prose">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: DiagramMarkdownImage }}>
                 {chapter.summary_md || "_No notes yet._"}
               </ReactMarkdown>
             </div>
