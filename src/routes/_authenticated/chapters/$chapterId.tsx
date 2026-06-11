@@ -10,6 +10,8 @@ import remarkGfm from "remark-gfm";
 import { ChapterQuiz } from "@/components/ChapterQuiz";
 import { ChapterFlashcards } from "@/components/ChapterFlashcards";
 import { ChapterTutor } from "@/components/ChapterTutor";
+import { ChapterDiagramTest } from "@/components/ChapterDiagramTest";
+import { ChapterNoteDiagrams } from "@/components/ChapterNoteDiagrams";
 
 export const Route = createFileRoute("/_authenticated/chapters/$chapterId")({
   head: () => ({ meta: [{ title: "Chapter — Sihat" }] }),
