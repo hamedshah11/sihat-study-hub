@@ -375,7 +375,7 @@ function NotesTab({ chapter, onSaved }: { chapter: Chapter; onSaved: () => void 
       </div>
       <div className="rounded-xl bg-surface p-5">
         <div className="prose">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: DiagramMarkdownImage }}>
             {chapter.summary_md || "_No notes yet._"}
           </ReactMarkdown>
         </div>
