@@ -153,6 +153,50 @@ export type Database = {
           },
         ]
       }
+      diagram_labels: {
+        Row: {
+          chapter_id: string
+          created_at: string
+          display_order: number
+          id: string
+          image_path: string
+          pins: Json
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          chapter_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_path: string
+          pins?: Json
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          chapter_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_path?: string
+          pins?: Json
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagram_labels_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flashcard_reviews: {
         Row: {
           difficulty: number | null
