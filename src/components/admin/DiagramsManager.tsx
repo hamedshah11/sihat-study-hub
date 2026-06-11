@@ -12,6 +12,7 @@ type Diagram = {
   chapter_id: string;
   title: string;
   image_path: string;
+  base_image_path: string | null;
   pins: Pin[];
   status: string;
   display_order: number;
