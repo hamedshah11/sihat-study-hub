@@ -38,7 +38,7 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
         .order("display_order", { ascending: true })
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as Diagram[];
+      return (data ?? []) as unknown as Diagram[];
     },
   });
 
