@@ -288,7 +288,7 @@ function DiagramEditor({
     try {
       const { error } = await supabase
         .from("diagram_labels")
-        .update({ title, status, pins: pins as unknown as never })
+        .update({ title, status, pins: pins as unknown as never, base_image_path: basePath })
         .eq("id", diagram.id);
       if (error) throw error;
       onChange();
