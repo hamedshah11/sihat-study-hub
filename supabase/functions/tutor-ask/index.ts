@@ -1,6 +1,7 @@
 // Supabase Edge Function: tutor-ask
 // Answers nursing student questions strictly from chapter notes, using Anthropic Claude.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { awardXpAndStreak } from "../_shared/activity.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -135,6 +136,14 @@ ${notes || "(No notes available for this chapter.)"}
 
     if (insertErr) console.error("Insert error", insertErr);
     const assistantId = inserted?.find((m) => m.role === "assistant")?.id ?? null;
+
+    // Award XP (+2) and streak server-side. The browser can no longer write
+    // these tables, so this is the trusted path for tutor activity.
+    try {
+      await awardXpAndStreak(admin, userId, "tutor");
+    } catch (e) {
+      console.error("xp award failed", e);
+    }
 
     return json({ answer, messageId: assistantId });
   } catch (e) {

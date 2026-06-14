@@ -2,6 +2,7 @@
 // Viva-style recall coach. action:"next" generates a question; action:"grade" scores an answer.
 // Mirrors the auth + rate-limit pattern of the existing tutor-ask function.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { awardXpAndStreak } from "../_shared/activity.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -86,6 +87,11 @@ Respond with ONLY JSON: {"verdict":"strong|partial|weak","correct":["..."],"miss
           { user_id: userId, chapter_id: chapterId, role: "assistant", content: `[practice ${verdict}] ${modelAnswer}` },
         ]);
       } catch (_) { /* logging is non-blocking */ }
+
+      // Award XP (+2) and streak server-side for a graded practice answer.
+      try {
+        await awardXpAndStreak(admin, userId, "tutor");
+      } catch (e) { console.error("xp award failed", e); }
 
       return json({ verdict, correct, missed, modelAnswer });
     }

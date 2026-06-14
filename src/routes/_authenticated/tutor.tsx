@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles, Send, AlertCircle, RefreshCw, CheckCircle2, CircleAlert, XCircle, BookOpen } from "lucide-react";
-import { recordStudyActivity } from "@/lib/study-activity";
 import { awardBadgesIfNeeded } from "@/lib/award-badges";
 
 export const Route = createFileRoute("/_authenticated/tutor")({
@@ -111,7 +110,6 @@ function TutorPracticePage() {
         return;
       }
       setResult(data as GradeResult);
-      await recordStudyActivity("tutor");
       await awardBadgesIfNeeded();
     } catch (e: any) {
       setError(e?.message || "Network error.");

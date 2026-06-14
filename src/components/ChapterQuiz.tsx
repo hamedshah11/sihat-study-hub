@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CheckCircle2, XCircle, ClipboardList, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { recordStudyActivity } from "@/lib/study-activity";
+import { useServerFn } from "@tanstack/react-start";
+import { submitQuiz } from "@/lib/study.functions";
 import { awardBadgesIfNeeded } from "@/lib/award-badges";
 import { celebrate } from "@/lib/celebrate";
 
@@ -101,6 +102,7 @@ function QuizRunner({
   const [finished, setFinished] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const submit = useServerFn(submitQuiz);
 
   const q = questions[index];
   const total = questions.length;
@@ -128,12 +130,18 @@ function QuizRunner({
     const finalAnswers = answers; // already includes the just-revealed answer
     const finalScore = finalAnswers.filter((a) => a.correct).length;
     try {
-      await persistResults({
-        chapterId,
-        score: finalScore,
-        total,
-        answers: finalAnswers,
+      // The server recomputes the score from the raw selections; the client's
+      // claimed score is never stored. XP/streak/mastery are written there too.
+      await submit({
+        data: {
+          chapterId,
+          answers: finalAnswers.map((a) => ({
+            questionId: a.questionId,
+            selectedIndex: a.selectedIndex,
+          })),
+        },
       });
+      await awardBadgesIfNeeded();
     } catch (e) {
       console.error("Failed to save quiz results", e);
     } finally {
@@ -304,61 +312,4 @@ function QuizRunner({
   );
 }
 
-async function persistResults({
-  chapterId,
-  score,
-  total,
-  answers,
-}: {
-  chapterId: string;
-  score: number;
-  total: number;
-  answers: AnswerRecord[];
-}) {
-  const { data: userData } = await supabase.auth.getUser();
-  const userId = userData.user?.id;
-  if (!userId) return;
-
-  const pct = score / total;
-  const masteryScore = Math.round(pct * 100);
-  const passed = pct >= 0.8;
-  const now = new Date().toISOString();
-
-  // 1. Save attempt
-  await supabase.from("quiz_attempts").insert({
-    user_id: userId,
-    chapter_id: chapterId,
-    score,
-    total_questions: total,
-    answers: answers as never,
-    attempted_at: now,
-  });
-
-  // 2. Upsert chapter_progress
-  const { data: existingProgress } = await supabase
-    .from("chapter_progress")
-    .select("attempts, mastery_score, completed_at")
-    .eq("user_id", userId)
-    .eq("chapter_id", chapterId)
-    .maybeSingle();
-
-  const newAttempts = (existingProgress?.attempts ?? 0) + 1;
-  const newMastery = Math.max(existingProgress?.mastery_score ?? 0, masteryScore);
-  const completedAt = existingProgress?.completed_at ?? (passed ? now : null);
-
-  await supabase.from("chapter_progress").upsert(
-    {
-      user_id: userId,
-      chapter_id: chapterId,
-      attempts: newAttempts,
-      last_attempt_at: now,
-      mastery_score: newMastery,
-      completed_at: completedAt,
-    },
-    { onConflict: "user_id,chapter_id" },
-  );
-
-  await recordStudyActivity(passed ? "quiz_pass" : "quiz");
-  await awardBadgesIfNeeded();
-}
 
