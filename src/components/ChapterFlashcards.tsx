@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Brain, Sparkles } from "lucide-react";
-import { schedule, SESSION_SIZE, type Rating, type ReviewState } from "@/lib/spacedRepetition";
-import { recordStudyActivity } from "@/lib/study-activity";
+import { SESSION_SIZE, type Rating } from "@/lib/spacedRepetition";
+import { useServerFn } from "@tanstack/react-start";
+import { recordReview } from "@/lib/study.functions";
 import { awardBadgesIfNeeded } from "@/lib/award-badges";
 
 type Flashcard = {
@@ -107,7 +108,6 @@ export function ChapterFlashcards({ chapterId }: { chapterId: string }) {
   return (
     <FlashcardRunner
       queue={session.queue}
-      reviewByCard={session.reviewByCard}
       userId={data!.userId ?? null}
     />
   );
@@ -115,11 +115,9 @@ export function ChapterFlashcards({ chapterId }: { chapterId: string }) {
 
 function FlashcardRunner({
   queue,
-  reviewByCard,
   userId,
 }: {
   queue: Flashcard[];
-  reviewByCard: Map<string, ReviewRow>;
   userId: string | null;
 }) {
   const [index, setIndex] = useState(0);
@@ -127,9 +125,10 @@ function FlashcardRunner({
   const [reviewed, setReviewed] = useState(0);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [xp, setXp] = useState(0);
+  const review = useServerFn(recordReview);
 
   if (done) {
-    const xp = reviewed; // 1 XP per card
     return (
       <div className="mt-4 rounded-xl bg-surface p-6 text-center">
         <div className="mx-auto inline-flex items-center justify-center rounded-full bg-muted p-4 text-accent">
@@ -145,6 +144,7 @@ function FlashcardRunner({
               setIndex(0);
               setShowBack(false);
               setReviewed(0);
+              setXp(0);
               setDone(false);
             }}
           >
@@ -164,27 +164,10 @@ function FlashcardRunner({
     if (busy || !userId) return;
     setBusy(true);
     try {
-      const prev = reviewByCard.get(card.id) as Partial<ReviewState> | undefined;
-      const next = schedule(prev ?? null, rating);
-
-      await supabase.from("flashcard_reviews").upsert(
-        {
-          user_id: userId,
-          flashcard_id: card.id,
-          reps: next.reps,
-          lapses: next.lapses,
-          state: next.state,
-          stability: next.stability,
-          difficulty: next.difficulty,
-          scheduled_days: next.scheduled_days,
-          elapsed_days: next.elapsed_days,
-          last_review: next.last_review,
-          next_review_at: next.next_review_at,
-        },
-        { onConflict: "user_id,flashcard_id" },
-      );
-
-      await recordStudyActivity("flashcard");
+      // FSRS scheduling, the review write and XP all happen server-side now —
+      // the browser can no longer write flashcard_reviews or xp_events.
+      const res = await review({ data: { flashcardId: card.id, rating } });
+      setXp((v) => v + (res?.awardedXp ?? 0));
 
       const newReviewed = reviewed + 1;
       setReviewed(newReviewed);
