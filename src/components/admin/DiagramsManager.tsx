@@ -90,24 +90,83 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-diagrams", chapterId] });
 
   const handleCreate = async (file: File) => {
-    if (!newTitle.trim()) return;
     setCreating(true);
     try {
-      const ext = file.name.split(".").pop() || "png";
+      const isSvg = file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg");
+      let manifestTitle: string | null = null;
+      let manifestPins: Pin[] | null = null;
+      let blankSvgText: string | null = null;
+      let labelledText: string | null = null;
+
+      if (isSvg) {
+        const text = await file.text();
+        labelledText = text;
+        try {
+          const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+          const meta = doc.querySelector("#sihat-pins");
+          if (meta && meta.textContent) {
+            const parsed = JSON.parse(meta.textContent) as {
+              title?: string;
+              pins?: { label: string; x: number; y: number; aliases?: string[] }[];
+            };
+            if (parsed.title) manifestTitle = parsed.title;
+            if (Array.isArray(parsed.pins)) {
+              manifestPins = parsed.pins.map((p) => ({
+                id: (crypto as any).randomUUID?.() ?? uid(),
+                label: String(p.label ?? ""),
+                x: Number(p.x) || 0,
+                y: Number(p.y) || 0,
+                aliases: Array.isArray(p.aliases) ? p.aliases.map(String) : [],
+              }));
+            }
+            // Generate blank by removing labels layer
+            const blankDoc = new DOMParser().parseFromString(text, "image/svg+xml");
+            blankDoc.querySelector("#sihat-labels")?.remove();
+            blankDoc.querySelector("#sihat-pins")?.remove();
+            blankSvgText = new XMLSerializer().serializeToString(blankDoc);
+          }
+        } catch (err) {
+          console.warn("[diagrams] manifest parse failed, falling back to manual", err);
+        }
+      }
+
+      const titleToUse = (newTitle.trim() || manifestTitle || "").trim();
+      if (!titleToUse) {
+        alert("Please enter a title (no manifest found in file).");
+        return;
+      }
+
+      // Upload labelled image
+      const ext = file.name.split(".").pop() || (isSvg ? "svg" : "png");
       const path = `${chapterId}/${uid()}.${ext}`;
       const up = await supabase.storage.from("diagrams").upload(path, file, {
-        contentType: file.type || "image/svg+xml",
+        contentType: file.type || (isSvg ? "image/svg+xml" : "image/png"),
         upsert: true,
       });
       if (up.error) throw up.error;
-      console.log("[diagrams] uploaded", up.data?.path ?? path);
+      const imagePath = up.data?.path ?? path;
+
+      // Upload blank if generated
+      let basePath: string | null = null;
+      if (blankSvgText) {
+        const blankPath = `${chapterId}/${uid()}-blank.svg`;
+        const blob = new Blob([blankSvgText], { type: "image/svg+xml" });
+        const upB = await supabase.storage.from("diagrams").upload(blankPath, blob, {
+          contentType: "image/svg+xml",
+          upsert: true,
+        });
+        if (upB.error) throw upB.error;
+        basePath = upB.data?.path ?? blankPath;
+      }
+
       const ins = await supabase
         .from("diagram_labels")
         .insert({
           chapter_id: chapterId,
-          title: newTitle.trim(),
-          image_path: up.data?.path ?? path,
-          pins: [],
+          title: titleToUse,
+          image_path: imagePath,
+          base_image_path: basePath,
+          pins: (manifestPins ?? []) as unknown as never,
           status: "draft",
           display_order: diagrams.length,
         })
@@ -117,6 +176,9 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
       setNewTitle("");
       if (fileRef.current) fileRef.current.value = "";
       setSelectedId(ins.data!.id);
+      if (manifestPins) {
+        console.log(`[diagrams] smart-imported ${manifestPins.length} pins + blank image`);
+      }
       invalidate();
     } catch (e) {
       alert(e instanceof Error ? e.message : String(e));
@@ -148,7 +210,7 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
             ref={fileRef}
             type="file"
             accept="image/*"
-            disabled={creating || !newTitle.trim()}
+            disabled={creating}
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) handleCreate(f);
