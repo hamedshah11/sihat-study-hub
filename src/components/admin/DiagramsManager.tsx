@@ -210,7 +210,7 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
             ref={fileRef}
             type="file"
             accept="image/*"
-            disabled={creating || !newTitle.trim()}
+            disabled={creating}
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) handleCreate(f);
