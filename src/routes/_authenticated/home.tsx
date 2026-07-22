@@ -35,7 +35,7 @@ function HomePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
       const uid = user.id;
-      const todayIso = new Date().toISOString().slice(0, 10);
+      const nowIso = new Date().toISOString();
 
       const [
         { data: profile },
@@ -50,9 +50,9 @@ function HomePage() {
         supabase.from("xp_events").select("amount").eq("user_id", uid),
         supabase
           .from("flashcard_reviews")
-          .select("flashcard_id, next_review_at")
+          .select("flashcard_id, due_at")
           .eq("user_id", uid)
-          .lte("next_review_at", todayIso),
+          .lte("due_at", nowIso),
         supabase.from("chapter_progress").select("chapter_id, mastery_score, completed_at, last_attempt_at").eq("user_id", uid),
         supabase.rpc("batch_weekly_leaderboard"),
       ]);
