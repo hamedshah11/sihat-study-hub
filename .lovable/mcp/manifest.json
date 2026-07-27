@@ -113,7 +113,7 @@
       {
         "name": "get_my_progress",
         "title": "Get my progress",
-        "description": "Return the signed-in user's XP total, current streak, and best streak.",
+        "description": "Return the signed-in user's XP total, current streak, and longest streak.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,

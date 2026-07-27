@@ -14,7 +14,7 @@ export default defineTool({
     const sb = supabaseForUser(ctx);
     const { data, error } = await sb
       .from("subjects")
-      .select("id, name, description, semester, display_order")
+      .select("id, name, description, semester_id, display_order")
       .order("display_order", { ascending: true });
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     return {

@@ -5,18 +5,19 @@ export default defineTool({
   name: "get_my_progress",
   title: "Get my progress",
   description:
-    "Return the signed-in user's XP total, current streak, and best streak.",
+    "Return the signed-in user's XP total, current streak, and longest streak.",
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async (_input, ctx) => {
     if (!ctx.isAuthenticated()) return unauthenticated();
     const sb = supabaseForUser(ctx);
     const userId = ctx.getUserId();
+    if (!userId) return unauthenticated();
     const [{ data: xp }, { data: streak }] = await Promise.all([
       sb.from("xp_events").select("amount").eq("user_id", userId),
       sb
         .from("streaks")
-        .select("current_streak, best_streak, last_active_date")
+        .select("current_streak, longest_streak, last_active_date")
         .eq("user_id", userId)
         .maybeSingle(),
     ]);
@@ -24,7 +25,7 @@ export default defineTool({
     const result = {
       total_xp: totalXp,
       current_streak: streak?.current_streak ?? 0,
-      best_streak: streak?.best_streak ?? 0,
+      longest_streak: streak?.longest_streak ?? 0,
       last_active_date: streak?.last_active_date ?? null,
     };
     return {
