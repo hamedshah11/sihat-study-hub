@@ -3,6 +3,7 @@ import listSubjects from "./tools/list-subjects";
 import listChapters from "./tools/list-chapters";
 import getChapterNotes from "./tools/get-chapter-notes";
 import listFlashcards from "./tools/list-flashcards";
+import listQuestions from "./tools/list-questions";
 import getMyProgress from "./tools/get-my-progress";
 
 // On publish, SUPABASE_URL rewrites to the .lovable.cloud proxy which mcp-js rejects.
