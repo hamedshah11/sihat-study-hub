@@ -111,6 +111,42 @@
         "outputSchema": null
       },
       {
+        "name": "list_questions",
+        "title": "List questions",
+        "description": "List questions (with answer key) for a chapter. Staff-only: exposes correct_index and explanation.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "chapter_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Chapter UUID from list_chapters."
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "approved",
+                "draft",
+                "rejected",
+                "all"
+              ],
+              "description": "Filter by status. Defaults to 'approved'. Staff-only."
+            }
+          },
+          "required": [
+            "chapter_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
         "name": "get_my_progress",
         "title": "Get my progress",
         "description": "Return the signed-in user's XP total, current streak, and longest streak.",

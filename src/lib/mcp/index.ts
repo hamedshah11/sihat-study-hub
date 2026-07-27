@@ -3,6 +3,7 @@ import listSubjects from "./tools/list-subjects";
 import listChapters from "./tools/list-chapters";
 import getChapterNotes from "./tools/get-chapter-notes";
 import listFlashcards from "./tools/list-flashcards";
+import listQuestions from "./tools/list-questions";
 import getMyProgress from "./tools/get-my-progress";
 
 // On publish, SUPABASE_URL rewrites to the .lovable.cloud proxy which mcp-js rejects.
@@ -19,5 +20,5 @@ export default defineMcp({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
   }),
-  tools: [listSubjects, listChapters, getChapterNotes, listFlashcards, getMyProgress],
+  tools: [listSubjects, listChapters, getChapterNotes, listFlashcards, listQuestions, getMyProgress],
 });
