@@ -19,8 +19,10 @@ export default defineTool({
     if (!ctx.isAuthenticated()) return unauthenticated();
     const sb = supabaseForUser(ctx);
 
+    const userId = ctx.getUserId();
+    if (!userId) return unauthenticated();
     const { data: isStaff, error: staffError } = await sb.rpc("is_staff", {
-      _user_id: ctx.getUserId(),
+      _user_id: userId,
     });
     if (staffError) return { content: [{ type: "text", text: staffError.message }], isError: true };
     if (!isStaff) {
