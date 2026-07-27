@@ -9,11 +9,15 @@ import { AuthShell } from "./signup";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Log in — Sihat" }] }),
+  validateSearch: (s: Record<string, unknown>): { next?: string } => ({
+    next: typeof s.next === "string" && s.next.startsWith("/") ? s.next : undefined,
+  }),
   component: Login,
 });
 
 function Login() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
 
@@ -27,6 +31,10 @@ function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setSubmitting(false);
     if (error) { toast.error(error.message); return; }
+    if (next) {
+      window.location.href = next;
+      return;
+    }
     navigate({ to: "/home" });
   };
 
