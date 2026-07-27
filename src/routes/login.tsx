@@ -9,8 +9,8 @@ import { AuthShell } from "./signup";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Log in — Sihat" }] }),
-  validateSearch: (s: Record<string, unknown>) => ({
-    next: typeof s.next === "string" && s.next.startsWith("/") ? s.next : "",
+  validateSearch: (s: Record<string, unknown>): { next?: string } => ({
+    next: typeof s.next === "string" && s.next.startsWith("/") ? s.next : undefined,
   }),
   component: Login,
 });
