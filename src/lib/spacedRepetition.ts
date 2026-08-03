@@ -22,8 +22,10 @@ export type ReviewState = {
   difficulty: number;
   scheduled_days: number;
   elapsed_days: number;
+  learning_steps: number; // FSRS-6 step index within learning/relearning
   last_review: string | null;
-  next_review_at: string; // YYYY-MM-DD
+  due_at: string; // full ISO timestamp — learning steps are minutes apart
+  next_review_at: string; // due_at's calendar date in PKT; legacy column, still written
 };
 
 export const SESSION_SIZE = 10;
@@ -65,10 +67,7 @@ function mapStateToString(s: FsrsState): ReviewState["state"] {
   }
 }
 
-export function schedule(
-  prev: Partial<ReviewState> | null,
-  rating: Rating,
-): ReviewState {
+export function schedule(prev: Partial<ReviewState> | null, rating: Rating): ReviewState {
   const now = new Date();
   const grade = RATING_TO_GRADE[rating];
 
@@ -77,7 +76,13 @@ export function schedule(
     card = createEmptyCard(now);
   } else {
     card = {
-      due: prev.next_review_at ? new Date(prev.next_review_at) : now,
+      // Legacy rows predate due_at: next_review_at was a bare date meaning
+      // "due that day in Pakistan", so pin it to PKT midnight, not UTC.
+      due: prev.due_at
+        ? new Date(prev.due_at)
+        : prev.next_review_at
+          ? new Date(`${prev.next_review_at}T00:00:00+05:00`)
+          : now,
       stability: prev.stability ?? 0,
       difficulty: prev.difficulty ?? 0,
       elapsed_days: prev.elapsed_days ?? 0,
@@ -86,7 +91,7 @@ export function schedule(
       lapses: prev.lapses ?? 0,
       state: mapStringToState(prev.state),
       last_review: prev.last_review ? new Date(prev.last_review) : undefined,
-      learning_steps: 0,
+      learning_steps: prev.learning_steps ?? 0,
     } as FsrsCard;
   }
 
@@ -100,7 +105,14 @@ export function schedule(
     difficulty: next.difficulty,
     scheduled_days: next.scheduled_days,
     elapsed_days: next.elapsed_days,
+    learning_steps: next.learning_steps,
     last_review: now.toISOString(),
-    next_review_at: next.due.toISOString().slice(0, 10),
+    due_at: next.due.toISOString(),
+    next_review_at: pktDateOf(next.due),
   };
+}
+
+// Pakistan Standard Time is UTC+5, no DST.
+function pktDateOf(d: Date): string {
+  return new Date(d.getTime() + 5 * 3600_000).toISOString().slice(0, 10);
 }

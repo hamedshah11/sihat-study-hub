@@ -205,7 +205,7 @@ export const recordReview = createServerFn({ method: "POST" })
     const { data: prev } = await supabaseAdmin
       .from("flashcard_reviews")
       .select(
-        "reps, lapses, state, stability, difficulty, scheduled_days, elapsed_days, last_review, next_review_at",
+        "reps, lapses, state, stability, difficulty, scheduled_days, elapsed_days, learning_steps, last_review, due_at, next_review_at",
       )
       .eq("user_id", userId)
       .eq("flashcard_id", data.flashcardId)
@@ -227,7 +227,9 @@ export const recordReview = createServerFn({ method: "POST" })
         difficulty: next.difficulty,
         scheduled_days: next.scheduled_days,
         elapsed_days: next.elapsed_days,
+        learning_steps: next.learning_steps,
         last_review: next.last_review,
+        due_at: next.due_at,
         next_review_at: next.next_review_at,
       },
       { onConflict: "user_id,flashcard_id" },
