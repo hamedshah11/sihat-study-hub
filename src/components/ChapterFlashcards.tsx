@@ -26,7 +26,7 @@ type ReviewRow = {
   scheduled_days: number | null;
   elapsed_days: number | null;
   last_review: string | null;
-  next_review_at: string | null;
+  due_at: string | null;
 };
 
 export function ChapterFlashcards({ chapterId }: { chapterId: string }) {
@@ -48,7 +48,7 @@ export function ChapterFlashcards({ chapterId }: { chapterId: string }) {
         const { data: r } = await supabase
           .from("flashcard_reviews")
           .select(
-            "flashcard_id, reps, lapses, state, stability, difficulty, scheduled_days, elapsed_days, last_review, next_review_at",
+            "flashcard_id, reps, lapses, state, stability, difficulty, scheduled_days, elapsed_days, last_review, due_at",
           )
           .eq("user_id", userId)
           .in(
@@ -64,7 +64,7 @@ export function ChapterFlashcards({ chapterId }: { chapterId: string }) {
 
   const session = useMemo(() => {
     if (!data) return null;
-    const today = new Date().toISOString().slice(0, 10);
+    const now = Date.now();
     const reviewByCard = new Map(data.reviews.map((r) => [r.flashcard_id, r]));
 
     const due: Flashcard[] = [];
@@ -72,7 +72,7 @@ export function ChapterFlashcards({ chapterId }: { chapterId: string }) {
     for (const c of data.cards) {
       const r = reviewByCard.get(c.id);
       if (!r) fresh.push(c);
-      else if (!r.next_review_at || r.next_review_at <= today) due.push(c);
+      else if (!r.due_at || new Date(r.due_at).getTime() <= now) due.push(c);
     }
     // Shuffle each bucket so users don't see the same 10 cards in the same
     // order every session. Due cards still come before fresh ones.
