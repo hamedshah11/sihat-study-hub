@@ -73,7 +73,7 @@ export function parseLabelledSvg(text: string): SvgManifest | null {
 
     const title =
       !Array.isArray(parsed) && typeof (parsed as { title?: unknown }).title === "string"
-        ? ((parsed as { title: string }).title.trim() || null)
+        ? (parsed as { title: string }).title.trim() || null
         : null;
 
     // Blank (unlabelled) variant: strip the labels + manifest layers.
@@ -87,7 +87,6 @@ export function parseLabelledSvg(text: string): SvgManifest | null {
     return null;
   }
 }
-
 
 /** Resolve a storage path to a signed URL (bucket is private; public buckets blocked by policy). */
 function useDiagramUrl(path: string | null | undefined) {
@@ -226,7 +225,6 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
     }
   };
 
-
   const removeDiagram = async (d: Diagram) => {
     if (!confirm(`Delete diagram "${d.title}"?`)) return;
     await supabase.storage.from("diagrams").remove([d.image_path]);
@@ -266,7 +264,6 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
         {importNotice && <p className="text-xs text-muted-foreground">{importNotice}</p>}
       </div>
 
-
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : diagrams.length === 0 ? (
@@ -288,7 +285,9 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
                 <p className="text-xs text-muted-foreground">{(d.pins ?? []).length} pins</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Badge variant={d.status === "approved" ? "default" : "secondary"}>{d.status}</Badge>
+                <Badge variant={d.status === "approved" ? "default" : "secondary"}>
+                  {d.status}
+                </Badge>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -306,7 +305,14 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
         </div>
       )}
 
-      {selected && <DiagramEditor key={selected.id} diagram={selected} onChange={invalidate} chapterId={chapterId} />}
+      {selected && (
+        <DiagramEditor
+          key={selected.id}
+          diagram={selected}
+          onChange={invalidate}
+          chapterId={chapterId}
+        />
+      )}
     </div>
   );
 }
@@ -399,13 +405,17 @@ function DiagramEditor({
       setImportNotice(NO_MANIFEST_NOTICE);
       return;
     }
-    if (pins.length > 0 && !confirm(`Replace the existing ${pins.length} pins with ${manifest.pins.length} from this SVG?`)) {
+    if (
+      pins.length > 0 &&
+      !confirm(
+        `Replace the existing ${pins.length} pins with ${manifest.pins.length} from this SVG?`,
+      )
+    ) {
       return;
     }
     setPins(manifest.pins);
     toast.success(`Imported ${manifest.pins.length} pins from SVG`);
   };
-
 
   const save = async () => {
     setSaving(true);
@@ -461,7 +471,11 @@ function DiagramEditor({
   return (
     <div className="rounded-xl bg-surface p-4 space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} className="sm:max-w-[320px]" />
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="sm:max-w-[320px]"
+        />
         <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
@@ -481,14 +495,11 @@ function DiagramEditor({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Click anywhere on the image to add a pin. Drag pins to reposition. Status: <Badge>{status}</Badge>
+        Click anywhere on the image to add a pin. Drag pins to reposition. Status:{" "}
+        <Badge>{status}</Badge>
       </p>
 
-      <div
-        ref={containerRef}
-        className="relative w-full select-none"
-        onClick={handleImageClick}
-      >
+      <div ref={containerRef} className="relative w-full select-none" onClick={handleImageClick}>
         {signedUrl ? (
           <img
             src={signedUrl}
@@ -618,10 +629,15 @@ function DiagramEditor({
           </div>
         </div>
         {importNotice && <p className="text-xs text-muted-foreground">{importNotice}</p>}
-        {pins.length === 0 && <p className="text-sm text-muted-foreground">No pins yet — click the image to add.</p>}
+        {pins.length === 0 && (
+          <p className="text-sm text-muted-foreground">No pins yet — click the image to add.</p>
+        )}
 
         {pins.map((pin, idx) => (
-          <div key={pin.id} className="flex flex-col gap-2 sm:flex-row sm:items-center rounded-lg bg-background p-2">
+          <div
+            key={pin.id}
+            className="flex flex-col gap-2 sm:flex-row sm:items-center rounded-lg bg-background p-2"
+          >
             <span className="size-6 shrink-0 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
               {idx + 1}
             </span>
@@ -642,7 +658,12 @@ function DiagramEditor({
                 })
               }
             />
-            <Button size="sm" variant="ghost" onClick={() => removePin(pin.id)} className="text-destructive">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => removePin(pin.id)}
+              className="text-destructive"
+            >
               <Trash2 className="size-4" />
             </Button>
           </div>
