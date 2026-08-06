@@ -66,7 +66,7 @@ function Login() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Log in to continue your studies.">
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} method="post" className="space-y-4">
         <div className="space-y-1.5">
           <Label className="text-sm">Email</Label>
           <Input name="email" type="email" autoComplete="email" />
