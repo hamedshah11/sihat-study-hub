@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,20 @@ function Login() {
   const { next } = Route.useSearch();
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
+
+  // Already signed in? Don't leave the user stranded on the login page.
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled && data.session) {
+        if (next) window.location.href = next;
+        else navigate({ to: "/home", replace: true });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, next]);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -52,7 +66,7 @@ function Login() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Log in to continue your studies.">
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} method="post" className="space-y-4">
         <div className="space-y-1.5">
           <Label className="text-sm">Email</Label>
           <Input name="email" type="email" autoComplete="email" />
