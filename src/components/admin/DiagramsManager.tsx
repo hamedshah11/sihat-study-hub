@@ -137,6 +137,7 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [importNotice, setImportNotice] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: diagrams = [], isLoading } = useQuery({
@@ -158,46 +159,17 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
 
   const handleCreate = async (file: File) => {
     setCreating(true);
+    setImportNotice(null);
     try {
       const isSvg = file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg");
-      let manifestTitle: string | null = null;
-      let manifestPins: Pin[] | null = null;
-      let blankSvgText: string | null = null;
-      let labelledText: string | null = null;
+      let manifest: SvgManifest | null = null;
 
       if (isSvg) {
-        const text = await file.text();
-        labelledText = text;
-        try {
-          const doc = new DOMParser().parseFromString(text, "image/svg+xml");
-          const meta = doc.querySelector("#sihat-pins");
-          if (meta && meta.textContent) {
-            const parsed = JSON.parse(meta.textContent) as {
-              title?: string;
-              pins?: { label: string; x: number; y: number; aliases?: string[] }[];
-            };
-            if (parsed.title) manifestTitle = parsed.title;
-            if (Array.isArray(parsed.pins)) {
-              manifestPins = parsed.pins.map((p) => ({
-                id: (crypto as any).randomUUID?.() ?? uid(),
-                label: String(p.label ?? ""),
-                x: Number(p.x) || 0,
-                y: Number(p.y) || 0,
-                aliases: Array.isArray(p.aliases) ? p.aliases.map(String) : [],
-              }));
-            }
-            // Generate blank by removing labels layer
-            const blankDoc = new DOMParser().parseFromString(text, "image/svg+xml");
-            blankDoc.querySelector("#sihat-labels")?.remove();
-            blankDoc.querySelector("#sihat-pins")?.remove();
-            blankSvgText = new XMLSerializer().serializeToString(blankDoc);
-          }
-        } catch (err) {
-          console.warn("[diagrams] manifest parse failed, falling back to manual", err);
-        }
+        manifest = parseLabelledSvg(await file.text());
+        if (!manifest) setImportNotice(NO_MANIFEST_NOTICE);
       }
 
-      const titleToUse = (newTitle.trim() || manifestTitle || "").trim();
+      const titleToUse = (newTitle.trim() || manifest?.title || "").trim();
       if (!titleToUse) {
         alert("Please enter a title (no manifest found in file).");
         return;
@@ -215,9 +187,9 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
 
       // Upload blank if generated
       let basePath: string | null = null;
-      if (blankSvgText) {
+      if (manifest?.blankSvg) {
         const blankPath = `${chapterId}/${uid()}-blank.svg`;
-        const blob = new Blob([blankSvgText], { type: "image/svg+xml" });
+        const blob = new Blob([manifest.blankSvg], { type: "image/svg+xml" });
         const upB = await supabase.storage.from("diagrams").upload(blankPath, blob, {
           contentType: "image/svg+xml",
           upsert: true,
@@ -233,7 +205,7 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
           title: titleToUse,
           image_path: imagePath,
           base_image_path: basePath,
-          pins: (manifestPins ?? []) as unknown as never,
+          pins: (manifest?.pins ?? []) as unknown as never,
           status: "draft",
           display_order: diagrams.length,
         })
@@ -243,8 +215,8 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
       setNewTitle("");
       if (fileRef.current) fileRef.current.value = "";
       setSelectedId(ins.data!.id);
-      if (manifestPins) {
-        console.log(`[diagrams] smart-imported ${manifestPins.length} pins + blank image`);
+      if (manifest) {
+        toast.success(`Imported ${manifest.pins.length} pins from SVG`);
       }
       invalidate();
     } catch (e) {
@@ -253,6 +225,7 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
       setCreating(false);
     }
   };
+
 
   const removeDiagram = async (d: Diagram) => {
     if (!confirm(`Delete diagram "${d.title}"?`)) return;
