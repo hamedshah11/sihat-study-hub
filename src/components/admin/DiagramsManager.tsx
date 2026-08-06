@@ -27,7 +27,7 @@ function newId() {
   return (crypto as { randomUUID?: () => string }).randomUUID?.() ?? uid();
 }
 
-export const NO_MANIFEST_NOTICE = "No pin manifest found in this SVG — add pins manually.";
+const NO_MANIFEST_NOTICE = "No pin manifest found in this SVG — add pins manually.";
 
 type SvgManifest = { title: string | null; pins: Pin[]; blankSvg: string | null };
 
@@ -36,7 +36,7 @@ type SvgManifest = { title: string | null; pins: Pin[]; blankSvg: string | null 
  * Returns null when the manifest is missing, malformed, or fails validation
  * (never partially applied).
  */
-export function parseLabelledSvg(text: string): SvgManifest | null {
+function parseLabelledSvg(text: string): SvgManifest | null {
   try {
     const doc = new DOMParser().parseFromString(text, "image/svg+xml");
     if (doc.querySelector("parsererror")) return null;
