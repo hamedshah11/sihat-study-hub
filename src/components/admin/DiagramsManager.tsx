@@ -329,8 +329,11 @@ function DiagramEditor({
   const [saving, setSaving] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [importNotice, setImportNotice] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const baseFileRef = useRef<HTMLInputElement | null>(null);
+  const pinFileRef = useRef<HTMLInputElement | null>(null);
+
   const signedUrl = useDiagramUrl(diagram.image_path);
   const baseSignedUrl = useDiagramUrl(basePath);
 
