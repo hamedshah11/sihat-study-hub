@@ -249,7 +249,7 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
           <Input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept=".svg,image/*"
             disabled={creating}
             onChange={(e) => {
               const f = e.target.files?.[0];
@@ -263,7 +263,9 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
             <Loader2 className="size-3 animate-spin" /> Uploading…
           </p>
         )}
+        {importNotice && <p className="text-xs text-muted-foreground">{importNotice}</p>}
       </div>
+
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
