@@ -117,8 +117,8 @@ RULES:
 
     const [summaryRes, questionsRes, flashcardsRes] = await Promise.all([
       callAnthropic(anthropicKey, summarySystem, userContent, 64000),
-      callAnthropic(anthropicKey, questionsSystem, userContent, 16000),
-      callAnthropic(anthropicKey, flashcardsSystem, userContent, 16000),
+      callAnthropic(anthropicKey, questionsSystem, userContent, 32000),
+      callAnthropic(anthropicKey, flashcardsSystem, userContent, 32000),
     ]);
 
     if (!summaryRes.ok || !questionsRes.ok || !flashcardsRes.ok) {
@@ -222,7 +222,7 @@ async function callAnthropic(
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
+        model: "claude-opus-5",
         max_tokens: maxTokens,
         system,
         messages: [{ role: "user", content: userContent }],
