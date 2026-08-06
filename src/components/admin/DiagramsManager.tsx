@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Trash2, Save, FileText } from "lucide-react";
+import { Loader2, Trash2, Save, FileText, Upload } from "lucide-react";
 
 type Pin = { id: string; x: number; y: number; label: string; aliases: string[] };
 type Diagram = {
@@ -21,6 +22,72 @@ type Diagram = {
 function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
+
+function newId() {
+  return (crypto as { randomUUID?: () => string }).randomUUID?.() ?? uid();
+}
+
+export const NO_MANIFEST_NOTICE = "No pin manifest found in this SVG — add pins manually.";
+
+type SvgManifest = { title: string | null; pins: Pin[]; blankSvg: string | null };
+
+/**
+ * Parse a labelled SVG for its `<metadata id="sihat-pins">` manifest.
+ * Returns null when the manifest is missing, malformed, or fails validation
+ * (never partially applied).
+ */
+export function parseLabelledSvg(text: string): SvgManifest | null {
+  try {
+    const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+    if (doc.querySelector("parsererror")) return null;
+    const meta = doc.querySelector("metadata#sihat-pins") ?? doc.querySelector("#sihat-pins");
+    const raw = meta?.textContent?.trim();
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as unknown;
+    const entries = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray((parsed as { pins?: unknown })?.pins)
+        ? ((parsed as { pins: unknown[] }).pins as unknown[])
+        : null;
+    if (!entries || entries.length === 0) return null;
+
+    const pins: Pin[] = [];
+    for (const entry of entries) {
+      if (!entry || typeof entry !== "object") return null;
+      const e = entry as Record<string, unknown>;
+      const label = typeof e.label === "string" ? e.label.trim() : "";
+      const x = typeof e.x === "number" ? e.x : NaN;
+      const y = typeof e.y === "number" ? e.y : NaN;
+      if (!label) return null;
+      if (!Number.isFinite(x) || x < 0 || x > 1) return null;
+      if (!Number.isFinite(y) || y < 0 || y > 1) return null;
+      pins.push({
+        id: typeof e.id === "string" && e.id ? e.id : newId(),
+        label,
+        x,
+        y,
+        aliases: Array.isArray(e.aliases) ? e.aliases.map(String).filter(Boolean) : [],
+      });
+    }
+
+    const title =
+      !Array.isArray(parsed) && typeof (parsed as { title?: unknown }).title === "string"
+        ? ((parsed as { title: string }).title.trim() || null)
+        : null;
+
+    // Blank (unlabelled) variant: strip the labels + manifest layers.
+    const blankDoc = new DOMParser().parseFromString(text, "image/svg+xml");
+    blankDoc.querySelector("#sihat-labels")?.remove();
+    blankDoc.querySelector("#sihat-pins")?.remove();
+    const blankSvg = new XMLSerializer().serializeToString(blankDoc);
+
+    return { title, pins, blankSvg };
+  } catch {
+    return null;
+  }
+}
+
 
 /** Resolve a storage path to a signed URL (bucket is private; public buckets blocked by policy). */
 function useDiagramUrl(path: string | null | undefined) {
