@@ -387,6 +387,23 @@ function DiagramEditor({
 
   const removePin = (id: string) => setPins((prev) => prev.filter((p) => p.id !== id));
 
+  /** Re-import pins from a labelled SVG's `<metadata id="sihat-pins">` manifest. */
+  const importPinsFromSvg = async (file: File) => {
+    setImportNotice(null);
+    const manifest = parseLabelledSvg(await file.text());
+    if (pinFileRef.current) pinFileRef.current.value = "";
+    if (!manifest) {
+      setImportNotice(NO_MANIFEST_NOTICE);
+      return;
+    }
+    if (pins.length > 0 && !confirm(`Replace the existing ${pins.length} pins with ${manifest.pins.length} from this SVG?`)) {
+      return;
+    }
+    setPins(manifest.pins);
+    toast.success(`Imported ${manifest.pins.length} pins from SVG`);
+  };
+
+
   const save = async () => {
     setSaving(true);
     try {
