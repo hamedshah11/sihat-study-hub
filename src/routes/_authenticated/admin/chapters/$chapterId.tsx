@@ -27,7 +27,7 @@ import { ChevronLeft, Loader2, Trash2, Check, X, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { DiagramsManager } from "@/components/admin/DiagramsManager";
-import { DiagramMarkdownImage } from "@/components/DiagramMarkdownImage";
+import { DiagramMarkdownImage, diagramUrlTransform } from "@/components/DiagramMarkdownImage";
 
 export const Route = createFileRoute("/_authenticated/admin/chapters/$chapterId")({
   head: () => ({ meta: [{ title: "Chapter — Admin" }] }),
@@ -375,7 +375,7 @@ function NotesTab({ chapter, onSaved }: { chapter: Chapter; onSaved: () => void 
       </div>
       <div className="rounded-xl bg-surface p-5">
         <div className="prose">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: DiagramMarkdownImage }}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={diagramUrlTransform} components={{ img: DiagramMarkdownImage }}>
             {chapter.summary_md || "_No notes yet._"}
           </ReactMarkdown>
         </div>
