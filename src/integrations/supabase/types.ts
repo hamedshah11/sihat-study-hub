@@ -203,10 +203,12 @@ export type Database = {
       flashcard_reviews: {
         Row: {
           difficulty: number | null
+          due_at: string | null
           elapsed_days: number | null
           flashcard_id: string
           lapses: number | null
           last_review: string | null
+          learning_steps: number | null
           next_review_at: string | null
           reps: number | null
           scheduled_days: number | null
@@ -216,10 +218,12 @@ export type Database = {
         }
         Insert: {
           difficulty?: number | null
+          due_at?: string | null
           elapsed_days?: number | null
           flashcard_id: string
           lapses?: number | null
           last_review?: string | null
+          learning_steps?: number | null
           next_review_at?: string | null
           reps?: number | null
           scheduled_days?: number | null
@@ -229,10 +233,12 @@ export type Database = {
         }
         Update: {
           difficulty?: number | null
+          due_at?: string | null
           elapsed_days?: number | null
           flashcard_id?: string
           lapses?: number | null
           last_review?: string | null
+          learning_steps?: number | null
           next_review_at?: string | null
           reps?: number | null
           scheduled_days?: number | null
