@@ -599,8 +599,27 @@ function DiagramEditor({
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Pins</p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Pins</p>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => pinFileRef.current?.click()}>
+              <Upload className="size-4" /> Import pins from SVG
+            </Button>
+            <input
+              ref={pinFileRef}
+              type="file"
+              accept=".svg,image/svg+xml"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) importPinsFromSvg(f);
+              }}
+            />
+          </div>
+        </div>
+        {importNotice && <p className="text-xs text-muted-foreground">{importNotice}</p>}
         {pins.length === 0 && <p className="text-sm text-muted-foreground">No pins yet — click the image to add.</p>}
+
         {pins.map((pin, idx) => (
           <div key={pin.id} className="flex flex-col gap-2 sm:flex-row sm:items-center rounded-lg bg-background p-2">
             <span className="size-6 shrink-0 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
