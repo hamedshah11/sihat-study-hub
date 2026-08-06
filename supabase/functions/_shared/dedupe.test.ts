@@ -3,9 +3,11 @@ import { describe, expect, test } from "vitest";
 import {
   DICE_THRESHOLD_FLASHCARD,
   DICE_THRESHOLD_QUESTION,
+  WORD_JACCARD_MIN,
   diceCoefficient,
   filterDuplicates,
   normalise,
+  wordJaccard,
 } from "./dedupe";
 
 describe("normalise", () => {
@@ -33,6 +35,76 @@ describe("diceCoefficient", () => {
 
   test("identical stems score 1", () => {
     expect(diceCoefficient("What is homeostasis?", "what is HOMEOSTASIS")).toBe(1);
+  });
+});
+
+describe("wordJaccard", () => {
+  test("identical word sets score 1, disjoint score 0", () => {
+    expect(wordJaccard("Define the cell membrane", "define THE cell membrane!")).toBe(1);
+    expect(wordJaccard("mitosis", "skeleton")).toBe(0);
+  });
+
+  test("a minimal pair shares only the frame", () => {
+    // {define} / {define, mitosis, meiosis} = 1/3
+    expect(wordJaccard("Define mitosis", "Define meiosis")).toBeCloseTo(1 / 3, 5);
+  });
+
+  test("a true rewording keeps most of its vocabulary", () => {
+    // {define, cell, membrane} / {define, the, cell, membrane} = 3/4
+    expect(wordJaccard("Define the cell membrane", "Define cell membrane")).toBeCloseTo(0.75, 5);
+  });
+
+  test("empty input does not produce NaN", () => {
+    expect(wordJaccard("", "")).toBe(0);
+    expect(wordJaccard("", "Define mitosis")).toBe(0);
+  });
+});
+
+describe("conjunctive similarity gate", () => {
+  // Bigram Dice alone cannot separate a swapped term from a rewording. These
+  // two are distinct, valid cards that both belong in Cell/Tissues & Membranes,
+  // yet Dice puts them at 0.769 — above the question threshold. Word overlap
+  // (0.33) is what rescues them.
+  const MITOSIS = "Define mitosis";
+  const MEIOSIS = "Define meiosis";
+
+  test("the minimal pair clears Dice but fails the word-overlap gate", () => {
+    expect(diceCoefficient(MITOSIS, MEIOSIS)).toBeGreaterThan(DICE_THRESHOLD_QUESTION);
+    expect(wordJaccard(MITOSIS, MEIOSIS)).toBeLessThan(WORD_JACCARD_MIN);
+  });
+
+  test("mitosis/meiosis is kept as a question", () => {
+    const result = filterDuplicates(
+      [{ prompt: MEIOSIS }],
+      (q) => q.prompt,
+      [MITOSIS],
+      DICE_THRESHOLD_QUESTION,
+    );
+    expect(result.kept).toEqual([{ prompt: MEIOSIS }]);
+    expect(result.dropped_duplicates).toBe(0);
+  });
+
+  test("mitosis/meiosis is kept as a flashcard", () => {
+    const result = filterDuplicates(
+      [{ front: MEIOSIS }],
+      (c) => c.front,
+      [MITOSIS],
+      DICE_THRESHOLD_FLASHCARD,
+    );
+    expect(result.kept).toEqual([{ front: MEIOSIS }]);
+    expect(result.dropped_duplicates).toBe(0);
+  });
+
+  test("a true rewording still passes both gates and is dropped", () => {
+    const a = "Define the cell membrane";
+    const b = "Define cell membrane";
+    expect(diceCoefficient(a, b)).toBeGreaterThan(DICE_THRESHOLD_FLASHCARD);
+    expect(wordJaccard(a, b)).toBeGreaterThanOrEqual(WORD_JACCARD_MIN);
+    for (const threshold of [DICE_THRESHOLD_QUESTION, DICE_THRESHOLD_FLASHCARD]) {
+      const result = filterDuplicates([{ text: b }], (i) => i.text, [a], threshold);
+      expect(result.kept).toEqual([]);
+      expect(result.dropped_duplicates).toBe(1);
+    }
   });
 });
 

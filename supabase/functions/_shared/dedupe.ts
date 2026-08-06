@@ -53,14 +53,46 @@ export function diceCoefficient(a: string, b: string): number {
 export const DICE_THRESHOLD_QUESTION = 0.75;
 export const DICE_THRESHOLD_FLASHCARD = 0.85;
 
+// Jaccard index over the word sets of the normalised strings:
+// |intersection| / |union|. 1 = same words, 0 = no words in common.
+export function wordJaccard(a: string, b: string): number {
+  const wordsA = new Set(normalise(a).split(" ").filter(Boolean));
+  const wordsB = new Set(normalise(b).split(" ").filter(Boolean));
+  let intersection = 0;
+  for (const word of wordsA) {
+    if (wordsB.has(word)) intersection++;
+  }
+  const union = wordsA.size + wordsB.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+// Second gate, applied on top of the Dice threshold.
+//
+// Bigram Dice measures character overlap, so it cannot tell a single swapped
+// term from a genuine rewording — the two look identical to it. "Define
+// mitosis" and "Define meiosis" score 0.769 in Dice: above the question
+// threshold, yet they are two valid, distinct cards that both belong in
+// Cell/Tissues & Membranes. Dropping one would silently delete real content.
+//
+// Word-set overlap separates the two cases cleanly. A minimal pair shares only
+// the frame and differs in the one word that carries the meaning, so it scores
+// around 0.33; a true rewording keeps most of its vocabulary and scores
+// 0.60–0.75. Requiring BOTH signals means a pair must be similar in characters
+// AND built from substantially the same words before it counts as a duplicate.
+export const WORD_JACCARD_MIN = 0.5;
+
 export type DedupeResult<T> = {
   kept: T[];
   dropped_duplicates: number;
 };
 
 // Filters `batch` against `existing` stems and against itself. An item is
-// dropped when its normalised key exactly matches, or its Dice score exceeds
-// `threshold` against, any existing stem or any earlier kept item in the batch.
+// dropped when, against any existing stem or any earlier kept item in the
+// batch, either:
+//   - its normalised key matches exactly, or
+//   - its Dice score exceeds `threshold` AND its word-set Jaccard is at least
+//     WORD_JACCARD_MIN. Both similarity signals must agree; see the comment on
+//     WORD_JACCARD_MIN for why Dice alone drops valid minimal pairs.
 //
 // The exact normalised-key check is kind-agnostic — an identical stem is a
 // duplicate whatever the kind. Only the Dice threshold varies, so `threshold`
@@ -81,7 +113,10 @@ export function filterDuplicates<T>(
     const text = getText(item);
     const key = normalise(text);
     const isDuplicate =
-      seenKeys.has(key) || seenTexts.some((t) => diceCoefficient(text, t) > threshold);
+      seenKeys.has(key) ||
+      seenTexts.some(
+        (t) => diceCoefficient(text, t) > threshold && wordJaccard(text, t) >= WORD_JACCARD_MIN,
+      );
     if (isDuplicate) {
       dropped++;
       continue;
