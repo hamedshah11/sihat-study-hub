@@ -38,19 +38,27 @@ export function diceCoefficient(a: string, b: string): number {
 }
 
 // Above these Dice scores two stems are considered rephrasings of each other.
-// The thresholds differ by kind because the two text populations do.
 //
-// Calibrated against a control cohort of six chapters that sit at the original
-// 30 questions / 50 flashcards and contain zero exact duplicates — i.e. every
-// pair scoring above a threshold there is a false positive:
-//   - Questions at 0.75: 0.04% false-positive rate in the control, versus
-//     0.27–0.37% flagged in the affected (topped-up) chapters. The gap is what
-//     makes 0.75 defensible — it separates genuine re-asks from question stems
-//     that merely share exam phrasing.
-//   - Flashcard fronts are short and formulaic ("Define X", "Function of X"),
-//     so Dice barely discriminates between distinct cards below 0.85; a lower
-//     threshold retires cards that only look alike because of the shared frame.
-export const DICE_THRESHOLD_QUESTION = 0.75;
+// Thresholds are deliberately conservative. A manual scan of all 87 live
+// question pairs scoring above 0.75 found roughly 20 false positives, all of
+// one class: identical question templates with a different subject. Examples
+// measured on live content — "How is polio primarily transmitted?" vs "How is
+// cholera primarily transmitted?" (Dice 0.824, wordJaccard 0.667); "What is the
+// causative organism of tetanus?" vs "...of cholera?" (0.825 / 0.750); "The
+// elbow joint is classified as which type of synovial joint?" vs "The wrist
+// joint..." (0.900 / 0.818, from a control chapter with zero exact
+// duplicates). Both metrics score high because the pair differs by a single
+// content word, so wordJaccard does not rescue these — it fell below its floor
+// on only 2 of the 87 pairs. Every pair above 0.92 in that scan was a genuine
+// rewording; the highest-scoring false positive was 0.900.
+//
+// These filters are a near-verbatim safety net, not a deduplication system.
+// String similarity cannot distinguish "same question reworded" from "same
+// template, different subject", because that distinction is semantic. Primary
+// prevention is the exclusion list injected into the generation prompt. If
+// duplication recurs at volume, the fix is semantic — pgvector embeddings on
+// stems, or per-item concept keys — not a different threshold.
+export const DICE_THRESHOLD_QUESTION = 0.92;
 export const DICE_THRESHOLD_FLASHCARD = 0.85;
 
 // Jaccard index over the word sets of the normalised strings:
@@ -70,15 +78,20 @@ export function wordJaccard(a: string, b: string): number {
 //
 // Bigram Dice measures character overlap, so it cannot tell a single swapped
 // term from a genuine rewording — the two look identical to it. "Define
-// mitosis" and "Define meiosis" score 0.769 in Dice: above the question
-// threshold, yet they are two valid, distinct cards that both belong in
-// Cell/Tissues & Membranes. Dropping one would silently delete real content.
+// mitosis" and "Define meiosis" score 0.769 in Dice, yet they are two valid,
+// distinct cards that both belong in Cell/Tissues & Membranes. Dropping one
+// would silently delete real content.
 //
-// Word-set overlap separates the two cases cleanly. A minimal pair shares only
-// the frame and differs in the one word that carries the meaning, so it scores
-// around 0.33; a true rewording keeps most of its vocabulary and scores
-// 0.60–0.75. Requiring BOTH signals means a pair must be similar in characters
-// AND built from substantially the same words before it counts as a duplicate.
+// Word-set overlap catches the subset of those pairs that differ in a short
+// stem, where the swapped word is a large share of the text: a minimal pair
+// like mitosis/meiosis scores around 0.33, while a true rewording keeps most
+// of its vocabulary and scores 0.60–0.75. Requiring BOTH signals means a pair
+// must be similar in characters AND built from substantially the same words.
+//
+// This is a secondary guard, not the main defence. On longer stems the swapped
+// word is a small share of the words, so a template-swap pair still scores
+// well above this floor — in the 87-pair scan above, wordJaccard fell below it
+// on only 2 pairs. The conservative Dice threshold is what does the work.
 export const WORD_JACCARD_MIN = 0.5;
 
 export type DedupeResult<T> = {

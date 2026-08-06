@@ -21,9 +21,20 @@ describe("normalise", () => {
 });
 
 describe("diceCoefficient", () => {
-  test("rephrased stem scores above the question threshold", () => {
+  // Re-anchored when the question threshold moved 0.75 -> 0.92: only a
+  // near-verbatim pair clears it now, so the coverage is split in two.
+  test("a near-verbatim stem scores above the question threshold", () => {
+    expect(
+      diceCoefficient(
+        "Describe the structure of the cell membrane",
+        "Describe the structure of a cell membrane",
+      ),
+    ).toBeGreaterThan(DICE_THRESHOLD_QUESTION);
+  });
+
+  test("a rephrased stem scores above the flashcard threshold", () => {
     expect(diceCoefficient("Define the cell membrane", "Define cell membrane")).toBeGreaterThan(
-      DICE_THRESHOLD_QUESTION,
+      DICE_THRESHOLD_FLASHCARD,
     );
   });
 
@@ -68,9 +79,20 @@ describe("conjunctive similarity gate", () => {
   const MITOSIS = "Define mitosis";
   const MEIOSIS = "Define meiosis";
 
-  test("the minimal pair clears Dice but fails the word-overlap gate", () => {
-    expect(diceCoefficient(MITOSIS, MEIOSIS)).toBeGreaterThan(DICE_THRESHOLD_QUESTION);
+  // Re-anchored for the 0.92 question threshold: 0.769 no longer clears it, so
+  // the gate is exercised directly with a deliberately permissive threshold.
+  // That keeps the conjunctive behaviour under test independently of whatever
+  // the production constants happen to be.
+  test("the minimal pair fails the word-overlap gate", () => {
     expect(wordJaccard(MITOSIS, MEIOSIS)).toBeLessThan(WORD_JACCARD_MIN);
+  });
+
+  test("word overlap blocks the minimal pair even when Dice would allow it", () => {
+    const permissive = 0.7; // below the pair's Dice score of 0.769
+    expect(diceCoefficient(MITOSIS, MEIOSIS)).toBeGreaterThan(permissive);
+    const result = filterDuplicates([{ prompt: MEIOSIS }], (q) => q.prompt, [MITOSIS], permissive);
+    expect(result.kept).toEqual([{ prompt: MEIOSIS }]);
+    expect(result.dropped_duplicates).toBe(0);
   });
 
   test("mitosis/meiosis is kept as a question", () => {
@@ -95,49 +117,109 @@ describe("conjunctive similarity gate", () => {
     expect(result.dropped_duplicates).toBe(0);
   });
 
-  test("a true rewording still passes both gates and is dropped", () => {
+  test("a true rewording passes both gates and is dropped as a flashcard", () => {
     const a = "Define the cell membrane";
     const b = "Define cell membrane";
     expect(diceCoefficient(a, b)).toBeGreaterThan(DICE_THRESHOLD_FLASHCARD);
     expect(wordJaccard(a, b)).toBeGreaterThanOrEqual(WORD_JACCARD_MIN);
-    for (const threshold of [DICE_THRESHOLD_QUESTION, DICE_THRESHOLD_FLASHCARD]) {
-      const result = filterDuplicates([{ text: b }], (i) => i.text, [a], threshold);
-      expect(result.kept).toEqual([]);
-      expect(result.dropped_duplicates).toBe(1);
-    }
-  });
-});
-
-describe("per-kind thresholds", () => {
-  test("flashcards are held to a stricter threshold than questions", () => {
-    expect(DICE_THRESHOLD_QUESTION).toBe(0.75);
-    expect(DICE_THRESHOLD_FLASHCARD).toBe(0.85);
-    expect(DICE_THRESHOLD_FLASHCARD).toBeGreaterThan(DICE_THRESHOLD_QUESTION);
-  });
-
-  // The generate-content call site pairs question prompts with
-  // DICE_THRESHOLD_QUESTION and flashcard fronts with DICE_THRESHOLD_FLASHCARD.
-  // This pair sits between the two (0.8163), so the pairing is observable:
-  // the same texts are a duplicate as questions but distinct as flashcards.
-  const A = "Function of the cell membrane";
-  const B = "Cell membrane function";
-
-  test("the borderline pair really does score ~0.80", () => {
-    const score = diceCoefficient(A, B);
-    expect(score).toBeGreaterThan(DICE_THRESHOLD_QUESTION);
-    expect(score).toBeLessThan(DICE_THRESHOLD_FLASHCARD);
-  });
-
-  test("a ~0.80 pair is dropped as a question", () => {
-    const result = filterDuplicates([{ prompt: B }], (q) => q.prompt, [A], DICE_THRESHOLD_QUESTION);
+    const result = filterDuplicates([{ text: b }], (i) => i.text, [a], DICE_THRESHOLD_FLASHCARD);
     expect(result.kept).toEqual([]);
     expect(result.dropped_duplicates).toBe(1);
   });
 
-  test("the same ~0.80 pair is kept as a flashcard", () => {
-    const result = filterDuplicates([{ front: B }], (c) => c.front, [A], DICE_THRESHOLD_FLASHCARD);
-    expect(result.kept).toEqual([{ front: B }]);
+  test("a near-verbatim rewording passes both gates and is dropped as a question", () => {
+    const a = "Describe the structure of the cell membrane";
+    const b = "Describe the structure of a cell membrane";
+    expect(diceCoefficient(a, b)).toBeGreaterThan(DICE_THRESHOLD_QUESTION);
+    expect(wordJaccard(a, b)).toBeGreaterThanOrEqual(WORD_JACCARD_MIN);
+    const result = filterDuplicates([{ text: b }], (i) => i.text, [a], DICE_THRESHOLD_QUESTION);
+    expect(result.kept).toEqual([]);
+    expect(result.dropped_duplicates).toBe(1);
+  });
+});
+
+// The false-positive class the 0.92 threshold exists to protect: one question
+// template reused for a different subject. Both metrics score high (0.824 /
+// 0.667) because the pair differs by a single content word, so the word-overlap
+// gate does NOT rescue it — only the conservative Dice threshold does.
+describe("template-swap false positives", () => {
+  const POLIO = "How is polio primarily transmitted?";
+  const CHOLERA = "How is cholera primarily transmitted?";
+
+  test("both metrics score high on a template swap", () => {
+    expect(diceCoefficient(POLIO, CHOLERA)).toBeGreaterThan(0.8);
+    expect(wordJaccard(POLIO, CHOLERA)).toBeGreaterThanOrEqual(WORD_JACCARD_MIN);
+  });
+
+  test("the template swap is kept as a question", () => {
+    const result = filterDuplicates(
+      [{ prompt: CHOLERA }],
+      (q) => q.prompt,
+      [POLIO],
+      DICE_THRESHOLD_QUESTION,
+    );
+    expect(result.kept).toEqual([{ prompt: CHOLERA }]);
     expect(result.dropped_duplicates).toBe(0);
+  });
+
+  test("the template swap is kept as a flashcard", () => {
+    const result = filterDuplicates(
+      [{ front: CHOLERA }],
+      (c) => c.front,
+      [POLIO],
+      DICE_THRESHOLD_FLASHCARD,
+    );
+    expect(result.kept).toEqual([{ front: CHOLERA }]);
+    expect(result.dropped_duplicates).toBe(0);
+  });
+});
+
+describe("per-kind thresholds", () => {
+  // Re-anchored: questions moved 0.75 -> 0.92, so questions are now the
+  // STRICTER kind and the divergence runs the other way than it used to.
+  test("questions are held to a stricter threshold than flashcards", () => {
+    expect(DICE_THRESHOLD_QUESTION).toBe(0.92);
+    expect(DICE_THRESHOLD_FLASHCARD).toBe(0.85);
+    expect(DICE_THRESHOLD_QUESTION).toBeGreaterThan(DICE_THRESHOLD_FLASHCARD);
+  });
+
+  // The generate-content call site pairs question prompts with
+  // DICE_THRESHOLD_QUESTION and flashcard fronts with DICE_THRESHOLD_FLASHCARD.
+  // This pair scores 0.905 — between the two — so the pairing stays observable:
+  // the same texts are distinct as questions but a duplicate as flashcards.
+  const A = "Define the cell membrane";
+  const B = "Define cell membrane";
+
+  test("the divergence pair sits between the two thresholds", () => {
+    const score = diceCoefficient(A, B);
+    expect(score).toBeGreaterThan(DICE_THRESHOLD_FLASHCARD);
+    expect(score).toBeLessThan(DICE_THRESHOLD_QUESTION);
+  });
+
+  test("the divergence pair is kept as a question", () => {
+    const result = filterDuplicates([{ prompt: B }], (q) => q.prompt, [A], DICE_THRESHOLD_QUESTION);
+    expect(result.kept).toEqual([{ prompt: B }]);
+    expect(result.dropped_duplicates).toBe(0);
+  });
+
+  test("the same divergence pair is dropped as a flashcard", () => {
+    const result = filterDuplicates([{ front: B }], (c) => c.front, [A], DICE_THRESHOLD_FLASHCARD);
+    expect(result.kept).toEqual([]);
+    expect(result.dropped_duplicates).toBe(1);
+  });
+
+  // Retained from the 0.75 era: this pair used to be dropped as a question.
+  // At 0.92 it survives for both kinds — kept as explicit coverage of the
+  // raised boundary rather than deleted.
+  test("a ~0.80 rewording now survives for both kinds", () => {
+    const a = "Function of the cell membrane";
+    const b = "Cell membrane function";
+    expect(diceCoefficient(a, b)).toBeLessThan(DICE_THRESHOLD_FLASHCARD);
+    for (const threshold of [DICE_THRESHOLD_QUESTION, DICE_THRESHOLD_FLASHCARD]) {
+      const result = filterDuplicates([{ text: b }], (i) => i.text, [a], threshold);
+      expect(result.kept).toEqual([{ text: b }]);
+      expect(result.dropped_duplicates).toBe(0);
+    }
   });
 
   test("an exact normalised match is dropped under either threshold", () => {
