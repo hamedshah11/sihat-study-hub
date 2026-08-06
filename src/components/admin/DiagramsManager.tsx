@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Trash2, Save, FileText } from "lucide-react";
+import { Loader2, Trash2, Save, FileText, Upload } from "lucide-react";
 
 type Pin = { id: string; x: number; y: number; label: string; aliases: string[] };
 type Diagram = {
@@ -20,6 +21,71 @@ type Diagram = {
 
 function uid() {
   return Math.random().toString(36).slice(2, 10);
+}
+
+function newId() {
+  return (crypto as { randomUUID?: () => string }).randomUUID?.() ?? uid();
+}
+
+const NO_MANIFEST_NOTICE = "No pin manifest found in this SVG — add pins manually.";
+
+type SvgManifest = { title: string | null; pins: Pin[]; blankSvg: string | null };
+
+/**
+ * Parse a labelled SVG for its `<metadata id="sihat-pins">` manifest.
+ * Returns null when the manifest is missing, malformed, or fails validation
+ * (never partially applied).
+ */
+function parseLabelledSvg(text: string): SvgManifest | null {
+  try {
+    const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+    if (doc.querySelector("parsererror")) return null;
+    const meta = doc.querySelector("metadata#sihat-pins") ?? doc.querySelector("#sihat-pins");
+    const raw = meta?.textContent?.trim();
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as unknown;
+    const entries = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray((parsed as { pins?: unknown })?.pins)
+        ? ((parsed as { pins: unknown[] }).pins as unknown[])
+        : null;
+    if (!entries || entries.length === 0) return null;
+
+    const pins: Pin[] = [];
+    for (const entry of entries) {
+      if (!entry || typeof entry !== "object") return null;
+      const e = entry as Record<string, unknown>;
+      const label = typeof e.label === "string" ? e.label.trim() : "";
+      const x = typeof e.x === "number" ? e.x : NaN;
+      const y = typeof e.y === "number" ? e.y : NaN;
+      if (!label) return null;
+      if (!Number.isFinite(x) || x < 0 || x > 1) return null;
+      if (!Number.isFinite(y) || y < 0 || y > 1) return null;
+      pins.push({
+        id: typeof e.id === "string" && e.id ? e.id : newId(),
+        label,
+        x,
+        y,
+        aliases: Array.isArray(e.aliases) ? e.aliases.map(String).filter(Boolean) : [],
+      });
+    }
+
+    const title =
+      !Array.isArray(parsed) && typeof (parsed as { title?: unknown }).title === "string"
+        ? (parsed as { title: string }).title.trim() || null
+        : null;
+
+    // Blank (unlabelled) variant: strip the labels + manifest layers.
+    const blankDoc = new DOMParser().parseFromString(text, "image/svg+xml");
+    blankDoc.querySelector("#sihat-labels")?.remove();
+    blankDoc.querySelector("#sihat-pins")?.remove();
+    const blankSvg = new XMLSerializer().serializeToString(blankDoc);
+
+    return { title, pins, blankSvg };
+  } catch {
+    return null;
+  }
 }
 
 /** Resolve a storage path to a signed URL (bucket is private; public buckets blocked by policy). */
@@ -70,6 +136,7 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [importNotice, setImportNotice] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: diagrams = [], isLoading } = useQuery({
@@ -91,46 +158,17 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
 
   const handleCreate = async (file: File) => {
     setCreating(true);
+    setImportNotice(null);
     try {
       const isSvg = file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg");
-      let manifestTitle: string | null = null;
-      let manifestPins: Pin[] | null = null;
-      let blankSvgText: string | null = null;
-      let labelledText: string | null = null;
+      let manifest: SvgManifest | null = null;
 
       if (isSvg) {
-        const text = await file.text();
-        labelledText = text;
-        try {
-          const doc = new DOMParser().parseFromString(text, "image/svg+xml");
-          const meta = doc.querySelector("#sihat-pins");
-          if (meta && meta.textContent) {
-            const parsed = JSON.parse(meta.textContent) as {
-              title?: string;
-              pins?: { label: string; x: number; y: number; aliases?: string[] }[];
-            };
-            if (parsed.title) manifestTitle = parsed.title;
-            if (Array.isArray(parsed.pins)) {
-              manifestPins = parsed.pins.map((p) => ({
-                id: (crypto as any).randomUUID?.() ?? uid(),
-                label: String(p.label ?? ""),
-                x: Number(p.x) || 0,
-                y: Number(p.y) || 0,
-                aliases: Array.isArray(p.aliases) ? p.aliases.map(String) : [],
-              }));
-            }
-            // Generate blank by removing labels layer
-            const blankDoc = new DOMParser().parseFromString(text, "image/svg+xml");
-            blankDoc.querySelector("#sihat-labels")?.remove();
-            blankDoc.querySelector("#sihat-pins")?.remove();
-            blankSvgText = new XMLSerializer().serializeToString(blankDoc);
-          }
-        } catch (err) {
-          console.warn("[diagrams] manifest parse failed, falling back to manual", err);
-        }
+        manifest = parseLabelledSvg(await file.text());
+        if (!manifest) setImportNotice(NO_MANIFEST_NOTICE);
       }
 
-      const titleToUse = (newTitle.trim() || manifestTitle || "").trim();
+      const titleToUse = (newTitle.trim() || manifest?.title || "").trim();
       if (!titleToUse) {
         alert("Please enter a title (no manifest found in file).");
         return;
@@ -148,9 +186,9 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
 
       // Upload blank if generated
       let basePath: string | null = null;
-      if (blankSvgText) {
+      if (manifest?.blankSvg) {
         const blankPath = `${chapterId}/${uid()}-blank.svg`;
-        const blob = new Blob([blankSvgText], { type: "image/svg+xml" });
+        const blob = new Blob([manifest.blankSvg], { type: "image/svg+xml" });
         const upB = await supabase.storage.from("diagrams").upload(blankPath, blob, {
           contentType: "image/svg+xml",
           upsert: true,
@@ -166,7 +204,7 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
           title: titleToUse,
           image_path: imagePath,
           base_image_path: basePath,
-          pins: (manifestPins ?? []) as unknown as never,
+          pins: (manifest?.pins ?? []) as unknown as never,
           status: "draft",
           display_order: diagrams.length,
         })
@@ -176,8 +214,8 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
       setNewTitle("");
       if (fileRef.current) fileRef.current.value = "";
       setSelectedId(ins.data!.id);
-      if (manifestPins) {
-        console.log(`[diagrams] smart-imported ${manifestPins.length} pins + blank image`);
+      if (manifest) {
+        toast.success(`Imported ${manifest.pins.length} pins from SVG`);
       }
       invalidate();
     } catch (e) {
@@ -209,7 +247,7 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
           <Input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept=".svg,image/*"
             disabled={creating}
             onChange={(e) => {
               const f = e.target.files?.[0];
@@ -223,6 +261,7 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
             <Loader2 className="size-3 animate-spin" /> Uploading…
           </p>
         )}
+        {importNotice && <p className="text-xs text-muted-foreground">{importNotice}</p>}
       </div>
 
       {isLoading ? (
@@ -246,7 +285,9 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
                 <p className="text-xs text-muted-foreground">{(d.pins ?? []).length} pins</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Badge variant={d.status === "approved" ? "default" : "secondary"}>{d.status}</Badge>
+                <Badge variant={d.status === "approved" ? "default" : "secondary"}>
+                  {d.status}
+                </Badge>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -264,7 +305,14 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
         </div>
       )}
 
-      {selected && <DiagramEditor key={selected.id} diagram={selected} onChange={invalidate} chapterId={chapterId} />}
+      {selected && (
+        <DiagramEditor
+          key={selected.id}
+          diagram={selected}
+          onChange={invalidate}
+          chapterId={chapterId}
+        />
+      )}
     </div>
   );
 }
@@ -287,8 +335,11 @@ function DiagramEditor({
   const [saving, setSaving] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [importNotice, setImportNotice] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const baseFileRef = useRef<HTMLInputElement | null>(null);
+  const pinFileRef = useRef<HTMLInputElement | null>(null);
+
   const signedUrl = useDiagramUrl(diagram.image_path);
   const baseSignedUrl = useDiagramUrl(basePath);
 
@@ -345,6 +396,27 @@ function DiagramEditor({
 
   const removePin = (id: string) => setPins((prev) => prev.filter((p) => p.id !== id));
 
+  /** Re-import pins from a labelled SVG's `<metadata id="sihat-pins">` manifest. */
+  const importPinsFromSvg = async (file: File) => {
+    setImportNotice(null);
+    const manifest = parseLabelledSvg(await file.text());
+    if (pinFileRef.current) pinFileRef.current.value = "";
+    if (!manifest) {
+      setImportNotice(NO_MANIFEST_NOTICE);
+      return;
+    }
+    if (
+      pins.length > 0 &&
+      !confirm(
+        `Replace the existing ${pins.length} pins with ${manifest.pins.length} from this SVG?`,
+      )
+    ) {
+      return;
+    }
+    setPins(manifest.pins);
+    toast.success(`Imported ${manifest.pins.length} pins from SVG`);
+  };
+
   const save = async () => {
     setSaving(true);
     try {
@@ -399,7 +471,11 @@ function DiagramEditor({
   return (
     <div className="rounded-xl bg-surface p-4 space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} className="sm:max-w-[320px]" />
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="sm:max-w-[320px]"
+        />
         <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
@@ -419,14 +495,11 @@ function DiagramEditor({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Click anywhere on the image to add a pin. Drag pins to reposition. Status: <Badge>{status}</Badge>
+        Click anywhere on the image to add a pin. Drag pins to reposition. Status:{" "}
+        <Badge>{status}</Badge>
       </p>
 
-      <div
-        ref={containerRef}
-        className="relative w-full select-none"
-        onClick={handleImageClick}
-      >
+      <div ref={containerRef} className="relative w-full select-none" onClick={handleImageClick}>
         {signedUrl ? (
           <img
             src={signedUrl}
@@ -537,10 +610,34 @@ function DiagramEditor({
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Pins</p>
-        {pins.length === 0 && <p className="text-sm text-muted-foreground">No pins yet — click the image to add.</p>}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Pins</p>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => pinFileRef.current?.click()}>
+              <Upload className="size-4" /> Import pins from SVG
+            </Button>
+            <input
+              ref={pinFileRef}
+              type="file"
+              accept=".svg,image/svg+xml"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) importPinsFromSvg(f);
+              }}
+            />
+          </div>
+        </div>
+        {importNotice && <p className="text-xs text-muted-foreground">{importNotice}</p>}
+        {pins.length === 0 && (
+          <p className="text-sm text-muted-foreground">No pins yet — click the image to add.</p>
+        )}
+
         {pins.map((pin, idx) => (
-          <div key={pin.id} className="flex flex-col gap-2 sm:flex-row sm:items-center rounded-lg bg-background p-2">
+          <div
+            key={pin.id}
+            className="flex flex-col gap-2 sm:flex-row sm:items-center rounded-lg bg-background p-2"
+          >
             <span className="size-6 shrink-0 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
               {idx + 1}
             </span>
@@ -561,7 +658,12 @@ function DiagramEditor({
                 })
               }
             />
-            <Button size="sm" variant="ghost" onClick={() => removePin(pin.id)} className="text-destructive">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => removePin(pin.id)}
+              className="text-destructive"
+            >
               <Trash2 className="size-4" />
             </Button>
           </div>
