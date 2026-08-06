@@ -21,6 +21,20 @@ function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting] = useState(false);
 
+  // Already signed in? Don't leave the user stranded on the login page.
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled && data.session) {
+        if (next) window.location.href = next;
+        else navigate({ to: "/home", replace: true });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, next]);
+
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
