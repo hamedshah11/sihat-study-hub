@@ -37,8 +37,21 @@ export function diceCoefficient(a: string, b: string): number {
   return (2 * shared) / (x.length - 1 + y.length - 1);
 }
 
-// Above this Dice score two stems are considered rephrasings of each other.
-export const DICE_THRESHOLD = 0.62;
+// Above these Dice scores two stems are considered rephrasings of each other.
+// The thresholds differ by kind because the two text populations do.
+//
+// Calibrated against a control cohort of six chapters that sit at the original
+// 30 questions / 50 flashcards and contain zero exact duplicates — i.e. every
+// pair scoring above a threshold there is a false positive:
+//   - Questions at 0.75: 0.04% false-positive rate in the control, versus
+//     0.27–0.37% flagged in the affected (topped-up) chapters. The gap is what
+//     makes 0.75 defensible — it separates genuine re-asks from question stems
+//     that merely share exam phrasing.
+//   - Flashcard fronts are short and formulaic ("Define X", "Function of X"),
+//     so Dice barely discriminates between distinct cards below 0.85; a lower
+//     threshold retires cards that only look alike because of the shared frame.
+export const DICE_THRESHOLD_QUESTION = 0.75;
+export const DICE_THRESHOLD_FLASHCARD = 0.85;
 
 export type DedupeResult<T> = {
   kept: T[];
@@ -48,11 +61,16 @@ export type DedupeResult<T> = {
 // Filters `batch` against `existing` stems and against itself. An item is
 // dropped when its normalised key exactly matches, or its Dice score exceeds
 // `threshold` against, any existing stem or any earlier kept item in the batch.
+//
+// The exact normalised-key check is kind-agnostic — an identical stem is a
+// duplicate whatever the kind. Only the Dice threshold varies, so `threshold`
+// is required: pass DICE_THRESHOLD_QUESTION or DICE_THRESHOLD_FLASHCARD rather
+// than letting a default silently apply question semantics to flashcards.
 export function filterDuplicates<T>(
   batch: T[],
   getText: (item: T) => string,
   existing: string[],
-  threshold: number = DICE_THRESHOLD,
+  threshold: number,
 ): DedupeResult<T> {
   const seenKeys = new Set<string>(existing.map(normalise));
   const seenTexts = existing.slice();

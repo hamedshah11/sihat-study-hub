@@ -5,7 +5,11 @@
 // filtered before insert (see _shared/dedupe.ts).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { shuffleOptions } from "../_shared/shuffle.ts";
-import { filterDuplicates } from "../_shared/dedupe.ts";
+import {
+  DICE_THRESHOLD_FLASHCARD,
+  DICE_THRESHOLD_QUESTION,
+  filterDuplicates,
+} from "../_shared/dedupe.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -198,15 +202,19 @@ RULES:
     // Drop duplicates (exact normalised match or Dice > threshold) against the
     // chapter's existing items and within the new batch itself. This must run
     // BEFORE shuffleOptions below so similarity is measured on the raw prompts.
+    // Each kind gets its own Dice threshold — see _shared/dedupe.ts for the
+    // calibration behind the two values.
     const questionFilter = filterDuplicates(
       questionsRaw,
       (q: any) => String(q?.prompt ?? ""),
       existingPrompts,
+      DICE_THRESHOLD_QUESTION,
     );
     const flashcardFilter = filterDuplicates(
       flashcardsRaw,
       (c: any) => String(c?.front ?? ""),
       existingFronts,
+      DICE_THRESHOLD_FLASHCARD,
     );
 
     // Sanitize & insert questions
