@@ -25,7 +25,13 @@ function DiagramFigure({ diagram }: { diagram: Diagram }) {
   );
 }
 
-export function ChapterNoteDiagrams({ chapterId }: { chapterId: string }) {
+export function ChapterNoteDiagrams({
+  chapterId,
+  excludedPaths = [],
+}: {
+  chapterId: string;
+  excludedPaths?: string[];
+}) {
   const { data: diagrams } = useQuery({
     queryKey: ["chapter-note-diagrams", chapterId],
     queryFn: async (): Promise<Diagram[]> => {
@@ -39,10 +45,11 @@ export function ChapterNoteDiagrams({ chapterId }: { chapterId: string }) {
       return data ?? [];
     },
   });
-  if (!diagrams || diagrams.length === 0) return null;
+  const visibleDiagrams = diagrams?.filter((diagram) => !excludedPaths.includes(diagram.image_path));
+  if (!visibleDiagrams || visibleDiagrams.length === 0) return null;
   return (
     <div className="mt-4 space-y-4">
-      {diagrams.map((d) => <DiagramFigure key={d.id} diagram={d} />)}
+      {visibleDiagrams.map((d) => <DiagramFigure key={d.id} diagram={d} />)}
     </div>
   );
 }
