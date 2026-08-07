@@ -53,6 +53,10 @@ function ChapterDetail() {
   }
 
   const { chapter, subject } = data;
+  const embeddedDiagramPaths = Array.from(
+    chapter.summary_md?.matchAll(/diagram:\/\/([^\s)]+)/g) ?? [],
+    (match) => match[1],
+  );
   const updated = chapter.updated_at
     ? new Date(chapter.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
     : null;
@@ -95,7 +99,7 @@ function ChapterDetail() {
                 {chapter.summary_md || "_No notes yet._"}
               </ReactMarkdown>
             </div>
-            <ChapterNoteDiagrams chapterId={chapterId} />
+            <ChapterNoteDiagrams chapterId={chapterId} excludedPaths={embeddedDiagramPaths} />
           </div>
           {updated && (
             <div className="mt-3 rounded-xl border bg-card px-4 py-3 text-xs text-muted-foreground shadow-soft">
