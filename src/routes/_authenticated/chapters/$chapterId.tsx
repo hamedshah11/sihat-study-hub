@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { DiagramMarkdownImage } from "@/components/DiagramMarkdownImage";
+import { DiagramMarkdownImage, diagramUrlTransform } from "@/components/DiagramMarkdownImage";
 import remarkGfm from "remark-gfm";
 import { ChapterQuiz } from "@/components/ChapterQuiz";
 import { ChapterFlashcards } from "@/components/ChapterFlashcards";
@@ -53,6 +53,10 @@ function ChapterDetail() {
   }
 
   const { chapter, subject } = data;
+  const embeddedDiagramPaths = Array.from(
+    chapter.summary_md?.matchAll(/diagram:\/\/([^\s)]+)/g) ?? [],
+    (match) => match[1],
+  );
   const updated = chapter.updated_at
     ? new Date(chapter.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
     : null;
@@ -91,11 +95,11 @@ function ChapterDetail() {
         <TabsContent value="notes">
           <div className="rounded-2xl border bg-card p-5 mt-4 shadow-soft">
             <div className="prose">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: DiagramMarkdownImage }}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={diagramUrlTransform} components={{ img: DiagramMarkdownImage }}>
                 {chapter.summary_md || "_No notes yet._"}
               </ReactMarkdown>
             </div>
-            <ChapterNoteDiagrams chapterId={chapterId} />
+            <ChapterNoteDiagrams chapterId={chapterId} excludedPaths={embeddedDiagramPaths} />
           </div>
           {updated && (
             <div className="mt-3 rounded-xl border bg-card px-4 py-3 text-xs text-muted-foreground shadow-soft">

@@ -208,7 +208,7 @@ export type Database = {
           flashcard_id: string
           lapses: number | null
           last_review: string | null
-          learning_steps: number
+          learning_steps: number | null
           next_review_at: string | null
           reps: number | null
           scheduled_days: number | null
@@ -223,7 +223,7 @@ export type Database = {
           flashcard_id: string
           lapses?: number | null
           last_review?: string | null
-          learning_steps?: number
+          learning_steps?: number | null
           next_review_at?: string | null
           reps?: number | null
           scheduled_days?: number | null
@@ -238,7 +238,7 @@ export type Database = {
           flashcard_id?: string
           lapses?: number | null
           last_review?: string | null
-          learning_steps?: number
+          learning_steps?: number | null
           next_review_at?: string | null
           reps?: number | null
           scheduled_days?: number | null

@@ -166,13 +166,13 @@ RULES:
         anthropicKey,
         questionsSystem,
         userContent + exclusionBlock("QUESTION PROMPTS", existingPrompts),
-        16000,
+        32000,
       ),
       callAnthropic(
         anthropicKey,
         flashcardsSystem,
         userContent + exclusionBlock("FLASHCARD FRONTS", existingFronts),
-        16000,
+        32000,
       ),
     ]);
 
@@ -299,7 +299,7 @@ async function callAnthropic(
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
+        model: "claude-opus-5",
         max_tokens: maxTokens,
         system,
         messages: [{ role: "user", content: userContent }],
