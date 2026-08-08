@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Eye, EyeOff, RotateCcw, ImageOff } from "lucide-react";
+import { CheckCircle2, XCircle, Eye, EyeOff, RotateCcw, ImageOff, ZoomIn, ZoomOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Pin = { id: string; x: number; y: number; label: string; aliases?: string[] };
