@@ -77,6 +77,10 @@ export function ChapterDiagramTest({ chapterId }: { chapterId: string }) {
   );
 }
 
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 5;
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
 function DiagramRunner({ diagram }: { diagram: Diagram }) {
   const pins = (diagram.pins ?? []).filter((p) => p.label?.trim());
   const imagePath = diagram.base_image_path || diagram.image_path;
@@ -85,6 +89,109 @@ function DiagramRunner({ diagram }: { diagram: Diagram }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [showLabels, setShowLabels] = useState(false);
+  const [focusedPin, setFocusedPin] = useState<string | null>(null);
+
+  // ---- zoom / pan ----
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(0);
+  const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
+  const viewRef = useRef(view);
+  viewRef.current = view;
+
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setWidth(el.clientWidth));
+    ro.observe(el);
+    setWidth(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
+  const zoomAt = useCallback((nextZoomRaw: number, px: number, py: number) => {
+    setView((v) => {
+      const next = clamp(nextZoomRaw, MIN_ZOOM, MAX_ZOOM);
+      const k = next / v.zoom;
+      let x = px - (px - v.x) * k;
+      let y = py - (py - v.y) * k;
+      if (next === 1) {
+        x = 0;
+        y = 0;
+      }
+      return { zoom: next, x, y };
+    });
+  }, []);
+
+  const pointFromEvent = useCallback((clientX: number, clientY: number) => {
+    const rect = viewportRef.current?.getBoundingClientRect();
+    return { px: clientX - (rect?.left ?? 0), py: clientY - (rect?.top ?? 0) };
+  }, []);
+
+  // wheel + trackpad pinch (non-passive)
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 100 : 1);
+      const { px, py } = pointFromEvent(e.clientX, e.clientY);
+      zoomAt(viewRef.current.zoom * Math.exp(-dy * 0.0015), px, py);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [pointFromEvent, zoomAt]);
+
+  // touch pinch / drag / double-tap
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinchStart = useRef<{ dist: number; zoom: number } | null>(null);
+  const lastTap = useRef(0);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      pinchStart.current = {
+        dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+        zoom: viewRef.current.zoom,
+      };
+    }
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    const prev = pointers.current.get(e.pointerId);
+    if (!prev) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointers.current.size === 2 && pinchStart.current) {
+      const [a, b] = [...pointers.current.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      const { px, py } = pointFromEvent((a.x + b.x) / 2, (a.y + b.y) / 2);
+      zoomAt(pinchStart.current.zoom * (dist / pinchStart.current.dist), px, py);
+      return;
+    }
+    if (pointers.current.size === 1 && viewRef.current.zoom > 1) {
+      const dx = e.clientX - prev.x;
+      const dy = e.clientY - prev.y;
+      setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
+    }
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinchStart.current = null;
+    const now = Date.now();
+    if (now - lastTap.current < 300) {
+      const { px, py } = pointFromEvent(e.clientX, e.clientY);
+      zoomAt(viewRef.current.zoom > 1.2 ? 1 : 2.5, px, py);
+      lastTap.current = 0;
+    } else {
+      lastTap.current = now;
+    }
+  };
+
+  // marker sizing: relative to rendered diagram width, constant visual size while zoomed
+  const markerPx = clamp(width * 0.032, 14, 28) / view.zoom;
+  const fontPx = Math.max(9, markerPx * 0.55);
+  const hitPx = 44 / view.zoom;
 
   const score = useMemo(() => {
     if (!submitted) return 0;
@@ -110,46 +217,105 @@ function DiagramRunner({ diagram }: { diagram: Diagram }) {
         )}
       </div>
 
-      <div className="relative w-full select-none">
-        {url ? (
-          <img
-            src={url}
-            alt={diagram.title}
-            className="w-full h-auto rounded-lg block"
-            draggable={false}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-48 rounded-lg bg-background text-muted-foreground text-sm">
-            <ImageOff className="size-4 mr-2" /> Loading image…
-          </div>
-        )}
-        {pins.map((pin, idx) => {
-          const correct = submitted && isMatch(answers[pin.id] ?? "", pin);
-          const wrong = submitted && !correct;
-          return (
-            <div
-              key={pin.id}
-              className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1"
-              style={{ left: `${pin.x * 100}%`, top: `${pin.y * 100}%` }}
-            >
-              <div
-                className={cn(
-                  "size-6 rounded-full text-xs font-bold shadow-md ring-2 ring-background flex items-center justify-center",
-                  correct ? "bg-accent text-accent-foreground"
-                    : wrong ? "bg-destructive text-destructive-foreground"
-                    : "bg-primary text-primary-foreground",
-                )}
-              >
-                {idx + 1}
+      <div className="-mx-2 sm:mx-0">
+        <div
+          ref={viewportRef}
+          className="relative w-full overflow-hidden rounded-lg select-none touch-none"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+        >
+          <div
+            className="relative w-full"
+            style={{
+              transformOrigin: "0 0",
+              transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`,
+            }}
+          >
+            {url ? (
+              <img
+                src={url}
+                alt={diagram.title}
+                className="w-full h-auto rounded-lg block object-contain"
+                draggable={false}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-48 rounded-lg bg-background text-muted-foreground text-sm">
+                <ImageOff className="size-4 mr-2" /> Loading image…
               </div>
-              {showLabels && (
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-background/90 shadow whitespace-nowrap">
-                  {pin.label}
-                </span>
-              )}
-            </div>
-          );
-        })}
+            )}
+            {pins.map((pin, idx) => {
+              const correct = submitted && isMatch(answers[pin.id] ?? "", pin);
+              const wrong = submitted && !correct;
+              const active = focusedPin === pin.id;
+              return (
+                <div
+                  key={pin.id}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center group"
+                  style={{
+                    left: `${pin.x * 100}%`,
+                    top: `${pin.y * 100}%`,
+                    width: hitPx,
+                    height: hitPx,
+                  }}
+                >
+                  <div className="flex flex-col items-center gap-1">
+                    <div
+                      className={cn(
+                        "rounded-full font-bold shadow-md ring-2 ring-background flex items-center justify-center transition-opacity group-hover:opacity-100",
+                        correct
+                          ? "bg-accent text-accent-foreground"
+                          : wrong
+                            ? "bg-destructive text-destructive-foreground"
+                            : "bg-primary text-primary-foreground",
+                      )}
+                      style={{
+                        width: markerPx,
+                        height: markerPx,
+                        fontSize: fontPx,
+                        lineHeight: 1,
+                        opacity: active || submitted ? 1 : 0.85,
+                      }}
+                    >
+                      {idx + 1}
+                    </div>
+                    {showLabels && (
+                      <span
+                        className="font-medium px-1.5 py-0.5 rounded bg-background/90 shadow whitespace-nowrap"
+                        style={{ fontSize: Math.max(9, 10 / view.zoom) }}
+                      >
+                        {pin.label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">Pinch or double-tap to zoom</p>
+        <div className="flex items-center gap-1">
+          <Button
+            size="icon"
+            variant="outline"
+            aria-label="Zoom out"
+            onClick={() => zoomAt(view.zoom / 1.5, width / 2, (viewportRef.current?.clientHeight ?? 0) / 2)}
+          >
+            <ZoomOut className="size-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="outline"
+            aria-label="Zoom in"
+            onClick={() => zoomAt(view.zoom * 1.5, width / 2, (viewportRef.current?.clientHeight ?? 0) / 2)}
+          >
+            <ZoomIn className="size-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -166,11 +332,10 @@ function DiagramRunner({ diagram }: { diagram: Diagram }) {
                 placeholder="Type the label…"
                 value={val}
                 disabled={submitted}
+                onFocus={() => setFocusedPin(pin.id)}
+                onBlur={() => setFocusedPin((p) => (p === pin.id ? null : p))}
                 onChange={(e) => setAnswers((p) => ({ ...p, [pin.id]: e.target.value }))}
-                className={cn(
-                  correct && "border-accent",
-                  wrong && "border-destructive",
-                )}
+                className={cn(correct && "border-accent", wrong && "border-destructive")}
               />
               {correct && <CheckCircle2 className="size-4 text-accent shrink-0" />}
               {wrong && (
