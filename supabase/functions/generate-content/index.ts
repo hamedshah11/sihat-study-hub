@@ -1,8 +1,15 @@
 // Supabase Edge Function: generate-content
 // Admin/instructor-only. Generates a chapter summary, 30 MCQs, and 50 flashcards
 // from source material using Anthropic Claude, and saves them as drafts.
+// Existing chapter items are excluded at generation time and duplicates are
+// filtered before insert (see _shared/dedupe.ts).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { shuffleOptions } from "../_shared/shuffle.ts";
+import {
+  DICE_THRESHOLD_FLASHCARD,
+  DICE_THRESHOLD_QUESTION,
+  filterDuplicates,
+} from "../_shared/dedupe.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,6 +76,34 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (chErr || !chapter) return json({ error: "Chapter not found" }, 404);
 
+    // Existing non-rejected stems for this chapter. These feed both the
+    // model-side exclusion list and the post-parse duplicate filter. Capped at
+    // the 200 most recent stems per type to protect the context budget.
+    const EXISTING_STEM_CAP = 200;
+    const [{ data: existingQRows, error: eqErr }, { data: existingFRows, error: efErr }] =
+      await Promise.all([
+        admin
+          .from("questions")
+          .select("prompt")
+          .eq("chapter_id", chapterId)
+          .neq("status", "rejected")
+          .order("created_at", { ascending: false })
+          .limit(EXISTING_STEM_CAP),
+        admin
+          .from("flashcards")
+          .select("front")
+          .eq("chapter_id", chapterId)
+          .neq("status", "rejected")
+          .order("created_at", { ascending: false })
+          .limit(EXISTING_STEM_CAP),
+      ]);
+    if (eqErr || efErr) {
+      console.error("existing content lookup error", { questions: eqErr, flashcards: efErr });
+      return json({ error: "Failed to load existing chapter content." }, 500);
+    }
+    const existingPrompts = (existingQRows ?? []).map((r: any) => String(r.prompt));
+    const existingFronts = (existingFRows ?? []).map((r: any) => String(r.front));
+
     const summarySystem = `You are an expert nursing educator. Convert the provided source material into clean Markdown study notes for nursing students in Pakistan.
 
 RULES:
@@ -115,10 +150,30 @@ RULES:
 
     const userContent = `Chapter title: ${chapter.title}\n\nSOURCE MATERIAL:\n"""\n${sourceMaterial}\n"""`;
 
+    // Explicit exclusion list so the model doesn't re-ask what the chapter
+    // already has (the original top-up runs were not shown existing items and
+    // duplicated many of them).
+    const exclusionBlock = (label: string, stems: string[]) =>
+      stems.length === 0
+        ? ""
+        : `\n\nEXISTING ${label} ALREADY IN THIS CHAPTER — you MUST NOT re-ask, rephrase, or write a near-duplicate of any of these:\n${stems
+            .map((s) => `- ${s}`)
+            .join("\n")}`;
+
     const [summaryRes, questionsRes, flashcardsRes] = await Promise.all([
       callAnthropic(anthropicKey, summarySystem, userContent, 64000),
-      callAnthropic(anthropicKey, questionsSystem, userContent, 32000),
-      callAnthropic(anthropicKey, flashcardsSystem, userContent, 32000),
+      callAnthropic(
+        anthropicKey,
+        questionsSystem,
+        userContent + exclusionBlock("QUESTION PROMPTS", existingPrompts),
+        32000,
+      ),
+      callAnthropic(
+        anthropicKey,
+        flashcardsSystem,
+        userContent + exclusionBlock("FLASHCARD FRONTS", existingFronts),
+        32000,
+      ),
     ]);
 
     if (!summaryRes.ok || !questionsRes.ok || !flashcardsRes.ok) {
@@ -144,8 +199,26 @@ RULES:
       return json({ error: "Failed to save chapter summary." }, 500);
     }
 
+    // Drop duplicates (exact normalised match or Dice > threshold) against the
+    // chapter's existing items and within the new batch itself. This must run
+    // BEFORE shuffleOptions below so similarity is measured on the raw prompts.
+    // Each kind gets its own Dice threshold — see _shared/dedupe.ts for the
+    // calibration behind the two values.
+    const questionFilter = filterDuplicates(
+      questionsRaw,
+      (q: any) => String(q?.prompt ?? ""),
+      existingPrompts,
+      DICE_THRESHOLD_QUESTION,
+    );
+    const flashcardFilter = filterDuplicates(
+      flashcardsRaw,
+      (c: any) => String(c?.front ?? ""),
+      existingFronts,
+      DICE_THRESHOLD_FLASHCARD,
+    );
+
     // Sanitize & insert questions
-    const questionRows = questionsRaw
+    const questionRows = questionFilter.kept
       .map((q: any) => {
         const opts = Array.isArray(q?.options) ? q.options.map((o: any) => String(o)) : [];
         const ci = Number(q?.correct_index);
@@ -175,7 +248,7 @@ RULES:
     }
 
     // Sanitize & insert flashcards
-    const flashcardRows = flashcardsRaw
+    const flashcardRows = flashcardFilter.kept
       .map((c: any) => {
         if (!c?.front || !c?.back) return null;
         return {
@@ -196,9 +269,13 @@ RULES:
 
     return json({
       ok: true,
-      counts: {
+      inserted: {
         questions: questionRows.length,
         flashcards: flashcardRows.length,
+      },
+      dropped_duplicates: {
+        questions: questionFilter.dropped_duplicates,
+        flashcards: flashcardFilter.dropped_duplicates,
       },
     });
   } catch (e) {

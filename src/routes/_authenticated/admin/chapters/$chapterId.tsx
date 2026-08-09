@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ChevronLeft, Loader2, Trash2, Check, X, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { DiagramsManager } from "@/components/admin/DiagramsManager";
@@ -187,6 +188,26 @@ function AdminChapterDetail() {
 const MIN_SRC = 1;
 const MAX_SRC = 50_000;
 
+type GenerateResult = {
+  inserted?: { questions?: number; flashcards?: number };
+  dropped_duplicates?: { questions?: number; flashcards?: number };
+};
+
+// e.g. "Generated 42 questions (18 duplicates filtered) and 50 flashcards".
+// The "(N duplicates filtered)" suffix only appears when the count is non-zero.
+function generateToastMessage(data: unknown): string {
+  const res = (data ?? {}) as GenerateResult;
+  const part = (count: number, noun: string, dropped: number) =>
+    `${count} ${noun}${dropped > 0 ? ` (${dropped} duplicate${dropped === 1 ? "" : "s"} filtered)` : ""}`;
+  const q = part(res.inserted?.questions ?? 0, "questions", res.dropped_duplicates?.questions ?? 0);
+  const f = part(
+    res.inserted?.flashcards ?? 0,
+    "flashcards",
+    res.dropped_duplicates?.flashcards ?? 0,
+  );
+  return `Generated ${q} and ${f}`;
+}
+
 function SourceTab({ chapterId }: { chapterId: string }) {
   const qc = useQueryClient();
   const [source, setSource] = useState("");
@@ -222,6 +243,7 @@ function SourceTab({ chapterId }: { chapterId: string }) {
       });
       if (error) throw error;
       setResult(data);
+      toast.success(generateToastMessage(data));
       qc.invalidateQueries({ queryKey: ["admin-chapter-counts", chapterId] });
       qc.invalidateQueries({ queryKey: ["admin-chapter-questions", chapterId] });
       qc.invalidateQueries({ queryKey: ["admin-chapter-flashcards", chapterId] });
