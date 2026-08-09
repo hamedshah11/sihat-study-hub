@@ -27,6 +27,7 @@ import { ChevronLeft, Loader2, Trash2, Check, X, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { DiagramsManager } from "@/components/admin/DiagramsManager";
+import { LearningObjectivesEditor } from "@/components/admin/LearningObjectivesEditor";
 import { DiagramMarkdownImage, diagramUrlTransform } from "@/components/DiagramMarkdownImage";
 
 export const Route = createFileRoute("/_authenticated/admin/chapters/$chapterId")({
@@ -40,6 +41,7 @@ type Chapter = {
   status: string | null;
   summary_md: string | null;
   subject_id: string | null;
+  learning_objectives: unknown;
 };
 type Question = {
   id: string;
@@ -80,7 +82,7 @@ function AdminChapterDetail() {
     queryFn: async () => {
       const { data: chapter } = await supabase
         .from("chapters")
-        .select("id, title, status, summary_md, subject_id")
+        .select("id, title, status, summary_md, subject_id, learning_objectives")
         .eq("id", chapterId)
         .maybeSingle();
       const subject = chapter?.subject_id
@@ -348,38 +350,46 @@ function NotesTab({ chapter, onSaved }: { chapter: Chapter; onSaved: () => void 
     onSaved();
   };
 
-  if (editing) {
-    return (
-      <div className="mt-4 space-y-3">
-        <Textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          className="min-h-[400px] font-mono text-sm"
-        />
-        <div className="flex gap-2">
-          <Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
-          <Button variant="outline" onClick={() => { setDraft(chapter.summary_md ?? ""); setEditing(false); }}>
-            Cancel
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="mt-4 space-y-3">
-      <div className="flex justify-end">
-        <Button variant="outline" onClick={() => { setDraft(chapter.summary_md ?? ""); setEditing(true); }}>
-          Edit
-        </Button>
-      </div>
-      <div className="rounded-xl bg-surface p-5">
-        <div className="prose">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={diagramUrlTransform} components={{ img: DiagramMarkdownImage }}>
-            {chapter.summary_md || "_No notes yet._"}
-          </ReactMarkdown>
-        </div>
-      </div>
+      {/* Objectives sit above the notes here to mirror the student view. */}
+      <LearningObjectivesEditor
+        key={chapter.id}
+        chapterId={chapter.id}
+        value={chapter.learning_objectives}
+        onSaved={onSaved}
+      />
+
+      {editing ? (
+        <>
+          <Textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            className="min-h-[400px] font-mono text-sm"
+          />
+          <div className="flex gap-2">
+            <Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+            <Button variant="outline" onClick={() => { setDraft(chapter.summary_md ?? ""); setEditing(false); }}>
+              Cancel
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => { setDraft(chapter.summary_md ?? ""); setEditing(true); }}>
+              Edit
+            </Button>
+          </div>
+          <div className="rounded-xl bg-surface p-5">
+            <div className="prose">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={diagramUrlTransform} components={{ img: DiagramMarkdownImage }}>
+                {chapter.summary_md || "_No notes yet._"}
+              </ReactMarkdown>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
