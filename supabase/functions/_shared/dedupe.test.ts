@@ -174,6 +174,25 @@ describe("template-swap false positives", () => {
   });
 });
 
+// The highest-scoring false positive from the 150-pair flashcard scan: an
+// antibody-class swap at Dice 0.968 / wordJaccard 0.75. Both are real, distinct
+// cards, so the flashcard threshold must sit above it.
+describe("antibody-class swap false positive", () => {
+  const IGM = "What are the key features of IgM?";
+  const IGG = "What are the key features of IgG?";
+
+  test("both metrics score high on the IgM/IgG swap", () => {
+    expect(diceCoefficient(IGM, IGG)).toBeGreaterThan(0.96);
+    expect(wordJaccard(IGM, IGG)).toBeGreaterThanOrEqual(WORD_JACCARD_MIN);
+  });
+
+  test("the IgM/IgG pair is kept as a flashcard", () => {
+    const result = filterDuplicates([{ front: IGG }], (c) => c.front, [IGM], DICE_THRESHOLD_FLASHCARD);
+    expect(result.kept).toEqual([{ front: IGG }]);
+    expect(result.dropped_duplicates).toBe(0);
+  });
+});
+
 describe("per-kind thresholds", () => {
   // Flashcards are now the STRICTER kind: their fronts are short, so a single
   // swapped term barely moves either metric (IgM/IgG scores 0.968).
