@@ -175,46 +175,42 @@ describe("template-swap false positives", () => {
 });
 
 describe("per-kind thresholds", () => {
-  // Re-anchored: questions moved 0.75 -> 0.92, so questions are now the
-  // STRICTER kind and the divergence runs the other way than it used to.
-  test("questions are held to a stricter threshold than flashcards", () => {
+  // Flashcards are now the STRICTER kind: their fronts are short, so a single
+  // swapped term barely moves either metric (IgM/IgG scores 0.968).
+  test("flashcards are held to a stricter threshold than questions", () => {
     expect(DICE_THRESHOLD_QUESTION).toBe(0.92);
-    expect(DICE_THRESHOLD_FLASHCARD).toBe(0.85);
-    expect(DICE_THRESHOLD_QUESTION).toBeGreaterThan(DICE_THRESHOLD_FLASHCARD);
+    expect(DICE_THRESHOLD_FLASHCARD).toBe(0.97);
+    expect(DICE_THRESHOLD_FLASHCARD).toBeGreaterThan(DICE_THRESHOLD_QUESTION);
   });
 
-  // The generate-content call site pairs question prompts with
-  // DICE_THRESHOLD_QUESTION and flashcard fronts with DICE_THRESHOLD_FLASHCARD.
-  // This pair scores 0.905 — between the two — so the pairing stays observable:
-  // the same texts are distinct as questions but a duplicate as flashcards.
-  const A = "Define the cell membrane";
-  const B = "Define cell membrane";
+  // This pair scores 0.9268 — between the two thresholds — so the pairing at
+  // the generate-content call site stays observable: the same texts are a
+  // duplicate as questions but distinct as flashcards.
+  const A = "Describe the structure of the cell membrane";
+  const B = "Describe the structure of a cell membrane";
 
   test("the divergence pair sits between the two thresholds", () => {
     const score = diceCoefficient(A, B);
-    expect(score).toBeGreaterThan(DICE_THRESHOLD_FLASHCARD);
-    expect(score).toBeLessThan(DICE_THRESHOLD_QUESTION);
+    expect(score).toBeGreaterThan(DICE_THRESHOLD_QUESTION);
+    expect(score).toBeLessThan(DICE_THRESHOLD_FLASHCARD);
   });
 
-  test("the divergence pair is kept as a question", () => {
+  test("the divergence pair is dropped as a question", () => {
     const result = filterDuplicates([{ prompt: B }], (q) => q.prompt, [A], DICE_THRESHOLD_QUESTION);
-    expect(result.kept).toEqual([{ prompt: B }]);
-    expect(result.dropped_duplicates).toBe(0);
-  });
-
-  test("the same divergence pair is dropped as a flashcard", () => {
-    const result = filterDuplicates([{ front: B }], (c) => c.front, [A], DICE_THRESHOLD_FLASHCARD);
     expect(result.kept).toEqual([]);
     expect(result.dropped_duplicates).toBe(1);
   });
 
-  // Retained from the 0.75 era: this pair used to be dropped as a question.
-  // At 0.92 it survives for both kinds — kept as explicit coverage of the
-  // raised boundary rather than deleted.
-  test("a ~0.80 rewording now survives for both kinds", () => {
+  test("the same divergence pair is kept as a flashcard", () => {
+    const result = filterDuplicates([{ front: B }], (c) => c.front, [A], DICE_THRESHOLD_FLASHCARD);
+    expect(result.kept).toEqual([{ front: B }]);
+    expect(result.dropped_duplicates).toBe(0);
+  });
+
+  test("a ~0.80 rewording survives for both kinds", () => {
     const a = "Function of the cell membrane";
     const b = "Cell membrane function";
-    expect(diceCoefficient(a, b)).toBeLessThan(DICE_THRESHOLD_FLASHCARD);
+    expect(diceCoefficient(a, b)).toBeLessThan(DICE_THRESHOLD_QUESTION);
     for (const threshold of [DICE_THRESHOLD_QUESTION, DICE_THRESHOLD_FLASHCARD]) {
       const result = filterDuplicates([{ text: b }], (i) => i.text, [a], threshold);
       expect(result.kept).toEqual([{ text: b }]);
