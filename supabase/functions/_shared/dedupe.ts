@@ -59,7 +59,16 @@ export function diceCoefficient(a: string, b: string): number {
 // duplication recurs at volume, the fix is semantic — pgvector embeddings on
 // stems, or per-item concept keys — not a different threshold.
 export const DICE_THRESHOLD_QUESTION = 0.92;
-export const DICE_THRESHOLD_FLASHCARD = 0.85;
+// Flashcards need an even stricter floor than questions. A manual scan of all
+// 150 live flashcard pairs scoring 0.85+ found false positives as high as
+// 0.968: "What are the key features of IgM?" vs "...IgG?" (Dice 0.968,
+// wordJaccard 0.75); "too hot" vs "too cold" (0.940 / 0.857); "donning" vs
+// "doffing sequence for PPE" (0.927 / 0.857). Roughly 30% of pairs above 0.90
+// were legitimate, distinct cards. Flashcard fronts are short enough that a
+// single swapped term barely moves either metric, so no threshold below
+// near-identity is safe. The exact normalised-key check remains the primary
+// catch; this filter only catches punctuation- and article-level restatements.
+export const DICE_THRESHOLD_FLASHCARD = 0.97;
 
 // Jaccard index over the word sets of the normalised strings:
 // |intersection| / |union|. 1 = same words, 0 = no words in common.
