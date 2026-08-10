@@ -304,7 +304,9 @@ RULES:
         questions: questionFilter.dropped_duplicates,
         flashcards: flashcardFilter.dropped_duplicates,
       },
+      requested: { questions: questionCount, flashcards: flashcardCount },
     });
+
   } catch (e) {
     console.error("generate-content error", e);
     return json({ error: "Something went wrong." }, 500);
