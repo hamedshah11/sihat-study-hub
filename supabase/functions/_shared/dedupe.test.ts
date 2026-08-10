@@ -117,9 +117,9 @@ describe("conjunctive similarity gate", () => {
     expect(result.dropped_duplicates).toBe(0);
   });
 
-  test("a true rewording passes both gates and is dropped as a flashcard", () => {
-    const a = "Define the cell membrane";
-    const b = "Define cell membrane";
+  test("a near-identical restatement passes both gates and is dropped as a flashcard", () => {
+    const a = "List the main functions of the plasma cell membrane in homeostasis";
+    const b = "List the main functions of the plasma cell membranes in homeostasis";
     expect(diceCoefficient(a, b)).toBeGreaterThan(DICE_THRESHOLD_FLASHCARD);
     expect(wordJaccard(a, b)).toBeGreaterThanOrEqual(WORD_JACCARD_MIN);
     const result = filterDuplicates([{ text: b }], (i) => i.text, [a], DICE_THRESHOLD_FLASHCARD);
