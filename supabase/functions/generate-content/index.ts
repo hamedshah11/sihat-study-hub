@@ -139,9 +139,10 @@ RULES:
 - End the notes with a final section titled exactly: "## Why this matters for nursing" with 3-5 bullets connecting the content to nursing practice.
 - Output ONLY the Markdown. No preamble, no code fences.`;
 
-    const questionsSystem = `You are an expert nursing exam writer. From the provided source material, write EXACTLY 30 multiple-choice questions for nursing students.
+    const questionsSystem = `You are an expert nursing exam writer. From the provided source material, write EXACTLY ${questionCount} multiple-choice questions for nursing students.
 
-Distribution: 10 easy, 15 medium, 5 hard.
+Distribution: ${easyCount} easy, ${mediumCount} medium, ${hardCount} hard.
+
 
 Each question MUST be a JSON object with this exact shape:
 {
