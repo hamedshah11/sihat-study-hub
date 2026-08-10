@@ -302,14 +302,44 @@ function SourceTab({ chapterId }: { chapterId: string }) {
           disabled={busy}
         />
         <div className="mt-2 flex items-center justify-between text-xs">
-          <span className={invalid && len > 0 ? "text-destructive" : "text-muted-foreground"}>
+          <span
+            className={
+              len > 0 && (len < MIN_SRC || len > MAX_SRC)
+                ? "text-destructive"
+                : "text-muted-foreground"
+            }
+          >
             {len.toLocaleString()} / {MAX_SRC.toLocaleString()} characters
           </span>
           <span className="text-muted-foreground">
             Existing: {counts?.questions ?? 0} questions · {counts?.flashcards ?? 0} flashcards
           </span>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Questions
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={questionCount}
+              onChange={(e) => setQuestionCount(e.target.value)}
+              disabled={busy}
+              className="h-9 w-24"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Flashcards
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={flashcardCount}
+              onChange={(e) => setFlashcardCount(e.target.value)}
+              disabled={busy}
+              className="h-9 w-24"
+            />
+          </label>
           <Button onClick={onGenerateClick} disabled={busy || invalid}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
             {busy ? "Generating…" : "Generate content"}
@@ -318,6 +348,12 @@ function SourceTab({ chapterId }: { chapterId: string }) {
             <Trash2 className="size-4" /> Delete all draft content
           </Button>
         </div>
+        {!countsValid && (
+          <p className="mt-2 text-xs text-destructive">
+            Counts must be whole numbers between 1 and 100.
+          </p>
+        )}
+
         {busy && (
           <p className="mt-2 text-xs text-muted-foreground">
             This usually takes 30–60 seconds. Keep this tab open.
