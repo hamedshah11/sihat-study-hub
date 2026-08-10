@@ -260,9 +260,9 @@ describe("filterDuplicates", () => {
 
   test("drops near-duplicates above the Dice threshold", () => {
     const result = filterDuplicates(
-      [{ front: "Define cell membrane" }],
+      [{ front: "List the main functions of the plasma cell membranes in homeostasis" }],
       (c) => c.front,
-      ["Define the cell membrane"],
+      ["List the main functions of the plasma cell membrane in homeostasis"],
       DICE_THRESHOLD_FLASHCARD,
     );
     expect(result.kept).toEqual([]);
@@ -273,12 +273,14 @@ describe("filterDuplicates", () => {
     const batch = [
       { front: "Define the cell membrane" },
       { front: "define the CELL membrane!" }, // exact after normalisation
-      { front: "Define cell membrane" }, // near-duplicate by Dice (0.9048)
+      { front: "List the main functions of the plasma cell membrane in homeostasis" },
+      { front: "List the main functions of the plasma cell membranes in homeostasis" }, // 0.9771
       { front: "List the bones of the axial skeleton" },
     ];
     const result = filterDuplicates(batch, (c) => c.front, [], DICE_THRESHOLD_FLASHCARD);
     expect(result.kept).toEqual([
       { front: "Define the cell membrane" },
+      { front: "List the main functions of the plasma cell membrane in homeostasis" },
       { front: "List the bones of the axial skeleton" },
     ]);
     expect(result.dropped_duplicates).toBe(2);
