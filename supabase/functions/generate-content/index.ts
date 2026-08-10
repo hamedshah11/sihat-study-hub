@@ -68,6 +68,31 @@ Deno.serve(async (req) => {
       return json({ error: "sourceMaterial must be between 1 and 50,000 characters" }, 400);
     }
 
+    // Optional generation counts. Omitting them preserves the original
+    // hard-coded batch sizes exactly (30 questions, 50 flashcards).
+    const DEFAULT_QUESTION_COUNT = 30;
+    const DEFAULT_FLASHCARD_COUNT = 50;
+    const readCount = (raw: unknown, fallback: number, label: string) => {
+      if (raw === undefined || raw === null || raw === "") return { ok: true as const, value: fallback };
+      const n = Number(raw);
+      if (!Number.isInteger(n) || n < 1 || n > 100) {
+        return { ok: false as const, error: `${label} must be an integer between 1 and 100` };
+      }
+      return { ok: true as const, value: n };
+    };
+    const qCount = readCount(body?.questionCount, DEFAULT_QUESTION_COUNT, "questionCount");
+    if (!qCount.ok) return json({ error: qCount.error }, 400);
+    const fCount = readCount(body?.flashcardCount, DEFAULT_FLASHCARD_COUNT, "flashcardCount");
+    if (!fCount.ok) return json({ error: fCount.error }, 400);
+    const questionCount = qCount.value;
+    const flashcardCount = fCount.value;
+
+    // Difficulty split kept proportional to the original 10/15/5 of 30.
+    const easyCount = Math.round(questionCount / 3);
+    const hardCount = Math.max(1, Math.round(questionCount / 6));
+    const mediumCount = Math.max(0, questionCount - easyCount - hardCount);
+
+
     // Verify chapter exists
     const { data: chapter, error: chErr } = await admin
       .from("chapters")
