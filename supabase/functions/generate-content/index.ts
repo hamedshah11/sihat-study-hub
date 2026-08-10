@@ -157,9 +157,10 @@ RULES:
 - Exactly 4 options per question.
 - correct_index is an integer 0-3.
 - Base every question strictly on the source material. Do not invent facts.
-- Output ONLY a JSON array of 30 question objects. No markdown fences, no commentary.`;
+- Output ONLY a JSON array of ${questionCount} question objects. No markdown fences, no commentary.`;
 
-    const flashcardsSystem = `You are an expert nursing educator creating spaced-repetition flashcards. From the provided source material, write EXACTLY 50 flashcards.
+    const flashcardsSystem = `You are an expert nursing educator creating spaced-repetition flashcards. From the provided source material, write EXACTLY ${flashcardCount} flashcards.
+
 
 Each flashcard MUST be a JSON object with this exact shape:
 {
