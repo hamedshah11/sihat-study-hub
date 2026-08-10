@@ -173,7 +173,7 @@ RULES:
 - Keep the front short and focused on one idea.
 - Keep the back to 1-3 sentences.
 - Base every card strictly on the source material. Do not invent facts.
-- Output ONLY a JSON array of 50 flashcard objects. No markdown fences, no commentary.`;
+- Output ONLY a JSON array of ${flashcardCount} flashcard objects. No markdown fences, no commentary.`;
 
     const userContent = `Chapter title: ${chapter.title}\n\nSOURCE MATERIAL:\n"""\n${sourceMaterial}\n"""`;
 
