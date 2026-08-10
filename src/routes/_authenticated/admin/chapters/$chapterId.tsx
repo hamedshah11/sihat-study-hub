@@ -208,15 +208,21 @@ function generateToastMessage(data: unknown): string {
   return `Generated ${q} and ${f}`;
 }
 
+const DEFAULT_QUESTION_COUNT = 30;
+const DEFAULT_FLASHCARD_COUNT = 50;
+
 function SourceTab({ chapterId }: { chapterId: string }) {
   const qc = useQueryClient();
   const [source, setSource] = useState("");
+  const [questionCount, setQuestionCount] = useState(String(DEFAULT_QUESTION_COUNT));
+  const [flashcardCount, setFlashcardCount] = useState(String(DEFAULT_FLASHCARD_COUNT));
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmGen, setConfirmGen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
 
   const { data: counts } = useQuery({
     queryKey: ["admin-chapter-counts", chapterId],
