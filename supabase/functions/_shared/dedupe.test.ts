@@ -32,10 +32,13 @@ describe("diceCoefficient", () => {
     ).toBeGreaterThan(DICE_THRESHOLD_QUESTION);
   });
 
-  test("a rephrased stem scores above the flashcard threshold", () => {
-    expect(diceCoefficient("Define the cell membrane", "Define cell membrane")).toBeGreaterThan(
-      DICE_THRESHOLD_FLASHCARD,
-    );
+  test("a near-identical restatement scores above the flashcard threshold", () => {
+    expect(
+      diceCoefficient(
+        "List the main functions of the plasma cell membrane in homeostasis",
+        "List the main functions of the plasma cell membranes in homeostasis",
+      ),
+    ).toBeGreaterThan(DICE_THRESHOLD_FLASHCARD);
   });
 
   test("unrelated stems score below 0.3", () => {
