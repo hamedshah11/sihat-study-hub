@@ -236,7 +236,12 @@ function SourceTab({ chapterId }: { chapterId: string }) {
   });
 
   const len = source.length;
-  const invalid = len < MIN_SRC || len > MAX_SRC;
+  const qNum = Number(questionCount);
+  const fNum = Number(flashcardCount);
+  const countsValid =
+    Number.isInteger(qNum) && qNum >= 1 && qNum <= 100 &&
+    Number.isInteger(fNum) && fNum >= 1 && fNum <= 100;
+  const invalid = len < MIN_SRC || len > MAX_SRC || !countsValid;
   const hasExisting = (counts?.questions ?? 0) + (counts?.flashcards ?? 0) > 0;
 
   const runGenerate = async () => {
@@ -245,8 +250,14 @@ function SourceTab({ chapterId }: { chapterId: string }) {
     setResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("generate-content", {
-        body: { chapterId, sourceMaterial: source },
+        body: {
+          chapterId,
+          sourceMaterial: source,
+          questionCount: qNum,
+          flashcardCount: fNum,
+        },
       });
+
       if (error) throw error;
       setResult(data);
       toast.success(generateToastMessage(data));
