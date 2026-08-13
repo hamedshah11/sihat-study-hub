@@ -4,6 +4,8 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -24,6 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ChevronLeft, Loader2, Trash2, Check, X, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { DiagramsManager } from "@/components/admin/DiagramsManager";
@@ -189,15 +192,41 @@ function AdminChapterDetail() {
 const MIN_SRC = 1;
 const MAX_SRC = 50_000;
 
+type GenerateResult = {
+  inserted?: { questions?: number; flashcards?: number };
+  dropped_duplicates?: { questions?: number; flashcards?: number };
+};
+
+// e.g. "Generated 42 questions (18 duplicates filtered) and 50 flashcards".
+// The "(N duplicates filtered)" suffix only appears when the count is non-zero.
+function generateToastMessage(data: unknown): string {
+  const res = (data ?? {}) as GenerateResult;
+  const part = (count: number, noun: string, dropped: number) =>
+    `${count} ${noun}${dropped > 0 ? ` (${dropped} duplicate${dropped === 1 ? "" : "s"} filtered)` : ""}`;
+  const q = part(res.inserted?.questions ?? 0, "questions", res.dropped_duplicates?.questions ?? 0);
+  const f = part(
+    res.inserted?.flashcards ?? 0,
+    "flashcards",
+    res.dropped_duplicates?.flashcards ?? 0,
+  );
+  return `Generated ${q} and ${f}`;
+}
+
+const DEFAULT_QUESTION_COUNT = 30;
+const DEFAULT_FLASHCARD_COUNT = 50;
+
 function SourceTab({ chapterId }: { chapterId: string }) {
   const qc = useQueryClient();
   const [source, setSource] = useState("");
+  const [questionCount, setQuestionCount] = useState(String(DEFAULT_QUESTION_COUNT));
+  const [flashcardCount, setFlashcardCount] = useState(String(DEFAULT_FLASHCARD_COUNT));
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<unknown>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmGen, setConfirmGen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
 
   const { data: counts } = useQuery({
     queryKey: ["admin-chapter-counts", chapterId],
@@ -211,7 +240,12 @@ function SourceTab({ chapterId }: { chapterId: string }) {
   });
 
   const len = source.length;
-  const invalid = len < MIN_SRC || len > MAX_SRC;
+  const qNum = Number(questionCount);
+  const fNum = Number(flashcardCount);
+  const countsValid =
+    Number.isInteger(qNum) && qNum >= 1 && qNum <= 100 &&
+    Number.isInteger(fNum) && fNum >= 1 && fNum <= 100;
+  const invalid = len < MIN_SRC || len > MAX_SRC || !countsValid;
   const hasExisting = (counts?.questions ?? 0) + (counts?.flashcards ?? 0) > 0;
 
   const runGenerate = async () => {
@@ -220,10 +254,17 @@ function SourceTab({ chapterId }: { chapterId: string }) {
     setResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("generate-content", {
-        body: { chapterId, sourceMaterial: source },
+        body: {
+          chapterId,
+          sourceMaterial: source,
+          questionCount: qNum,
+          flashcardCount: fNum,
+        },
       });
+
       if (error) throw error;
       setResult(data);
+      toast.success(generateToastMessage(data));
       qc.invalidateQueries({ queryKey: ["admin-chapter-counts", chapterId] });
       qc.invalidateQueries({ queryKey: ["admin-chapter-questions", chapterId] });
       qc.invalidateQueries({ queryKey: ["admin-chapter-flashcards", chapterId] });
@@ -265,14 +306,44 @@ function SourceTab({ chapterId }: { chapterId: string }) {
           disabled={busy}
         />
         <div className="mt-2 flex items-center justify-between text-xs">
-          <span className={invalid && len > 0 ? "text-destructive" : "text-muted-foreground"}>
+          <span
+            className={
+              len > 0 && (len < MIN_SRC || len > MAX_SRC)
+                ? "text-destructive"
+                : "text-muted-foreground"
+            }
+          >
             {len.toLocaleString()} / {MAX_SRC.toLocaleString()} characters
           </span>
           <span className="text-muted-foreground">
             Existing: {counts?.questions ?? 0} questions · {counts?.flashcards ?? 0} flashcards
           </span>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Questions
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={questionCount}
+              onChange={(e) => setQuestionCount(e.target.value)}
+              disabled={busy}
+              className="h-9 w-24"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+            Flashcards
+            <Input
+              type="number"
+              min={1}
+              max={100}
+              value={flashcardCount}
+              onChange={(e) => setFlashcardCount(e.target.value)}
+              disabled={busy}
+              className="h-9 w-24"
+            />
+          </label>
           <Button onClick={onGenerateClick} disabled={busy || invalid}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
             {busy ? "Generating…" : "Generate content"}
@@ -281,6 +352,12 @@ function SourceTab({ chapterId }: { chapterId: string }) {
             <Trash2 className="size-4" /> Delete all draft content
           </Button>
         </div>
+        {!countsValid && (
+          <p className="mt-2 text-xs text-destructive">
+            Counts must be whole numbers between 1 and 100.
+          </p>
+        )}
+
         {busy && (
           <p className="mt-2 text-xs text-muted-foreground">
             This usually takes 30–60 seconds. Keep this tab open.

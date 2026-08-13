@@ -1,8 +1,15 @@
 // Supabase Edge Function: generate-content
 // Admin/instructor-only. Generates a chapter summary, 30 MCQs, and 50 flashcards
 // from source material using Anthropic Claude, and saves them as drafts.
+// Existing chapter items are excluded at generation time and duplicates are
+// filtered before insert (see _shared/dedupe.ts).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { shuffleOptions } from "../_shared/shuffle.ts";
+import {
+  DICE_THRESHOLD_FLASHCARD,
+  DICE_THRESHOLD_QUESTION,
+  filterDuplicates,
+} from "../_shared/dedupe.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -61,6 +68,31 @@ Deno.serve(async (req) => {
       return json({ error: "sourceMaterial must be between 1 and 50,000 characters" }, 400);
     }
 
+    // Optional generation counts. Omitting them preserves the original
+    // hard-coded batch sizes exactly (30 questions, 50 flashcards).
+    const DEFAULT_QUESTION_COUNT = 30;
+    const DEFAULT_FLASHCARD_COUNT = 50;
+    const readCount = (raw: unknown, fallback: number, label: string) => {
+      if (raw === undefined || raw === null || raw === "") return { ok: true as const, value: fallback };
+      const n = Number(raw);
+      if (!Number.isInteger(n) || n < 1 || n > 100) {
+        return { ok: false as const, error: `${label} must be an integer between 1 and 100` };
+      }
+      return { ok: true as const, value: n };
+    };
+    const qCount = readCount(body?.questionCount, DEFAULT_QUESTION_COUNT, "questionCount");
+    if (!qCount.ok) return json({ error: qCount.error }, 400);
+    const fCount = readCount(body?.flashcardCount, DEFAULT_FLASHCARD_COUNT, "flashcardCount");
+    if (!fCount.ok) return json({ error: fCount.error }, 400);
+    const questionCount = qCount.value;
+    const flashcardCount = fCount.value;
+
+    // Difficulty split kept proportional to the original 10/15/5 of 30.
+    const easyCount = Math.round(questionCount / 3);
+    const hardCount = Math.max(1, Math.round(questionCount / 6));
+    const mediumCount = Math.max(0, questionCount - easyCount - hardCount);
+
+
     // Verify chapter exists
     const { data: chapter, error: chErr } = await admin
       .from("chapters")
@@ -68,6 +100,34 @@ Deno.serve(async (req) => {
       .eq("id", chapterId)
       .maybeSingle();
     if (chErr || !chapter) return json({ error: "Chapter not found" }, 404);
+
+    // Existing non-rejected stems for this chapter. These feed both the
+    // model-side exclusion list and the post-parse duplicate filter. Capped at
+    // the 200 most recent stems per type to protect the context budget.
+    const EXISTING_STEM_CAP = 200;
+    const [{ data: existingQRows, error: eqErr }, { data: existingFRows, error: efErr }] =
+      await Promise.all([
+        admin
+          .from("questions")
+          .select("prompt")
+          .eq("chapter_id", chapterId)
+          .neq("status", "rejected")
+          .order("created_at", { ascending: false })
+          .limit(EXISTING_STEM_CAP),
+        admin
+          .from("flashcards")
+          .select("front")
+          .eq("chapter_id", chapterId)
+          .neq("status", "rejected")
+          .order("created_at", { ascending: false })
+          .limit(EXISTING_STEM_CAP),
+      ]);
+    if (eqErr || efErr) {
+      console.error("existing content lookup error", { questions: eqErr, flashcards: efErr });
+      return json({ error: "Failed to load existing chapter content." }, 500);
+    }
+    const existingPrompts = (existingQRows ?? []).map((r: any) => String(r.prompt));
+    const existingFronts = (existingFRows ?? []).map((r: any) => String(r.front));
 
     const summarySystem = `You are an expert nursing educator. Convert the provided source material into clean Markdown study notes for nursing students in Pakistan.
 
@@ -79,9 +139,10 @@ RULES:
 - End the notes with a final section titled exactly: "## Why this matters for nursing" with 3-5 bullets connecting the content to nursing practice.
 - Output ONLY the Markdown. No preamble, no code fences.`;
 
-    const questionsSystem = `You are an expert nursing exam writer. From the provided source material, write EXACTLY 30 multiple-choice questions for nursing students.
+    const questionsSystem = `You are an expert nursing exam writer. From the provided source material, write EXACTLY ${questionCount} multiple-choice questions for nursing students.
 
-Distribution: 10 easy, 15 medium, 5 hard.
+Distribution: ${easyCount} easy, ${mediumCount} medium, ${hardCount} hard.
+
 
 Each question MUST be a JSON object with this exact shape:
 {
@@ -96,9 +157,10 @@ RULES:
 - Exactly 4 options per question.
 - correct_index is an integer 0-3.
 - Base every question strictly on the source material. Do not invent facts.
-- Output ONLY a JSON array of 30 question objects. No markdown fences, no commentary.`;
+- Output ONLY a JSON array of ${questionCount} question objects. No markdown fences, no commentary.`;
 
-    const flashcardsSystem = `You are an expert nursing educator creating spaced-repetition flashcards. From the provided source material, write EXACTLY 50 flashcards.
+    const flashcardsSystem = `You are an expert nursing educator creating spaced-repetition flashcards. From the provided source material, write EXACTLY ${flashcardCount} flashcards.
+
 
 Each flashcard MUST be a JSON object with this exact shape:
 {
@@ -111,14 +173,34 @@ RULES:
 - Keep the front short and focused on one idea.
 - Keep the back to 1-3 sentences.
 - Base every card strictly on the source material. Do not invent facts.
-- Output ONLY a JSON array of 50 flashcard objects. No markdown fences, no commentary.`;
+- Output ONLY a JSON array of ${flashcardCount} flashcard objects. No markdown fences, no commentary.`;
 
     const userContent = `Chapter title: ${chapter.title}\n\nSOURCE MATERIAL:\n"""\n${sourceMaterial}\n"""`;
 
+    // Explicit exclusion list so the model doesn't re-ask what the chapter
+    // already has (the original top-up runs were not shown existing items and
+    // duplicated many of them).
+    const exclusionBlock = (label: string, stems: string[]) =>
+      stems.length === 0
+        ? ""
+        : `\n\nEXISTING ${label} ALREADY IN THIS CHAPTER — you MUST NOT re-ask, rephrase, or write a near-duplicate of any of these:\n${stems
+            .map((s) => `- ${s}`)
+            .join("\n")}`;
+
     const [summaryRes, questionsRes, flashcardsRes] = await Promise.all([
       callAnthropic(anthropicKey, summarySystem, userContent, 64000),
-      callAnthropic(anthropicKey, questionsSystem, userContent, 32000),
-      callAnthropic(anthropicKey, flashcardsSystem, userContent, 32000),
+      callAnthropic(
+        anthropicKey,
+        questionsSystem,
+        userContent + exclusionBlock("QUESTION PROMPTS", existingPrompts),
+        32000,
+      ),
+      callAnthropic(
+        anthropicKey,
+        flashcardsSystem,
+        userContent + exclusionBlock("FLASHCARD FRONTS", existingFronts),
+        32000,
+      ),
     ]);
 
     if (!summaryRes.ok || !questionsRes.ok || !flashcardsRes.ok) {
@@ -144,8 +226,26 @@ RULES:
       return json({ error: "Failed to save chapter summary." }, 500);
     }
 
+    // Drop duplicates (exact normalised match or Dice > threshold) against the
+    // chapter's existing items and within the new batch itself. This must run
+    // BEFORE shuffleOptions below so similarity is measured on the raw prompts.
+    // Each kind gets its own Dice threshold — see _shared/dedupe.ts for the
+    // calibration behind the two values.
+    const questionFilter = filterDuplicates(
+      questionsRaw,
+      (q: any) => String(q?.prompt ?? ""),
+      existingPrompts,
+      DICE_THRESHOLD_QUESTION,
+    );
+    const flashcardFilter = filterDuplicates(
+      flashcardsRaw,
+      (c: any) => String(c?.front ?? ""),
+      existingFronts,
+      DICE_THRESHOLD_FLASHCARD,
+    );
+
     // Sanitize & insert questions
-    const questionRows = questionsRaw
+    const questionRows = questionFilter.kept
       .map((q: any) => {
         const opts = Array.isArray(q?.options) ? q.options.map((o: any) => String(o)) : [];
         const ci = Number(q?.correct_index);
@@ -175,7 +275,7 @@ RULES:
     }
 
     // Sanitize & insert flashcards
-    const flashcardRows = flashcardsRaw
+    const flashcardRows = flashcardFilter.kept
       .map((c: any) => {
         if (!c?.front || !c?.back) return null;
         return {
@@ -196,11 +296,17 @@ RULES:
 
     return json({
       ok: true,
-      counts: {
+      inserted: {
         questions: questionRows.length,
         flashcards: flashcardRows.length,
       },
+      dropped_duplicates: {
+        questions: questionFilter.dropped_duplicates,
+        flashcards: flashcardFilter.dropped_duplicates,
+      },
+      requested: { questions: questionCount, flashcards: flashcardCount },
     });
+
   } catch (e) {
     console.error("generate-content error", e);
     return json({ error: "Something went wrong." }, 500);
