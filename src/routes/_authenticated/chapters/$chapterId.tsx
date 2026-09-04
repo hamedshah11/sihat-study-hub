@@ -32,7 +32,11 @@ function ChapterDetail() {
         .maybeSingle();
       if (!chapter) return { chapter: null, subject: null };
       const { data: subject } = chapter.subject_id
-        ? await supabase.from("subjects").select("id, name").eq("id", chapter.subject_id).maybeSingle()
+        ? await supabase
+            .from("subjects")
+            .select("id, name")
+            .eq("id", chapter.subject_id)
+            .maybeSingle()
         : { data: null };
       return { chapter, subject };
     },
@@ -43,7 +47,10 @@ function ChapterDetail() {
   if (!data?.chapter) {
     return (
       <div>
-        <Link to="/subjects" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          to="/subjects"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
           <ChevronLeft className="size-4" /> Subjects
         </Link>
         <div className="mt-6 rounded-xl bg-surface p-6 text-sm text-muted-foreground">
@@ -59,7 +66,11 @@ function ChapterDetail() {
     (match) => match[1],
   );
   const updated = chapter.updated_at
-    ? new Date(chapter.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    ? new Date(chapter.updated_at).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
     : null;
 
   return (
@@ -86,17 +97,37 @@ function ChapterDetail() {
 
       <Tabs defaultValue="notes" className="animate-fade-up stagger-1 mt-6">
         <TabsList className="grid h-auto w-full grid-cols-5 rounded-xl border bg-secondary/80 p-1 shadow-soft">
-          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="notes">Notes</TabsTrigger>
-          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="quiz">Quiz</TabsTrigger>
-          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="flashcards">Flashcards</TabsTrigger>
-          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="diagrams">Diagrams</TabsTrigger>
-          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="tutor">Tutor</TabsTrigger>
+          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="notes">
+            Notes
+          </TabsTrigger>
+          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="quiz">
+            Quiz
+          </TabsTrigger>
+          <TabsTrigger
+            className="rounded-lg py-1.5 data-[state=active]:shadow-soft"
+            value="flashcards"
+          >
+            Flashcards
+          </TabsTrigger>
+          <TabsTrigger
+            className="rounded-lg py-1.5 data-[state=active]:shadow-soft"
+            value="diagrams"
+          >
+            Diagrams
+          </TabsTrigger>
+          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="tutor">
+            Tutor
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="notes">
           <div className="rounded-2xl border bg-card p-5 mt-4 shadow-soft">
             <div className="prose">
-              <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={diagramUrlTransform} components={{ img: DiagramMarkdownImage, table: ChapterNotesTable }}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                urlTransform={diagramUrlTransform}
+                components={{ img: DiagramMarkdownImage, table: ChapterNotesTable }}
+              >
                 {chapter.summary_md || "_No notes yet._"}
               </ReactMarkdown>
             </div>
@@ -109,10 +140,18 @@ function ChapterDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="quiz"><ChapterQuiz chapterId={chapterId} /></TabsContent>
-        <TabsContent value="flashcards"><ChapterFlashcards chapterId={chapterId} /></TabsContent>
-        <TabsContent value="diagrams"><ChapterDiagramTest chapterId={chapterId} /></TabsContent>
-        <TabsContent value="tutor"><ChapterTutor chapterId={chapterId} /></TabsContent>
+        <TabsContent value="quiz">
+          <ChapterQuiz chapterId={chapterId} />
+        </TabsContent>
+        <TabsContent value="flashcards">
+          <ChapterFlashcards chapterId={chapterId} />
+        </TabsContent>
+        <TabsContent value="diagrams">
+          <ChapterDiagramTest chapterId={chapterId} />
+        </TabsContent>
+        <TabsContent value="tutor">
+          <ChapterTutor chapterId={chapterId} />
+        </TabsContent>
       </Tabs>
     </div>
   );
