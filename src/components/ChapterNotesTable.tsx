@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-export function ChapterNotesTable({ children }: { children: React.ReactNode }) {
+export function ChapterNotesTable({ children }: { children?: React.ReactNode }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrollable, setScrollable] = useState(false);
 
