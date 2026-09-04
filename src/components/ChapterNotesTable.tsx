@@ -26,10 +26,7 @@ export function ChapterNotesTable({ children }: { children?: React.ReactNode }) 
 
   return (
     <div className="relative my-6 -mx-4 px-4 sm:mx-0 sm:px-0">
-      <div
-        ref={scrollRef}
-        className="overflow-x-auto rounded-xl border border-border"
-      >
+      <div ref={scrollRef} className="overflow-x-auto rounded-xl border border-border">
         <table
           className={[
             "w-full min-w-max border-collapse text-xs sm:text-sm",
