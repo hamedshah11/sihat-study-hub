@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { DiagramMarkdownImage, diagramUrlTransform } from "@/components/DiagramMarkdownImage";
+import { ChapterNotesTable } from "@/components/ChapterNotesTable";
 import remarkGfm from "remark-gfm";
 import { ChapterQuiz } from "@/components/ChapterQuiz";
 import { ChapterFlashcards } from "@/components/ChapterFlashcards";
