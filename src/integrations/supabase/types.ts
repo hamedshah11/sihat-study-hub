@@ -117,6 +117,7 @@ export type Database = {
           created_at: string | null
           display_order: number | null
           id: string
+          learning_objectives: Json | null
           status: string | null
           subject_id: string | null
           summary_md: string | null
@@ -127,6 +128,7 @@ export type Database = {
           created_at?: string | null
           display_order?: number | null
           id?: string
+          learning_objectives?: Json | null
           status?: string | null
           subject_id?: string | null
           summary_md?: string | null
@@ -137,6 +139,7 @@ export type Database = {
           created_at?: string | null
           display_order?: number | null
           id?: string
+          learning_objectives?: Json | null
           status?: string | null
           subject_id?: string | null
           summary_md?: string | null

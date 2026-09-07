@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Target } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { DiagramMarkdownImage, diagramUrlTransform } from "@/components/DiagramMarkdownImage";
 import { ChapterNotesTable } from "@/components/ChapterNotesTable";
@@ -13,6 +13,7 @@ import { ChapterFlashcards } from "@/components/ChapterFlashcards";
 import { ChapterTutor } from "@/components/ChapterTutor";
 import { ChapterDiagramTest } from "@/components/ChapterDiagramTest";
 import { ChapterNoteDiagrams } from "@/components/ChapterNoteDiagrams";
+import { parseLearningObjectives } from "@/lib/learningObjectives";
 
 export const Route = createFileRoute("/_authenticated/chapters/$chapterId")({
   head: () => ({ meta: [{ title: "Chapter — Sihat" }] }),
@@ -27,7 +28,7 @@ function ChapterDetail() {
     queryFn: async () => {
       const { data: chapter } = await supabase
         .from("chapters")
-        .select("id, title, summary_md, status, updated_at, subject_id")
+        .select("id, title, summary_md, status, updated_at, subject_id, learning_objectives")
         .eq("id", chapterId)
         .maybeSingle();
       if (!chapter) return { chapter: null, subject: null };
@@ -65,6 +66,9 @@ function ChapterDetail() {
     chapter.summary_md?.matchAll(/diagram:\/\/([^\s)]+)/g) ?? [],
     (match) => match[1],
   );
+  // NULL, [], and any malformed value all collapse to [], which hides the
+  // block entirely — chapters without objectives render exactly as before.
+  const objectives = parseLearningObjectives(chapter.learning_objectives);
   const updated = chapter.updated_at
     ? new Date(chapter.updated_at).toLocaleDateString("en-US", {
         month: "short",
@@ -121,6 +125,18 @@ function ChapterDetail() {
         </TabsList>
 
         <TabsContent value="notes">
+          {objectives.length > 0 && (
+            <section className="mt-4 rounded-2xl border bg-card p-5 shadow-soft">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+                <Target className="size-4 text-accent" /> Learning objectives
+              </h2>
+              <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-foreground">
+                {objectives.map((objective, i) => (
+                  <li key={i}>{objective}</li>
+                ))}
+              </ul>
+            </section>
+          )}
           <div className="rounded-2xl border bg-card p-5 mt-4 shadow-soft">
             <div className="prose">
               <ReactMarkdown
