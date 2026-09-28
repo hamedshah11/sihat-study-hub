@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -125,11 +125,16 @@ function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-primary">Admin Console</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage subjects, chapters, and review content.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-primary">Admin Console</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage subjects, chapters, and review content.
+          </p>
+        </div>
+        <Button asChild variant="outline">
+          <Link to="/admin/bulk-generate">Bulk generate</Link>
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
