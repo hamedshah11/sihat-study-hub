@@ -29,6 +29,7 @@ import { Route as AuthenticatedSubjectsSubjectIdRouteImport } from './routes/_au
 import { Route as AuthenticatedChaptersChapterIdRouteImport } from './routes/_authenticated/chapters/$chapterId'
 import { Route as AuthenticatedAdminInviteCodesRouteImport } from './routes/_authenticated/admin/invite-codes'
 import { Route as AuthenticatedAdminDiagnosticsRouteImport } from './routes/_authenticated/admin/diagnostics'
+import { Route as AuthenticatedAdminBulkGenerateRouteImport } from './routes/_authenticated/admin/bulk-generate'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as AuthenticatedAdminChaptersChapterIdRouteImport } from './routes/_authenticated/admin/chapters/$chapterId'
@@ -140,6 +141,12 @@ const AuthenticatedAdminDiagnosticsRoute =
     path: '/diagnostics',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminBulkGenerateRoute =
+  AuthenticatedAdminBulkGenerateRouteImport.update({
+    id: '/bulk-generate',
+    path: '/bulk-generate',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -174,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/tutor': typeof AuthenticatedTutorRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/admin/bulk-generate': typeof AuthenticatedAdminBulkGenerateRoute
   '/admin/diagnostics': typeof AuthenticatedAdminDiagnosticsRoute
   '/admin/invite-codes': typeof AuthenticatedAdminInviteCodesRoute
   '/chapters/$chapterId': typeof AuthenticatedChaptersChapterIdRoute
@@ -197,6 +205,7 @@ export interface FileRoutesByTo {
   '/tutor': typeof AuthenticatedTutorRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/admin/bulk-generate': typeof AuthenticatedAdminBulkGenerateRoute
   '/admin/diagnostics': typeof AuthenticatedAdminDiagnosticsRoute
   '/admin/invite-codes': typeof AuthenticatedAdminInviteCodesRoute
   '/chapters/$chapterId': typeof AuthenticatedChaptersChapterIdRoute
@@ -223,6 +232,7 @@ export interface FileRoutesById {
   '/_authenticated/tutor': typeof AuthenticatedTutorRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/_authenticated/admin/bulk-generate': typeof AuthenticatedAdminBulkGenerateRoute
   '/_authenticated/admin/diagnostics': typeof AuthenticatedAdminDiagnosticsRoute
   '/_authenticated/admin/invite-codes': typeof AuthenticatedAdminInviteCodesRoute
   '/_authenticated/chapters/$chapterId': typeof AuthenticatedChaptersChapterIdRoute
@@ -249,6 +259,7 @@ export interface FileRouteTypes {
     | '/tutor'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/admin/bulk-generate'
     | '/admin/diagnostics'
     | '/admin/invite-codes'
     | '/chapters/$chapterId'
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/tutor'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/admin/bulk-generate'
     | '/admin/diagnostics'
     | '/admin/invite-codes'
     | '/chapters/$chapterId'
@@ -297,6 +309,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tutor'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/_authenticated/admin/bulk-generate'
     | '/_authenticated/admin/diagnostics'
     | '/_authenticated/admin/invite-codes'
     | '/_authenticated/chapters/$chapterId'
@@ -461,6 +474,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDiagnosticsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/bulk-generate': {
+      id: '/_authenticated/admin/bulk-generate'
+      path: '/bulk-generate'
+      fullPath: '/admin/bulk-generate'
+      preLoaderRoute: typeof AuthenticatedAdminBulkGenerateRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
       path: '/.mcp/invoke-tool/$tool'
@@ -486,6 +506,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminBulkGenerateRoute: typeof AuthenticatedAdminBulkGenerateRoute
   AuthenticatedAdminDiagnosticsRoute: typeof AuthenticatedAdminDiagnosticsRoute
   AuthenticatedAdminInviteCodesRoute: typeof AuthenticatedAdminInviteCodesRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -493,6 +514,7 @@ interface AuthenticatedAdminRouteChildren {
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminBulkGenerateRoute: AuthenticatedAdminBulkGenerateRoute,
   AuthenticatedAdminDiagnosticsRoute: AuthenticatedAdminDiagnosticsRoute,
   AuthenticatedAdminInviteCodesRoute: AuthenticatedAdminInviteCodesRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
