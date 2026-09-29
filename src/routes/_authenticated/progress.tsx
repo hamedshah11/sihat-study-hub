@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { displayStreak, FREEZE_EVERY_DAYS, MAX_FREEZES } from "@/lib/streak";
 import { Flame, Sparkles, ClipboardList, Layers, AlertCircle, ArrowRight, Trophy, Target } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/progress")({
@@ -33,7 +34,11 @@ function ProgressPage() {
         { data: flashcardReviews },
         { data: progressRows },
       ] = await Promise.all([
-        supabase.from("streaks").select("current_streak, longest_streak").eq("user_id", uid).maybeSingle(),
+        supabase
+          .from("streaks")
+          .select("current_streak, longest_streak, last_active_date, freezes_available")
+          .eq("user_id", uid)
+          .maybeSingle(),
         supabase.from("xp_events").select("amount").eq("user_id", uid),
         supabase.from("quiz_attempts").select("score, total_questions").eq("user_id", uid),
         supabase.from("flashcard_reviews").select("reps").eq("user_id", uid).gt("reps", 0),
@@ -105,7 +110,8 @@ function ProgressPage() {
         .sort((a, b) => (a.masteryScore ?? -1) - (b.masteryScore ?? -1));
 
       return {
-        streak: streak?.current_streak ?? 0,
+        streak: displayStreak(streak),
+        freezes: streak?.freezes_available ?? 0,
         longestStreak: streak?.longest_streak ?? 0,
         xpTotal,
         quizzesCompleted,
@@ -147,6 +153,12 @@ function ProgressPage() {
           label="Current streak"
           value={`${data?.streak ?? 0}`}
           suffix={`day${(data?.streak ?? 0) === 1 ? "" : "s"}`}
+          note={
+            data?.freezes
+              ? `${data.freezes} streak freeze${data.freezes === 1 ? "" : "s"} saved`
+              : `Earn a freeze every ${FREEZE_EVERY_DAYS} days`
+          }
+          noteTitle={`A streak freeze saves your streak if you miss one day. You earn one every ${FREEZE_EVERY_DAYS} days of your streak (up to ${MAX_FREEZES}).`}
         />
         <HeroTile
           tone="accent"
@@ -310,12 +322,16 @@ function HeroTile({
   label,
   value,
   suffix,
+  note,
+  noteTitle,
 }: {
   tone: "streak" | "accent";
   icon: React.ReactNode;
   label: string;
   value: string;
   suffix?: string;
+  note?: string;
+  noteTitle?: string;
 }) {
   const isStreak = tone === "streak";
   return (
@@ -349,6 +365,11 @@ function HeroTile({
         {suffix && <span className="ml-1.5 font-sans text-sm font-medium text-muted-foreground">{suffix}</span>}
       </p>
       <p className="mt-0.5 text-xs font-medium text-muted-foreground">{label}</p>
+      {note && (
+        <p className="mt-1 text-[11px] text-muted-foreground" title={noteTitle}>
+          {note}
+        </p>
+      )}
     </div>
   );
 }

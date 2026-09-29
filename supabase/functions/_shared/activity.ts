@@ -32,14 +32,49 @@ export async function awardXpAndStreak(admin: any, userId: string, source: XpSou
     });
     return;
   }
-  if (streak.last_active_date === today) return;
-
-  const yesterday = pktDate(new Date(Date.now() - 86400000));
-  const continued = streak.last_active_date === yesterday;
-  const newCurrent = continued ? (streak.current_streak ?? 0) + 1 : 1;
-  const newLongest = Math.max(streak.longest_streak ?? 0, newCurrent);
+  const next = nextStreak(streak, today);
+  if (!next) return;
   await admin
     .from("streaks")
-    .update({ current_streak: newCurrent, longest_streak: newLongest, last_active_date: today })
+    .update(next)
     .eq("user_id", userId);
+}
+
+// Deno copy of nextStreak from src/lib/streak.ts. Keep the two in sync.
+// A streak freeze covers one missed day; one is earned every 7 streak days
+// (max 2).
+const MAX_FREEZES = 2;
+const FREEZE_EVERY_DAYS = 7;
+
+type StreakRow = {
+  current_streak: number | null;
+  longest_streak: number | null;
+  last_active_date: string | null;
+  freezes_available: number | null;
+};
+
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
+}
+
+function nextStreak(prev: StreakRow, today: string) {
+  if (prev.last_active_date === today) return null;
+  const gap = prev.last_active_date ? daysBetween(prev.last_active_date, today) : Infinity;
+  let freezes = prev.freezes_available ?? 0;
+  let current: number;
+  if (gap === 1) {
+    current = (prev.current_streak ?? 0) + 1;
+  } else if (gap === 2 && freezes > 0) {
+    freezes -= 1;
+    current = (prev.current_streak ?? 0) + 1;
+  } else {
+    current = 1;
+  }
+  if (current % FREEZE_EVERY_DAYS === 0) freezes = Math.min(MAX_FREEZES, freezes + 1);
+  return {
+    current_streak: current,
+    longest_streak: Math.max(prev.longest_streak ?? 0, current),
+    last_active_date: today,
+    freezes_available: freezes,
+  };
 }
