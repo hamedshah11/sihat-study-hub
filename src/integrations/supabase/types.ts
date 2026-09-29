@@ -112,6 +112,86 @@ export type Database = {
           },
         ]
       }
+      chapter_resources: {
+        Row: {
+          channel_id: string | null
+          channel_title: string | null
+          chapter_id: string
+          created_at: string
+          display_order: number
+          duration_seconds: number | null
+          embeddable: boolean
+          external_id: string
+          id: string
+          instructor_note: string | null
+          kind: string
+          last_checked_at: string | null
+          provider: string
+          region_blocked: boolean
+          search_query: string | null
+          source: string
+          status: string
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          view_count: number | null
+        }
+        Insert: {
+          channel_id?: string | null
+          channel_title?: string | null
+          chapter_id: string
+          created_at?: string
+          display_order?: number
+          duration_seconds?: number | null
+          embeddable?: boolean
+          external_id: string
+          id?: string
+          instructor_note?: string | null
+          kind?: string
+          last_checked_at?: string | null
+          provider?: string
+          region_blocked?: boolean
+          search_query?: string | null
+          source?: string
+          status?: string
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          view_count?: number | null
+        }
+        Update: {
+          channel_id?: string | null
+          channel_title?: string | null
+          chapter_id?: string
+          created_at?: string
+          display_order?: number
+          duration_seconds?: number | null
+          embeddable?: boolean
+          external_id?: string
+          id?: string
+          instructor_note?: string | null
+          kind?: string
+          last_checked_at?: string | null
+          provider?: string
+          region_blocked?: boolean
+          search_query?: string | null
+          source?: string
+          status?: string
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_resources_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chapters: {
         Row: {
           created_at: string | null
@@ -196,68 +276,6 @@ export type Database = {
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      exam_attempts: {
-        Row: {
-          answers: Json | null
-          chapter_breakdown: Json | null
-          chapter_ids: string[]
-          duration_seconds: number
-          expires_at: string
-          flagged_ids: string[]
-          id: string
-          mode: string
-          question_ids: string[]
-          score: number | null
-          started_at: string
-          subject_id: string
-          submitted_at: string | null
-          total_questions: number
-          user_id: string
-        }
-        Insert: {
-          answers?: Json | null
-          chapter_breakdown?: Json | null
-          chapter_ids: string[]
-          duration_seconds: number
-          expires_at: string
-          flagged_ids?: string[]
-          id?: string
-          mode: string
-          question_ids: string[]
-          score?: number | null
-          started_at?: string
-          subject_id: string
-          submitted_at?: string | null
-          total_questions: number
-          user_id: string
-        }
-        Update: {
-          answers?: Json | null
-          chapter_breakdown?: Json | null
-          chapter_ids?: string[]
-          duration_seconds?: number
-          expires_at?: string
-          flagged_ids?: string[]
-          id?: string
-          mode?: string
-          question_ids?: string[]
-          score?: number | null
-          started_at?: string
-          subject_id?: string
-          submitted_at?: string | null
-          total_questions?: number
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "exam_attempts_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
         ]
