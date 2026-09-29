@@ -56,7 +56,16 @@ using the Supabase **service-role** key, which bypasses RLS entirely:
 
 Streaks roll over at **Pakistan Standard Time midnight** (UTC+5, no DST) —
 see `pakistanDate()` / `pktDate()` in both places above. Keep both in sync
-if you change the rollover logic.
+if you change the rollover logic. Streak rules, including freezes (a freeze
+covers one missed day; one is earned every 7 streak days, max 2), live in
+`src/lib/streak.ts::nextStreak`, with a Deno copy in
+`supabase/functions/_shared/activity.ts` — keep those two in sync as well.
+Screens show `displayStreak()`, not the raw `current_streak`, because the
+stored value only changes when the student next studies.
+
+Quiz XP is capped per chapter per PKT day in `submitQuiz`: the first attempt
+earns quiz XP (or pass XP), and a later attempt earns pass XP only if it is
+the first pass that day. Exam XP is capped once per subject per day.
 
 **RLS helpers** (`public.` schema, defined across
 `supabase/migrations/`):
@@ -80,6 +89,8 @@ env-var split (`VITE_`-prefixed = public/bundled, unprefixed = server-only).
 
 ## Conventions
 
+- **Chapter tabs** follow `?tab=` (`quiz`, `flashcards`, `diagrams`, `tutor`;
+  omitted means Notes), so links can open a chapter on a specific tab.
 - **Routes**: file-based under `src/routes/`, mirroring URL structure.
   `_authenticated.tsx` is a pathless layout route gating everything under
   `src/routes/_authenticated/` (home, subjects/$subjectId, chapters/$chapterId,

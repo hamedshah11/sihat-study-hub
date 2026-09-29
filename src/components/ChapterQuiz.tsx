@@ -102,6 +102,8 @@ function QuizRunner({
   const [finished, setFinished] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  // null = not known (e.g. the save failed)
+  const [awardedXp, setAwardedXp] = useState<number | null>(null);
   const submit = useServerFn(submitQuiz);
 
   const q = questions[index];
@@ -132,7 +134,7 @@ function QuizRunner({
     try {
       // The server recomputes the score from the raw selections; the client's
       // claimed score is never stored. XP/streak/mastery are written there too.
-      await submit({
+      const res = await submit({
         data: {
           chapterId,
           answers: finalAnswers.map((a) => ({
@@ -141,6 +143,7 @@ function QuizRunner({
           })),
         },
       });
+      setAwardedXp(res.awardedXp);
       await awardBadgesIfNeeded();
     } catch (e) {
       console.error("Failed to save quiz results", e);
@@ -167,6 +170,13 @@ function QuizRunner({
               ? "Good effort — review and try again to master it."
               : "Keep going — review the notes and give it another shot."}
         </p>
+        {awardedXp !== null && (
+          <p className="mt-2 text-xs font-semibold text-accent">
+            {awardedXp > 0
+              ? `+${awardedXp} XP`
+              : "Retakes still build mastery. XP for this chapter's quiz resets tomorrow."}
+          </p>
+        )}
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
           {answers.some((a) => !a.correct) && (
             <Button variant="outline" onClick={() => setReviewMode(true)}>
@@ -181,6 +191,7 @@ function QuizRunner({
               setAnswers([]);
               setFinished(false);
               setReviewMode(false);
+              setAwardedXp(null);
               onRetake();
             }}
           >

@@ -107,7 +107,7 @@ function ProfilePage() {
             return (
               <div
                 key={b.id}
-                title={earned ? `Earned ${new Date(b.earnedAt!).toLocaleDateString()}` : b.description}
+                title={earned ? `Earned ${new Date(b.earnedAt!).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : b.description}
                 className={`flex flex-col items-center text-center rounded-2xl border p-3 transition-all ${
                   earned
                     ? "border-accent/30 bg-gradient-to-b from-accent/15 to-accent/5 shadow-soft hover:-translate-y-0.5 hover:shadow-glow"
@@ -120,7 +120,7 @@ function ProfilePage() {
                 </p>
                 <p className="mt-1 text-[10px] text-muted-foreground leading-tight line-clamp-2">
                   {earned
-                    ? new Date(b.earnedAt!).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                    ? new Date(b.earnedAt!).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
                     : b.description}
                 </p>
               </div>

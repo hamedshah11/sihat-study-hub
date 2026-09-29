@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { nextStreak } from "@/lib/streak";
 
 // Shared XP + streak helpers for server functions (study.functions.ts,
 // exam.functions.ts). Server-only: uses the service-role client.
@@ -33,7 +34,8 @@ export async function insertXp(userId: string, source: XpSource): Promise<void> 
 }
 
 // Idempotent per PKT day: a second activity on the same day does not advance
-// the streak, so this is safe to call on every qualifying action.
+// the streak, so this is safe to call on every qualifying action. The rules
+// (including streak freezes) live in src/lib/streak.ts.
 export async function bumpStreak(userId: string): Promise<void> {
   const today = pakistanDate();
   const { data: streak } = await supabaseAdmin
@@ -53,18 +55,15 @@ export async function bumpStreak(userId: string): Promise<void> {
     return;
   }
 
-  if (streak.last_active_date === today) return;
-
-  const yesterday = pakistanDate(new Date(Date.now() - 86400000));
-  const continued = streak.last_active_date === yesterday;
-  const newCurrent = continued ? (streak.current_streak ?? 0) + 1 : 1;
-  const newLongest = Math.max(streak.longest_streak ?? 0, newCurrent);
+  const next = nextStreak(streak, today);
+  if (!next) return;
   await supabaseAdmin
     .from("streaks")
     .update({
-      current_streak: newCurrent,
-      longest_streak: newLongest,
-      last_active_date: today,
+      current_streak: next.current_streak,
+      longest_streak: next.longest_streak,
+      last_active_date: next.last_active_date,
+      freezes_available: next.freezes_available,
     })
     .eq("user_id", userId);
 }

@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Flame, Sparkles, BookOpen, Layers, ClipboardList, MessageCircle, ArrowRight, Trophy } from "lucide-react";
 import { levelFromXp } from "@/lib/levels";
+import { displayStreak } from "@/lib/streak";
 import { checkLevelUp } from "@/lib/celebrate";
 import { InstallPrompt } from "@/components/InstallPrompt";
 
@@ -46,7 +47,11 @@ function HomePage() {
         { data: leaderboard },
       ] = await Promise.all([
         supabase.from("profiles").select("display_name, batch_id").eq("id", uid).maybeSingle(),
-        supabase.from("streaks").select("current_streak").eq("user_id", uid).maybeSingle(),
+        supabase
+          .from("streaks")
+          .select("current_streak, last_active_date, freezes_available")
+          .eq("user_id", uid)
+          .maybeSingle(),
         supabase.from("xp_events").select("amount").eq("user_id", uid),
         supabase
           .from("flashcard_reviews")
@@ -181,7 +186,7 @@ function HomePage() {
 
       return {
         name: profile?.display_name || "there",
-        streak: streak?.current_streak ?? 0,
+        streak: displayStreak(streak),
         xpTotal,
         recommendation,
         continueChapter: nextChapter,
@@ -213,7 +218,8 @@ function HomePage() {
   function startStudying() {
     if (!rec || rec.kind === "empty") return;
     if (rec.kind === "flashcards" || rec.kind === "quiz" || rec.kind === "chapter") {
-      navigate({ to: "/chapters/$chapterId", params: { chapterId: rec.chapterId } });
+      const tab = rec.kind === "flashcards" ? "flashcards" : rec.kind === "quiz" ? "quiz" : undefined;
+      navigate({ to: "/chapters/$chapterId", params: { chapterId: rec.chapterId }, search: { tab } });
     }
   }
 
@@ -339,45 +345,64 @@ function HomePage() {
         </section>
       )}
 
-      {/* Secondary cards */}
-      <section className="grid grid-cols-2 gap-3">
-        <SecondaryCard
-          tone="navy"
-          stagger="stagger-3"
-          icon={<BookOpen className="size-5" />}
-          label="Continue chapter"
-          sublabel={data?.continueChapter?.chapterTitle ?? "Browse subjects"}
-          to={data?.continueChapter ? "/chapters/$chapterId" : "/subjects"}
-          params={data?.continueChapter ? { chapterId: data.continueChapter.chapterId } : undefined}
-        />
-        <SecondaryCard
-          tone="teal"
-          stagger="stagger-4"
-          icon={<Layers className="size-5" />}
-          label="Review flashcards"
-          sublabel={rec?.kind === "flashcards" ? `${rec.dueCount} due today` : "Open a chapter"}
-          to={rec?.kind === "flashcards" ? "/chapters/$chapterId" : "/subjects"}
-          params={rec?.kind === "flashcards" ? { chapterId: rec.chapterId } : undefined}
-        />
-        <SecondaryCard
-          tone="amber"
-          stagger="stagger-5"
-          icon={<ClipboardList className="size-5" />}
-          label="Take a quiz"
-          sublabel={rec?.kind === "quiz" ? rec.chapterTitle : "Test yourself"}
-          to={rec?.kind === "quiz" ? "/chapters/$chapterId" : "/subjects"}
-          params={rec?.kind === "quiz" ? { chapterId: rec.chapterId } : undefined}
-        />
-        <SecondaryCard
-          tone="violet"
-          stagger="stagger-6"
-          icon={<MessageCircle className="size-5" />}
-          label="Ask tutor"
-          sublabel={data?.continueChapter?.chapterTitle ?? "Pick a chapter"}
-          to={data?.continueChapter ? "/chapters/$chapterId" : "/subjects"}
-          params={data?.continueChapter ? { chapterId: data.continueChapter.chapterId } : undefined}
-        />
-      </section>
+      {/* Secondary cards: each opens the matching chapter tab directly. */}
+      {(() => {
+        const cont = data?.continueChapter ?? null;
+        const flashChapterId = rec?.kind === "flashcards" ? rec.chapterId : cont?.chapterId;
+        const quizChapter =
+          rec?.kind === "quiz"
+            ? { id: rec.chapterId, title: rec.chapterTitle }
+            : rec?.kind === "flashcards" && rec.quizPending
+              ? { id: rec.quizPending.chapterId, title: rec.quizPending.chapterTitle }
+              : cont
+                ? { id: cont.chapterId, title: cont.chapterTitle }
+                : null;
+        return (
+          <section className="grid grid-cols-2 gap-3">
+            <SecondaryCard
+              tone="navy"
+              stagger="stagger-3"
+              icon={<BookOpen className="size-5" />}
+              label="Continue chapter"
+              sublabel={cont?.chapterTitle ?? "Browse subjects"}
+              chapterId={cont?.chapterId}
+            />
+            <SecondaryCard
+              tone="teal"
+              stagger="stagger-4"
+              icon={<Layers className="size-5" />}
+              label="Review flashcards"
+              sublabel={
+                rec?.kind === "flashcards"
+                  ? `${rec.dueCount} due today`
+                  : cont
+                    ? `New cards: ${cont.chapterTitle}`
+                    : "Open a chapter"
+              }
+              chapterId={flashChapterId}
+              tab="flashcards"
+            />
+            <SecondaryCard
+              tone="amber"
+              stagger="stagger-5"
+              icon={<ClipboardList className="size-5" />}
+              label="Take a quiz"
+              sublabel={quizChapter?.title ?? "Test yourself"}
+              chapterId={quizChapter?.id}
+              tab="quiz"
+            />
+            <SecondaryCard
+              tone="violet"
+              stagger="stagger-6"
+              icon={<MessageCircle className="size-5" />}
+              label="Ask tutor"
+              sublabel={cont?.chapterTitle ?? "Pick a chapter"}
+              chapterId={cont?.chapterId}
+              tab="tutor"
+            />
+          </section>
+        );
+      })()}
     </div>
   );
 }
@@ -395,22 +420,25 @@ function SecondaryCard({
   icon,
   label,
   sublabel,
-  to,
-  params,
+  chapterId,
+  tab,
 }: {
   tone: keyof typeof CARD_TONES;
   stagger: string;
   icon: React.ReactNode;
   label: string;
   sublabel: string;
-  to: string;
-  params?: Record<string, string>;
+  /** Chapter to open; without one the card falls back to the subjects list. */
+  chapterId?: string;
+  tab?: "quiz" | "flashcards" | "tutor";
 }) {
   const t = CARD_TONES[tone];
+  const linkProps = chapterId
+    ? ({ to: "/chapters/$chapterId", params: { chapterId }, search: { tab } } as const)
+    : ({ to: "/subjects" } as const);
   return (
     <Link
-      to={to as any}
-      params={params as any}
+      {...linkProps}
       className={`card-lift animate-fade-up ${stagger} flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-soft`}
     >
       <div

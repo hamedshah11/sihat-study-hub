@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,13 +16,32 @@ import { ChapterDiagramTest } from "@/components/ChapterDiagramTest";
 import { ChapterNoteDiagrams } from "@/components/ChapterNoteDiagrams";
 import { ChapterVideos } from "@/components/ChapterVideos";
 
+const CHAPTER_TABS = ["notes", "quiz", "flashcards", "diagrams", "tutor"] as const;
+type ChapterTab = (typeof CHAPTER_TABS)[number];
+
+// ?tab= lets other screens (Home, Progress) open a chapter straight on the
+// quiz or flashcards instead of always landing on Notes.
+const searchSchema = z.object({
+  tab: z.enum(CHAPTER_TABS).optional().catch(undefined),
+});
+
 export const Route = createFileRoute("/_authenticated/chapters/$chapterId")({
   head: () => ({ meta: [{ title: "Chapter — Sihat" }] }),
+  validateSearch: (search) => searchSchema.parse(search),
   component: ChapterDetail,
 });
 
 function ChapterDetail() {
   const { chapterId } = Route.useParams();
+  const { tab } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const activeTab: ChapterTab = tab ?? "notes";
+  const setTab = (value: string) =>
+    navigate({
+      search: { tab: value === "notes" ? undefined : (value as ChapterTab) },
+      replace: true,
+      resetScroll: false,
+    });
 
   const { data, isLoading } = useQuery({
     queryKey: ["chapter-detail", chapterId],
@@ -67,9 +87,9 @@ function ChapterDetail() {
     (match) => match[1],
   );
   const updated = chapter.updated_at
-    ? new Date(chapter.updated_at).toLocaleDateString("en-US", {
-        month: "short",
+    ? new Date(chapter.updated_at).toLocaleDateString("en-GB", {
         day: "numeric",
+        month: "short",
         year: "numeric",
       })
     : null;
@@ -96,7 +116,7 @@ function ChapterDetail() {
         <h1 className="font-display mt-4 text-2xl font-bold text-primary">{chapter.title}</h1>
       </header>
 
-      <Tabs defaultValue="notes" className="animate-fade-up stagger-1 mt-6">
+      <Tabs value={activeTab} onValueChange={setTab} className="animate-fade-up stagger-1 mt-6">
         <TabsList className="grid h-auto w-full grid-cols-5 rounded-xl border bg-secondary/80 p-1 shadow-soft">
           <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="notes">
             Notes

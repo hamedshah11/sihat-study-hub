@@ -3,7 +3,13 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { schedule, type ReviewState, type Rating } from "@/lib/spacedRepetition";
-import { XP_AMOUNTS, pakistanDate, insertXp, bumpStreak } from "@/lib/activity.server";
+import {
+  XP_AMOUNTS,
+  pakistanDate,
+  insertXp,
+  bumpStreak,
+  startOfTodayPkt,
+} from "@/lib/activity.server";
 
 // Why these run server-side with the service-role client:
 // XP, streaks, quiz scores and chapter mastery feed the leaderboard, the
@@ -84,6 +90,15 @@ export const submitQuiz = createServerFn({ method: "POST" })
     const passed = pct >= 0.8;
     const now = new Date().toISOString();
 
+    // Earlier attempts on this chapter today (PKT), read BEFORE inserting
+    // this one. Used to cap XP so a quiz can't be retaken for endless XP.
+    const { data: todaysAttempts } = await supabaseAdmin
+      .from("quiz_attempts")
+      .select("score, total_questions")
+      .eq("user_id", userId)
+      .eq("chapter_id", data.chapterId)
+      .gte("attempted_at", startOfTodayPkt());
+
     await supabaseAdmin.from("quiz_attempts").insert({
       user_id: userId,
       chapter_id: data.chapterId,
@@ -112,10 +127,21 @@ export const submitQuiz = createServerFn({ method: "POST" })
       { onConflict: "user_id,chapter_id" },
     );
 
-    await insertXp(userId, passed ? "quiz_pass" : "quiz");
+    // XP per chapter per PKT day: the first attempt earns quiz XP (or pass XP
+    // if it passes); a later attempt earns pass XP only if it is the first
+    // pass of the day. Everything else still counts for mastery and the
+    // streak, just without XP.
+    const priorToday = todaysAttempts ?? [];
+    const passedEarlierToday = priorToday.some(
+      (a) => a.total_questions > 0 && a.score / a.total_questions >= 0.8,
+    );
+    let xpSource: "quiz" | "quiz_pass" | null = null;
+    if (priorToday.length === 0) xpSource = passed ? "quiz_pass" : "quiz";
+    else if (passed && !passedEarlierToday) xpSource = "quiz_pass";
+    if (xpSource) await insertXp(userId, xpSource);
     await bumpStreak(userId);
 
-    return { score, total, passed, masteryScore };
+    return { score, total, passed, masteryScore, awardedXp: xpSource ? XP_AMOUNTS[xpSource] : 0 };
   });
 
 // ---------------------------------------------------------------------------
