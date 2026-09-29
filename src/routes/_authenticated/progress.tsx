@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RecentExams } from "@/components/exam/RecentExams";
 import { displayStreak, FREEZE_EVERY_DAYS, MAX_FREEZES } from "@/lib/streak";
 import { Flame, Sparkles, ClipboardList, Layers, AlertCircle, ArrowRight, Trophy, Target } from "lucide-react";
 
@@ -194,6 +195,11 @@ function ProgressPage() {
         />
       </section>
 
+
+      {/* Exam results (all subjects) */}
+      <div className="animate-fade-up stagger-3">
+        <RecentExams />
+      </div>
 
       {/* Weak areas */}
       {weak.length > 0 && (
