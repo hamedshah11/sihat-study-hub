@@ -13,6 +13,7 @@ import { ChapterFlashcards } from "@/components/ChapterFlashcards";
 import { ChapterTutor } from "@/components/ChapterTutor";
 import { ChapterDiagramTest } from "@/components/ChapterDiagramTest";
 import { ChapterNoteDiagrams } from "@/components/ChapterNoteDiagrams";
+import { ChapterVideos } from "@/components/ChapterVideos";
 
 export const Route = createFileRoute("/_authenticated/chapters/$chapterId")({
   head: () => ({ meta: [{ title: "Chapter — Sihat" }] }),
@@ -133,6 +134,7 @@ function ChapterDetail() {
             </div>
             <ChapterNoteDiagrams chapterId={chapterId} excludedPaths={embeddedDiagramPaths} />
           </div>
+          <ChapterVideos chapterId={chapterId} />
           {updated && (
             <div className="mt-3 rounded-xl border bg-card px-4 py-3 text-xs text-muted-foreground shadow-soft">
               Last updated {updated}

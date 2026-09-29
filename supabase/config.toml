@@ -16,3 +16,6 @@ verify_jwt = true
 verify_jwt = true
 
 
+
+[functions.curate-videos]
+verify_jwt = true

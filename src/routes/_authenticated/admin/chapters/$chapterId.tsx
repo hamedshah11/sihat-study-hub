@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { DiagramsManager } from "@/components/admin/DiagramsManager";
+import { VideosManager } from "@/components/admin/VideosManager";
 import { DiagramMarkdownImage, diagramUrlTransform } from "@/components/DiagramMarkdownImage";
 
 export const Route = createFileRoute("/_authenticated/admin/chapters/$chapterId")({
@@ -157,12 +158,13 @@ function AdminChapterDetail() {
       </p>
 
       <Tabs defaultValue="source" className="mt-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="source">Source</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="questions">Questions</TabsTrigger>
           <TabsTrigger value="flashcards">Flashcards</TabsTrigger>
           <TabsTrigger value="diagrams">Diagrams</TabsTrigger>
+          <TabsTrigger value="videos">Videos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="source">
@@ -179,6 +181,14 @@ function AdminChapterDetail() {
         </TabsContent>
         <TabsContent value="diagrams">
           <DiagramsManager chapterId={chapterId} />
+        </TabsContent>
+        <TabsContent value="videos">
+          <VideosManager
+            chapterId={chapterId}
+            chapterTitle={chapter.title}
+            subjectId={chapter.subject_id}
+            subjectName={data.subject?.name ?? ""}
+          />
         </TabsContent>
       </Tabs>
     </div>
