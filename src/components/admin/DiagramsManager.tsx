@@ -29,7 +29,13 @@ function newId() {
 
 const NO_MANIFEST_NOTICE = "No pin manifest found in this SVG — add pins manually.";
 
-type SvgManifest = { title: string | null; pins: Pin[]; blankSvg: string | null };
+type SvgManifest = {
+  title: string | null;
+  pins: Pin[];
+  blankSvg: string | null;
+  chapterId: string | null;
+  displayOrder: number | null;
+};
 
 /**
  * Parse a labelled SVG for its `<metadata id="sihat-pins">` manifest.
@@ -71,9 +77,12 @@ function parseLabelledSvg(text: string): SvgManifest | null {
       });
     }
 
-    const title =
-      !Array.isArray(parsed) && typeof (parsed as { title?: unknown }).title === "string"
-        ? (parsed as { title: string }).title.trim() || null
+    const obj = Array.isArray(parsed) ? {} : (parsed as Record<string, unknown>);
+    const title = typeof obj.title === "string" ? obj.title.trim() || null : null;
+    const chapterId = typeof obj.chapter_id === "string" ? obj.chapter_id.trim() || null : null;
+    const displayOrder =
+      typeof obj.display_order === "number" && Number.isFinite(obj.display_order)
+        ? obj.display_order
         : null;
 
     // Blank (unlabelled) variant: strip the labels + manifest layers.
@@ -82,10 +91,183 @@ function parseLabelledSvg(text: string): SvgManifest | null {
     blankDoc.querySelector("#sihat-pins")?.remove();
     const blankSvg = new XMLSerializer().serializeToString(blankDoc);
 
-    return { title, pins, blankSvg };
+    return { title, pins, blankSvg, chapterId, displayOrder };
   } catch {
     return null;
   }
+}
+
+/** Shared upload path: labelled file + optional blank SVG to storage, then insert a draft row. */
+async function uploadDiagram(opts: {
+  file: File;
+  chapterId: string;
+  title: string;
+  pins: Pin[];
+  blankSvg: string | null;
+  displayOrder: number;
+}): Promise<string> {
+  const { file, chapterId } = opts;
+  const isSvg = file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg");
+  const ext = file.name.split(".").pop() || (isSvg ? "svg" : "png");
+  const path = `${chapterId}/${uid()}.${ext}`;
+  const up = await supabase.storage.from("diagrams").upload(path, file, {
+    contentType: file.type || (isSvg ? "image/svg+xml" : "image/png"),
+    upsert: true,
+  });
+  if (up.error) throw up.error;
+  const imagePath = up.data?.path ?? path;
+
+  let basePath: string | null = null;
+  if (opts.blankSvg) {
+    const blankPath = `${chapterId}/${uid()}-blank.svg`;
+    const blob = new Blob([opts.blankSvg], { type: "image/svg+xml" });
+    const upB = await supabase.storage.from("diagrams").upload(blankPath, blob, {
+      contentType: "image/svg+xml",
+      upsert: true,
+    });
+    if (upB.error) throw upB.error;
+    basePath = upB.data?.path ?? blankPath;
+  }
+
+  const ins = await supabase
+    .from("diagram_labels")
+    .insert({
+      chapter_id: chapterId,
+      title: opts.title,
+      image_path: imagePath,
+      base_image_path: basePath,
+      pins: opts.pins.map((p) => ({ ...p, id: p.id || newId() })) as unknown as never,
+      status: "draft",
+      display_order: opts.displayOrder,
+    })
+    .select("id")
+    .single();
+  if (ins.error) throw ins.error;
+  return ins.data!.id;
+}
+
+type BulkResult = { file: string; chapter: string; ok: boolean; message: string };
+
+export function BulkDiagramUpload({ onDone }: { onDone?: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [drag, setDrag] = useState(false);
+  const [results, setResults] = useState<BulkResult[]>([]);
+
+  const run = async (files: FileList | File[]) => {
+    const list = Array.from(files).filter((f) => f.name.toLowerCase().endsWith(".svg"));
+    if (!list.length) return;
+    setBusy(true);
+    setResults([]);
+    const titles = new Map<string, string>();
+    for (const file of list) {
+      let chapterLabel = "—";
+      try {
+        const m = parseLabelledSvg(await file.text());
+        if (!m) throw new Error("No valid pin manifest found");
+        if (!m.chapterId) throw new Error("Manifest has no chapter_id");
+        if (!m.title) throw new Error("Manifest has no title");
+        chapterLabel = m.chapterId;
+        if (!titles.has(m.chapterId)) {
+          const { data: ch } = await supabase
+            .from("chapters")
+            .select("title")
+            .eq("id", m.chapterId)
+            .maybeSingle();
+          if (!ch) throw new Error("Chapter not found");
+          titles.set(m.chapterId, ch.title);
+        }
+        chapterLabel = titles.get(m.chapterId)!;
+        const { data: existing, error: exErr } = await supabase
+          .from("diagram_labels")
+          .select("id")
+          .eq("chapter_id", m.chapterId)
+          .eq("title", m.title)
+          .limit(1);
+        if (exErr) throw exErr;
+        if (existing && existing.length > 0) {
+          setResults((r) => [
+            ...r,
+            { file: file.name, chapter: chapterLabel, ok: false, message: "Skipped — a diagram with this title already exists" },
+          ]);
+          continue;
+        }
+        await uploadDiagram({
+          file,
+          chapterId: m.chapterId,
+          title: m.title,
+          pins: m.pins,
+          blankSvg: m.blankSvg,
+          displayOrder: m.displayOrder ?? 0,
+        });
+        setResults((r) => [
+          ...r,
+          { file: file.name, chapter: chapterLabel, ok: true, message: `Uploaded as draft (${m.pins.length} pins)` },
+        ]);
+      } catch (e) {
+        setResults((r) => [
+          ...r,
+          { file: file.name, chapter: chapterLabel, ok: false, message: e instanceof Error ? e.message : String(e) },
+        ]);
+      }
+    }
+    setBusy(false);
+    onDone?.();
+  };
+
+  return (
+    <div className="rounded-xl bg-surface p-4 space-y-3">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">Bulk upload diagrams</p>
+      <label
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDrag(true);
+        }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDrag(false);
+          if (!busy) run(e.dataTransfer.files);
+        }}
+        className={
+          "flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed p-4 text-center text-sm " +
+          (drag ? "border-primary bg-accent" : "border-border")
+        }
+      >
+        <Upload className="size-5 text-muted-foreground" />
+        <span>Drop labelled .svg files here, or click to choose</span>
+        <span className="text-xs text-muted-foreground">
+          Each file's manifest decides its chapter. All diagrams are saved as drafts.
+        </span>
+        <input
+          type="file"
+          multiple
+          accept=".svg,image/svg+xml"
+          className="hidden"
+          disabled={busy}
+          onChange={(e) => {
+            if (e.target.files) run(e.target.files);
+            e.target.value = "";
+          }}
+        />
+      </label>
+      {busy && (
+        <p className="text-xs text-muted-foreground inline-flex items-center gap-2">
+          <Loader2 className="size-3 animate-spin" /> Uploading…
+        </p>
+      )}
+      {results.length > 0 && (
+        <ul className="space-y-1 text-sm">
+          {results.map((r, i) => (
+            <li key={i} className="rounded-lg bg-background p-2">
+              <span className="font-medium">{r.file}</span>
+              <span className="text-muted-foreground"> → {r.chapter}</span>
+              <p className={"text-xs " + (r.ok ? "text-primary" : "text-destructive")}>{r.message}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 /** Resolve a storage path to a signed URL (bucket is private; public buckets blocked by policy). */
@@ -174,46 +356,17 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
         return;
       }
 
-      // Upload labelled image
-      const ext = file.name.split(".").pop() || (isSvg ? "svg" : "png");
-      const path = `${chapterId}/${uid()}.${ext}`;
-      const up = await supabase.storage.from("diagrams").upload(path, file, {
-        contentType: file.type || (isSvg ? "image/svg+xml" : "image/png"),
-        upsert: true,
+      const id = await uploadDiagram({
+        file,
+        chapterId,
+        title: titleToUse,
+        pins: manifest?.pins ?? [],
+        blankSvg: manifest?.blankSvg ?? null,
+        displayOrder: diagrams.length,
       });
-      if (up.error) throw up.error;
-      const imagePath = up.data?.path ?? path;
-
-      // Upload blank if generated
-      let basePath: string | null = null;
-      if (manifest?.blankSvg) {
-        const blankPath = `${chapterId}/${uid()}-blank.svg`;
-        const blob = new Blob([manifest.blankSvg], { type: "image/svg+xml" });
-        const upB = await supabase.storage.from("diagrams").upload(blankPath, blob, {
-          contentType: "image/svg+xml",
-          upsert: true,
-        });
-        if (upB.error) throw upB.error;
-        basePath = upB.data?.path ?? blankPath;
-      }
-
-      const ins = await supabase
-        .from("diagram_labels")
-        .insert({
-          chapter_id: chapterId,
-          title: titleToUse,
-          image_path: imagePath,
-          base_image_path: basePath,
-          pins: (manifest?.pins ?? []) as unknown as never,
-          status: "draft",
-          display_order: diagrams.length,
-        })
-        .select("id")
-        .single();
-      if (ins.error) throw ins.error;
       setNewTitle("");
       if (fileRef.current) fileRef.current.value = "";
-      setSelectedId(ins.data!.id);
+      setSelectedId(id);
       if (manifest) {
         toast.success(`Imported ${manifest.pins.length} pins from SVG`);
       }
@@ -235,6 +388,7 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
 
   return (
     <div className="mt-4 space-y-4">
+      <BulkDiagramUpload onDone={invalidate} />
       <div className="rounded-xl bg-surface p-4 space-y-3">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Add diagram</p>
         <div className="flex flex-col gap-2 sm:flex-row">
