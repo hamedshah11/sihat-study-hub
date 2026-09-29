@@ -204,10 +204,11 @@ RULES:
     ]);
 
     if (!summaryRes.ok || !questionsRes.ok || !flashcardsRes.ok) {
+      const errText = (r: Awaited<ReturnType<typeof callAnthropic>>) => (r.ok ? "(ok)" : r.error);
       console.error("Anthropic errors", {
-        summary: summaryRes.error,
-        questions: questionsRes.error,
-        flashcards: flashcardsRes.error,
+        summary: errText(summaryRes),
+        questions: errText(questionsRes),
+        flashcards: errText(flashcardsRes),
       });
       return json({ error: "AI generation failed. Please try again." }, 502);
     }
