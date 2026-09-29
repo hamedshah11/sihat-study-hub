@@ -26,13 +26,13 @@ import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]
 import { Route as AuthenticatedSubjectsIndexRouteImport } from './routes/_authenticated/subjects/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedSubjectsSubjectIdRouteImport } from './routes/_authenticated/subjects/$subjectId'
-import { Route as AuthenticatedSubjectsSubjectIdExamRouteImport } from './routes/_authenticated/subjects/$subjectId_.exam'
 import { Route as AuthenticatedChaptersChapterIdRouteImport } from './routes/_authenticated/chapters/$chapterId'
 import { Route as AuthenticatedAdminInviteCodesRouteImport } from './routes/_authenticated/admin/invite-codes'
 import { Route as AuthenticatedAdminDiagnosticsRouteImport } from './routes/_authenticated/admin/diagnostics'
 import { Route as AuthenticatedAdminBulkGenerateRouteImport } from './routes/_authenticated/admin/bulk-generate'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as AuthenticatedSubjectsSubjectIdExamRouteImport } from './routes/_authenticated/subjects/$subjectId_.exam'
 import { Route as AuthenticatedAdminChaptersChapterIdRouteImport } from './routes/_authenticated/admin/chapters/$chapterId'
 
 const SignupRoute = SignupRouteImport.update({
@@ -124,12 +124,6 @@ const AuthenticatedSubjectsSubjectIdRoute =
     path: '/subjects/$subjectId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedSubjectsSubjectIdExamRoute =
-  AuthenticatedSubjectsSubjectIdExamRouteImport.update({
-    id: '/subjects/$subjectId_/exam',
-    path: '/subjects/$subjectId/exam',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 const AuthenticatedChaptersChapterIdRoute =
   AuthenticatedChaptersChapterIdRouteImport.update({
     id: '/chapters/$chapterId',
@@ -165,6 +159,12 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedSubjectsSubjectIdExamRoute =
+  AuthenticatedSubjectsSubjectIdExamRouteImport.update({
+    id: '/subjects/$subjectId_/exam',
+    path: '/subjects/$subjectId/exam',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminChaptersChapterIdRoute =
   AuthenticatedAdminChaptersChapterIdRouteImport.update({
     id: '/chapters/$chapterId',
@@ -193,10 +193,10 @@ export interface FileRoutesByFullPath {
   '/admin/invite-codes': typeof AuthenticatedAdminInviteCodesRoute
   '/chapters/$chapterId': typeof AuthenticatedChaptersChapterIdRoute
   '/subjects/$subjectId': typeof AuthenticatedSubjectsSubjectIdRoute
-  '/subjects/$subjectId/exam': typeof AuthenticatedSubjectsSubjectIdExamRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/subjects/': typeof AuthenticatedSubjectsIndexRoute
   '/admin/chapters/$chapterId': typeof AuthenticatedAdminChaptersChapterIdRoute
+  '/subjects/$subjectId/exam': typeof AuthenticatedSubjectsSubjectIdExamRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -218,10 +218,10 @@ export interface FileRoutesByTo {
   '/admin/invite-codes': typeof AuthenticatedAdminInviteCodesRoute
   '/chapters/$chapterId': typeof AuthenticatedChaptersChapterIdRoute
   '/subjects/$subjectId': typeof AuthenticatedSubjectsSubjectIdRoute
-  '/subjects/$subjectId/exam': typeof AuthenticatedSubjectsSubjectIdExamRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/subjects': typeof AuthenticatedSubjectsIndexRoute
   '/admin/chapters/$chapterId': typeof AuthenticatedAdminChaptersChapterIdRoute
+  '/subjects/$subjectId/exam': typeof AuthenticatedSubjectsSubjectIdExamRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -246,10 +246,10 @@ export interface FileRoutesById {
   '/_authenticated/admin/invite-codes': typeof AuthenticatedAdminInviteCodesRoute
   '/_authenticated/chapters/$chapterId': typeof AuthenticatedChaptersChapterIdRoute
   '/_authenticated/subjects/$subjectId': typeof AuthenticatedSubjectsSubjectIdRoute
-  '/_authenticated/subjects/$subjectId_/exam': typeof AuthenticatedSubjectsSubjectIdExamRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/subjects/': typeof AuthenticatedSubjectsIndexRoute
   '/_authenticated/admin/chapters/$chapterId': typeof AuthenticatedAdminChaptersChapterIdRoute
+  '/_authenticated/subjects/$subjectId_/exam': typeof AuthenticatedSubjectsSubjectIdExamRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -274,10 +274,10 @@ export interface FileRouteTypes {
     | '/admin/invite-codes'
     | '/chapters/$chapterId'
     | '/subjects/$subjectId'
-    | '/subjects/$subjectId/exam'
     | '/admin/'
     | '/subjects/'
     | '/admin/chapters/$chapterId'
+    | '/subjects/$subjectId/exam'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -299,10 +299,10 @@ export interface FileRouteTypes {
     | '/admin/invite-codes'
     | '/chapters/$chapterId'
     | '/subjects/$subjectId'
-    | '/subjects/$subjectId/exam'
     | '/admin'
     | '/subjects'
     | '/admin/chapters/$chapterId'
+    | '/subjects/$subjectId/exam'
   id:
     | '__root__'
     | '/'
@@ -326,10 +326,10 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/invite-codes'
     | '/_authenticated/chapters/$chapterId'
     | '/_authenticated/subjects/$subjectId'
-    | '/_authenticated/subjects/$subjectId_/exam'
     | '/_authenticated/admin/'
     | '/_authenticated/subjects/'
     | '/_authenticated/admin/chapters/$chapterId'
+    | '/_authenticated/subjects/$subjectId_/exam'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -466,13 +466,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSubjectsSubjectIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/subjects/$subjectId_/exam': {
-      id: '/_authenticated/subjects/$subjectId_/exam'
-      path: '/subjects/$subjectId/exam'
-      fullPath: '/subjects/$subjectId/exam'
-      preLoaderRoute: typeof AuthenticatedSubjectsSubjectIdExamRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/chapters/$chapterId': {
       id: '/_authenticated/chapters/$chapterId'
       path: '/chapters/$chapterId'
@@ -515,6 +508,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/subjects/$subjectId_/exam': {
+      id: '/_authenticated/subjects/$subjectId_/exam'
+      path: '/subjects/$subjectId/exam'
+      fullPath: '/subjects/$subjectId/exam'
+      preLoaderRoute: typeof AuthenticatedSubjectsSubjectIdExamRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/chapters/$chapterId': {
       id: '/_authenticated/admin/chapters/$chapterId'
       path: '/chapters/$chapterId'
@@ -554,8 +554,8 @@ interface AuthenticatedRouteChildren {
   AuthenticatedTutorRoute: typeof AuthenticatedTutorRoute
   AuthenticatedChaptersChapterIdRoute: typeof AuthenticatedChaptersChapterIdRoute
   AuthenticatedSubjectsSubjectIdRoute: typeof AuthenticatedSubjectsSubjectIdRoute
-  AuthenticatedSubjectsSubjectIdExamRoute: typeof AuthenticatedSubjectsSubjectIdExamRoute
   AuthenticatedSubjectsIndexRoute: typeof AuthenticatedSubjectsIndexRoute
+  AuthenticatedSubjectsSubjectIdExamRoute: typeof AuthenticatedSubjectsSubjectIdExamRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -567,8 +567,9 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedTutorRoute: AuthenticatedTutorRoute,
   AuthenticatedChaptersChapterIdRoute: AuthenticatedChaptersChapterIdRoute,
   AuthenticatedSubjectsSubjectIdRoute: AuthenticatedSubjectsSubjectIdRoute,
-  AuthenticatedSubjectsSubjectIdExamRoute: AuthenticatedSubjectsSubjectIdExamRoute,
   AuthenticatedSubjectsIndexRoute: AuthenticatedSubjectsIndexRoute,
+  AuthenticatedSubjectsSubjectIdExamRoute:
+    AuthenticatedSubjectsSubjectIdExamRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
