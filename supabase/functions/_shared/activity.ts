@@ -3,7 +3,7 @@
 // tables are locked to read-only for normal users. XP amounts are fixed here
 // so the client can never choose them.
 
-export const XP_AMOUNTS = { flashcard: 1, quiz: 10, quiz_pass: 15, tutor: 2 } as const;
+export const XP_AMOUNTS = { flashcard: 1, quiz: 10, quiz_pass: 15, tutor: 2, exam: 20, exam_pass: 35 } as const;
 export type XpSource = keyof typeof XP_AMOUNTS;
 
 // Pakistan Standard Time is UTC+5, no DST. Streaks roll over at PKT midnight.
