@@ -29,7 +29,13 @@ function newId() {
 
 const NO_MANIFEST_NOTICE = "No pin manifest found in this SVG — add pins manually.";
 
-type SvgManifest = { title: string | null; pins: Pin[]; blankSvg: string | null };
+type SvgManifest = {
+  title: string | null;
+  pins: Pin[];
+  blankSvg: string | null;
+  chapterId: string | null;
+  displayOrder: number | null;
+};
 
 /**
  * Parse a labelled SVG for its `<metadata id="sihat-pins">` manifest.
