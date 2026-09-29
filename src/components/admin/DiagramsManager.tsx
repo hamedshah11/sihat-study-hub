@@ -382,6 +382,7 @@ export function DiagramsManager({ chapterId }: { chapterId: string }) {
 
   return (
     <div className="mt-4 space-y-4">
+      <BulkDiagramUpload onDone={invalidate} />
       <div className="rounded-xl bg-surface p-4 space-y-3">
         <p className="text-xs uppercase tracking-wide text-muted-foreground">Add diagram</p>
         <div className="flex flex-col gap-2 sm:flex-row">
