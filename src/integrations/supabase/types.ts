@@ -280,6 +280,68 @@ export type Database = {
           },
         ]
       }
+      exam_attempts: {
+        Row: {
+          answers: Json | null
+          chapter_breakdown: Json | null
+          chapter_ids: string[]
+          duration_seconds: number
+          expires_at: string
+          flagged_ids: string[]
+          id: string
+          mode: string
+          question_ids: string[]
+          score: number | null
+          started_at: string
+          subject_id: string
+          submitted_at: string | null
+          total_questions: number
+          user_id: string
+        }
+        Insert: {
+          answers?: Json | null
+          chapter_breakdown?: Json | null
+          chapter_ids: string[]
+          duration_seconds: number
+          expires_at: string
+          flagged_ids?: string[]
+          id?: string
+          mode: string
+          question_ids: string[]
+          score?: number | null
+          started_at?: string
+          subject_id: string
+          submitted_at?: string | null
+          total_questions: number
+          user_id: string
+        }
+        Update: {
+          answers?: Json | null
+          chapter_breakdown?: Json | null
+          chapter_ids?: string[]
+          duration_seconds?: number
+          expires_at?: string
+          flagged_ids?: string[]
+          id?: string
+          mode?: string
+          question_ids?: string[]
+          score?: number | null
+          started_at?: string
+          subject_id?: string
+          submitted_at?: string | null
+          total_questions?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exam_attempts_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flashcard_reviews: {
         Row: {
           difficulty: number | null
