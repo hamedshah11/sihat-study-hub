@@ -68,6 +68,8 @@ function ExamPage() {
           qc.invalidateQueries({ queryKey: ["exam-overview", subjectId] });
           qc.invalidateQueries({ queryKey: ["home-today"] });
           qc.invalidateQueries({ queryKey: ["student-progress"] });
+          qc.invalidateQueries({ queryKey: ["exam-summary", subjectId] });
+          qc.invalidateQueries({ queryKey: ["recent-exams"] });
           navigate({
             to: "/subjects/$subjectId/exam",
             params: { subjectId },

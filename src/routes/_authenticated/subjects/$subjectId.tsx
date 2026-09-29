@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ClipboardCheck, ArrowRight } from "lucide-react";
 import { EXAM_MODES } from "@/lib/exam-config";
+import { useExamSummary } from "@/lib/exam-history";
 
 export const Route = createFileRoute("/_authenticated/subjects/$subjectId")({
   head: () => ({ meta: [{ title: "Subject — Sihat" }] }),
@@ -20,6 +21,7 @@ function masteryBadge(score: number | null) {
 
 function SubjectDetail() {
   const { subjectId } = Route.useParams();
+  const { data: examSummary } = useExamSummary(subjectId);
 
   const { data, isLoading } = useQuery({
     queryKey: ["subject-detail", subjectId],
@@ -90,7 +92,11 @@ function SubjectDetail() {
           <span className="min-w-0 flex-1">
             <span className="block font-display text-base font-bold">Exam mode</span>
             <span className="block text-xs opacity-85">
-              {EXAM_MODES.full.questions} MCQs from every chapter · {EXAM_MODES.full.minutes} min
+              {examSummary?.hasUnfinished
+                ? "You have an unfinished exam. Tap to finish it."
+                : examSummary?.last
+                  ? `Last ${examSummary.last.pct}% · Best ${examSummary.best}% · ${examSummary.attempts} attempt${examSummary.attempts === 1 ? "" : "s"}`
+                  : `${EXAM_MODES.full.questions} MCQs from every chapter · ${EXAM_MODES.full.minutes} min`}
             </span>
           </span>
           <ArrowRight className="size-5 shrink-0 transition-transform group-hover:translate-x-0.5" />
