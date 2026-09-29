@@ -27,7 +27,8 @@ batch.
 ## Security model — read this before touching progress/gamification tables
 
 `xp_events`, `streaks`, `quiz_attempts`, `chapter_progress`,
-`flashcard_reviews` and `tutor_messages` are **read-only from the browser**.
+`flashcard_reviews`, `tutor_messages` and `exam_attempts` are **read-only
+from the browser**.
 RLS on these tables (see
 `supabase/migrations/20260614170000_lock_progress_integrity.sql`) grants
 authenticated users `SELECT` only (`auth.uid() = user_id`); admins get full
@@ -36,7 +37,7 @@ deliberate fix for a bug where the browser could forge XP/streaks/quiz
 scores directly from devtools.
 
 **Never propose a client-side `.insert()`/`.update()`/`.upsert()` against any
-of those six tables.** All writes go through one of two trusted paths, both
+of those tables.** All writes go through one of two trusted paths, both
 using the Supabase **service-role** key, which bypasses RLS entirely:
 
 1. A `createServerFn` in `src/lib/*.functions.ts` (e.g.
@@ -49,8 +50,9 @@ using the Supabase **service-role** key, which bypasses RLS entirely:
    `tutor-practice`), which verifies the caller with an auth-scoped client
    first, then does trusted reads/writes with the admin client. XP amounts
    live in `supabase/functions/_shared/activity.ts::XP_AMOUNTS` (also
-   mirrored in `study.functions.ts`) — never let a caller pick their own XP
-   value.
+   mirrored in `src/lib/activity.server.ts`, which holds the shared
+   `insertXp`/`bumpStreak` helpers for server functions) — never let a
+   caller pick their own XP value.
 
 Streaks roll over at **Pakistan Standard Time midnight** (UTC+5, no DST) —
 see `pakistanDate()` / `pktDate()` in both places above. Keep both in sync
@@ -84,7 +86,8 @@ env-var split (`VITE_`-prefixed = public/bundled, unprefixed = server-only).
   progress, leaderboard, profile, tutor, admin/*). Each route file exports
   `Route = createFileRoute("/path")({ head, component })`.
 - **Server functions**: one file per domain in `src/lib/*.functions.ts`
-  (`study.functions.ts`, `admin.functions.ts`, `invite.functions.ts`).
+  (`study.functions.ts`, `exam.functions.ts`, `admin.functions.ts`,
+  `invite.functions.ts`).
   Pattern: `createServerFn({ method })`, `.middleware([requireSupabaseAuth])`
   when the caller must be identified, `.inputValidator((data: unknown) =>
   ZodSchema.parse(data))` to validate untrusted input, `.handler(async ({
@@ -105,6 +108,19 @@ env-var split (`VITE_`-prefixed = public/bundled, unprefixed = server-only).
 - Client Supabase access (`src/integrations/supabase/client.ts`) is
   RLS-scoped and safe in browser code for the read-only tables above and
   ordinary curriculum reads (subjects, chapters, questions, flashcards).
+
+## Exam mode
+
+`/subjects/$subjectId/exam` (route file `subjects/$subjectId_.exam.tsx`,
+non-nested so it doesn't render inside the subject page). Question counts,
+time limits, difficulty mix and pass mark live in `src/lib/exam-config.ts`.
+`startExam` picks the paper server-side (even spread across chapters, then
+difficulty mix) and sends questions **without** `correct_index`;
+`submitExam` grades server-side, stores the per-chapter breakdown in
+`exam_attempts`, and awards exam XP at most once per subject per PKT day.
+One unfinished attempt per subject: `startExam` returns it instead of
+creating a new one. The runner keeps in-progress answers in localStorage
+(keyed by attempt id) so a refresh or dropped signal doesn't lose them.
 
 ## Commands
 

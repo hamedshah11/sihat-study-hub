@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ClipboardCheck, ArrowRight } from "lucide-react";
+import { EXAM_MODES } from "@/lib/exam-config";
 
 export const Route = createFileRoute("/_authenticated/subjects/$subjectId")({
   head: () => ({ meta: [{ title: "Subject — Sihat" }] }),
@@ -75,6 +76,26 @@ function SubjectDetail() {
           <p className="mt-1 text-sm text-muted-foreground">{data.subject.description}</p>
         )}
       </header>
+
+      {data.chapters.length > 0 && (
+        <Link
+          to="/subjects/$subjectId/exam"
+          params={{ subjectId }}
+          search={{}}
+          className="hero-gradient animate-fade-up stagger-1 group mt-6 flex items-center gap-4 rounded-2xl p-5 text-primary-foreground shadow-lifted transition-transform active:scale-[0.99]"
+        >
+          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/15">
+            <ClipboardCheck className="size-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-base font-bold">Exam mode</span>
+            <span className="block text-xs opacity-85">
+              {EXAM_MODES.full.questions} MCQs from every chapter · {EXAM_MODES.full.minutes} min
+            </span>
+          </span>
+          <ArrowRight className="size-5 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      )}
 
       <h2 className="animate-fade-up stagger-1 caption mt-8">Chapters</h2>
       <div className="mt-3 space-y-2.5">
