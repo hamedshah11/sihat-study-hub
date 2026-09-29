@@ -9,6 +9,7 @@ import {
   insertXp,
   bumpStreak,
   startOfTodayPkt,
+  logAnswers,
 } from "@/lib/activity.server";
 
 // Why these run server-side with the service-role client:
@@ -107,6 +108,17 @@ export const submitQuiz = createServerFn({ method: "POST" })
       answers: graded as never,
       attempted_at: now,
     });
+
+    await logAnswers(
+      userId,
+      "quiz",
+      graded.map((g) => ({
+        questionId: g.questionId,
+        chapterId: data.chapterId,
+        correct: g.correct,
+      })),
+      now,
+    );
 
     const { data: existing } = await supabaseAdmin
       .from("chapter_progress")
@@ -213,4 +225,55 @@ export const recordReview = createServerFn({ method: "POST" })
     if (xpEligible) await insertXp(userId, "flashcard");
 
     return { awardedXp: xpEligible ? XP_AMOUNTS.flashcard : 0 };
+  });
+
+// ---------------------------------------------------------------------------
+// answerMistake — records one answer from "Fix your mistakes" (/review).
+// Graded here against the approved answer key; the client's claimed result
+// is ignored. XP once per PKT day for doing a review at all, so it can't be
+// farmed question by question.
+// ---------------------------------------------------------------------------
+
+const AnswerMistakeInput = z.object({
+  questionId: z.string().uuid(),
+  selectedIndex: z.number().int().min(0).max(9),
+});
+
+export const answerMistake = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => AnswerMistakeInput.parse(data))
+  .handler(async ({ data, context }) => {
+    const userId = context.userId;
+    if (!userId) throw new Error("Unauthorized");
+
+    const { data: q } = await supabaseAdmin
+      .from("questions")
+      .select("id, chapter_id, correct_index")
+      .eq("id", data.questionId)
+      .eq("status", "approved")
+      .maybeSingle();
+    if (!q) throw new Error("Question not found");
+
+    const correct = data.selectedIndex === q.correct_index;
+
+    // Was there already a review answer today? (read before logging this one)
+    const { count } = await supabaseAdmin
+      .from("question_answers")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("source", "review")
+      .gte("answered_at", startOfTodayPkt());
+
+    await logAnswers(userId, "review", [
+      { questionId: q.id as string, chapterId: (q.chapter_id as string | null) ?? null, correct },
+    ]);
+
+    let awardedXp = 0;
+    if ((count ?? 0) === 0) {
+      await insertXp(userId, "review");
+      awardedXp = XP_AMOUNTS.review;
+    }
+    await bumpStreak(userId);
+
+    return { correct, correctIndex: q.correct_index as number, awardedXp };
   });

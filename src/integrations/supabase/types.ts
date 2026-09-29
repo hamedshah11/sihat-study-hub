@@ -577,6 +577,51 @@ export type Database = {
           },
         ]
       }
+      question_answers: {
+        Row: {
+          answered_at: string
+          chapter_id: string | null
+          correct: boolean
+          id: string
+          question_id: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          answered_at?: string
+          chapter_id?: string | null
+          correct: boolean
+          id?: string
+          question_id: string
+          source: string
+          user_id: string
+        }
+        Update: {
+          answered_at?: string
+          chapter_id?: string | null
+          correct?: boolean
+          id?: string
+          question_id?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_answers_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quiz_attempts: {
         Row: {
           answers: Json | null

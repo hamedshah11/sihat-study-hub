@@ -27,8 +27,8 @@ batch.
 ## Security model — read this before touching progress/gamification tables
 
 `xp_events`, `streaks`, `quiz_attempts`, `chapter_progress`,
-`flashcard_reviews`, `tutor_messages` and `exam_attempts` are **read-only
-from the browser**.
+`flashcard_reviews`, `tutor_messages`, `exam_attempts` and
+`question_answers` are **read-only from the browser**.
 RLS on these tables (see
 `supabase/migrations/20260614170000_lock_progress_integrity.sql`) grants
 authenticated users `SELECT` only (`auth.uid() = user_id`); admins get full
@@ -132,6 +132,20 @@ difficulty mix) and sends questions **without** `correct_index`;
 One unfinished attempt per subject: `startExam` returns it instead of
 creating a new one. The runner keeps in-progress answers in localStorage
 (keyed by attempt id) so a refresh or dropped signal doesn't lose them.
+
+## Answer log and mistake review
+
+`question_answers` logs every graded answer (source `quiz`, `exam` or
+`review`), written via `logAnswers()` in `src/lib/activity.server.ts` from
+`submitQuiz`, `submitExam` and `answerMistake`. Logging never throws, so a
+logging failure can't break a submit. Rules in `src/lib/mistakes.ts`: a wrong
+answer is due again after 1 day; after one right answer it's due once more 3
+days later; two right answers clear it; a new wrong answer restarts it.
+Chapter quizzes use `pickQuizQuestions` (due mistakes, capped at half the
+quiz, then unseen, then least recently seen). `/review` ("Fix your
+mistakes") serves due mistakes across all subjects, 10 per session, with
+review XP once per PKT day. Browser reads go through
+`src/lib/mistakes-data.ts`, which treats any read error as empty history.
 
 ## Commands
 

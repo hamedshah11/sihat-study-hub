@@ -1,15 +1,17 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CheckCircle2, XCircle, ClipboardList, Trophy } from "lucide-react";
+import { CheckCircle2, XCircle, ClipboardList, Trophy, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
 import { submitQuiz } from "@/lib/study.functions";
 import { awardBadgesIfNeeded } from "@/lib/award-badges";
 import { celebrate } from "@/lib/celebrate";
+import { buildHistory, pickQuizQuestions } from "@/lib/mistakes";
+import { loadAnswerLog, MISTAKES_QUERY_KEY } from "@/lib/mistakes-data";
 
 type Question = {
   id: string;
@@ -20,15 +22,6 @@ type Question = {
 };
 
 const QUIZ_SIZE = 5;
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 export function ChapterQuiz({ chapterId }: { chapterId: string }) {
   const [seed, setSeed] = useState(0);
@@ -49,13 +42,30 @@ export function ChapterQuiz({ chapterId }: { chapterId: string }) {
     },
   });
 
-  const questions = useMemo(() => {
-    if (!allQuestions || allQuestions.length < QUIZ_SIZE) return null;
-    void seed;
-    return shuffle(allQuestions).slice(0, QUIZ_SIZE);
-  }, [allQuestions, seed]);
+  // This student's answers in this chapter. Reloaded on every retake (seed)
+  // so the next quiz reflects what they just answered.
+  const { data: history, isLoading: historyLoading } = useQuery({
+    queryKey: ["chapter-answer-log", chapterId, seed],
+    queryFn: async () => buildHistory(await loadAnswerLog(chapterId)),
+  });
 
-  if (isLoading) return <Skeleton className="h-64 rounded-xl mt-4" />;
+  // Due mistakes first, then questions never seen, then those seen longest ago.
+  const picked = useMemo(() => {
+    if (!allQuestions || allQuestions.length < QUIZ_SIZE || !history) return null;
+    const now = Date.now();
+    const questions = pickQuizQuestions(allQuestions, history, QUIZ_SIZE, now);
+    const reviewIds = new Set(
+      questions
+        .filter((q) => {
+          const due = history.get(q.id)?.mistakeDueAt;
+          return due !== null && due !== undefined && due <= now;
+        })
+        .map((q) => q.id),
+    );
+    return { questions, reviewIds };
+  }, [allQuestions, history]);
+
+  if (isLoading || historyLoading) return <Skeleton className="h-64 rounded-xl mt-4" />;
 
   if (!allQuestions || allQuestions.length < QUIZ_SIZE) {
     return (
@@ -74,7 +84,8 @@ export function ChapterQuiz({ chapterId }: { chapterId: string }) {
     <QuizRunner
       key={seed}
       chapterId={chapterId}
-      questions={questions!}
+      questions={picked!.questions}
+      reviewIds={picked!.reviewIds}
       onRetake={() => setSeed((s) => s + 1)}
     />
   );
@@ -89,10 +100,13 @@ type AnswerRecord = {
 function QuizRunner({
   chapterId,
   questions,
+  reviewIds,
   onRetake,
 }: {
   chapterId: string;
   questions: Question[];
+  /** Questions answered wrong before that are due again. */
+  reviewIds: Set<string>;
   onRetake: () => void;
 }) {
   const [index, setIndex] = useState(0);
@@ -105,6 +119,7 @@ function QuizRunner({
   // null = not known (e.g. the save failed)
   const [awardedXp, setAwardedXp] = useState<number | null>(null);
   const submit = useServerFn(submitQuiz);
+  const queryClient = useQueryClient();
 
   const q = questions[index];
   const total = questions.length;
@@ -144,6 +159,7 @@ function QuizRunner({
         },
       });
       setAwardedXp(res.awardedXp);
+      void queryClient.invalidateQueries({ queryKey: MISTAKES_QUERY_KEY });
       await awardBadgesIfNeeded();
     } catch (e) {
       console.error("Failed to save quiz results", e);
@@ -258,6 +274,11 @@ function QuizRunner({
         />
       </div>
 
+      {reviewIds.has(q.id) && (
+        <p className="mt-4 inline-flex items-center gap-1 rounded-full bg-streak/10 px-2.5 py-1 text-[11px] font-semibold text-streak">
+          <RotateCcw className="size-3" /> You missed this one before
+        </p>
+      )}
       <p className="mt-4 text-base font-medium text-primary">{q.prompt}</p>
 
       <RadioGroup

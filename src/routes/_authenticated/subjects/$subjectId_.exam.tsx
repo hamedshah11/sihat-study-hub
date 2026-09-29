@@ -10,6 +10,7 @@ import { getExamResult, type ExamPayload, type ExamResult } from "@/lib/exam.fun
 import { ExamSetup } from "@/components/exam/ExamSetup";
 import { ExamRunner } from "@/components/exam/ExamRunner";
 import { ExamResults } from "@/components/exam/ExamResults";
+import { MISTAKES_QUERY_KEY } from "@/lib/mistakes-data";
 
 const searchSchema = z.object({
   result: z.string().uuid().optional(),
@@ -70,6 +71,7 @@ function ExamPage() {
           qc.invalidateQueries({ queryKey: ["student-progress"] });
           qc.invalidateQueries({ queryKey: ["exam-summary", subjectId] });
           qc.invalidateQueries({ queryKey: ["recent-exams"] });
+          qc.invalidateQueries({ queryKey: MISTAKES_QUERY_KEY });
           navigate({
             to: "/subjects/$subjectId/exam",
             params: { subjectId },
