@@ -190,7 +190,7 @@ function SubjectDetail() {
               to="/subjects/$subjectId/exam"
               params={{ subjectId }}
               search={{}}
-              className="flex min-h-14 max-w-[155px] items-center gap-2 rounded-[18px] bg-white px-4 font-bold text-subject-ink"
+              className="flex min-h-14 shrink-0 items-center gap-2 rounded-[18px] bg-white px-4 font-bold whitespace-nowrap text-[var(--subject-light-ink)]"
             >
               <Clock className="size-5 shrink-0" /> Practice exam
             </Link>
@@ -237,6 +237,7 @@ function SubjectDetail() {
                     {done && progress?.score != null
                       ? `Mastery ${Math.round(progress.score)}%`
                       : [
+                          progress?.score != null && `Mastery ${Math.round(progress.score)}%`,
                           cards > 0 && `${cards} card${cards === 1 ? "" : "s"} due`,
                           errors > 0 && `${errors} mistake${errors === 1 ? "" : "s"} to fix`,
                         ]

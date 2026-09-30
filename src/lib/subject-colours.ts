@@ -101,10 +101,10 @@ export function subjectColourVariables(value: unknown): CSSProperties {
   const colour = SUBJECT_COLOURS[isSubjectColour(value) ? value : "cobalt"];
   return {
     "--subject": colour.fill,
-    "--subject-deep": colour.deep,
-    "--subject-tint": colour.tint,
-    "--subject-tint-2": colour.tint2,
-    "--subject-ink": colour.ink,
+    "--subject-light-deep": colour.deep,
+    "--subject-light-tint": colour.tint,
+    "--subject-light-tint-2": colour.tint2,
+    "--subject-light-ink": colour.ink,
     "--subject-dark-tint": colour.darkTint,
     "--subject-dark-tint-2": colour.darkTint2,
     "--subject-dark-ink": colour.darkInk,

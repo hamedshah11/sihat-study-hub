@@ -8,10 +8,10 @@ set colour = case
   when name ilike any (array['Anatomy and Physiology I', 'Anatomy and Physiology II', 'Pathophysiology I', 'Pathophysiology II', 'Health Assessment I', 'Health Assessment II']) then 'violet'
   when name ilike any (array['Pediatric Health Nursing', 'Maternal Neonatal and Child Health Nursing', 'Mental Health Nursing', 'Geriatric Nursing']) then 'pink'
   when name ilike any (array['Microbiology', 'Infectious Diseases', 'Public Health Nursing']) then 'mint'
-  when name ilike any (array['Biochemistry', 'Applied Nutrition', 'Clinical Pharmacology and Drug Administration I', 'Clinical Pharmacology and Drug Administration II']) then 'sky'
-  when name ilike any (array['English (Functional English)', 'Professional Communication Skills', 'Expository Writing', 'Principles of Teaching and Learning']) then 'indigo'
-  when name ilike any (array['Information and Communication Technology', 'Quantitative Reasoning I', 'Introduction to Biostatistics', 'Epidemiology', 'Introduction to Nursing Research']) then 'aqua'
-  when name ilike any (array['Ideology and Constitution of Pakistan', 'Islamic Studies / Ethics', 'Theoretical Basis of Nursing', 'Applied Psychology', 'Professional Ethics for Nurses', 'Civics and Community Engagement', 'Culture Health and Society', 'Leadership and Management', 'Entrepreneurship', 'Trends and Issues in Health Care', 'Electives']) then 'slate'
+  when name ilike any (array['Biochemistry%', 'Applied Nutrition', 'Clinical Pharmacology and Drug Administration I', 'Clinical Pharmacology and Drug Administration II']) then 'sky'
+  when name ilike any (array['English%', 'Functional English%', 'Professional Communication Skills', 'Expository Writing', 'Principles of Teaching and Learning']) then 'indigo'
+  when name ilike any (array['Information and Communication Technology', 'Applications of ICT', 'Quantitative Reasoning I', 'Introduction to Biostatistics', 'Epidemiology', 'Introduction to Nursing Research']) then 'aqua'
+  when name ilike any (array['Ideology and Constitution of Pakistan', 'Islamic Studies%', 'Islamiat%', 'Pakistan Studies%', 'Theoretical Basis of Nursing', 'Applied Psychology', 'Professional Ethics for Nurses', 'Civics and Community Engagement', 'Culture Health and Society', 'Leadership and Management', 'Entrepreneurship', 'Trends and Issues in Health Care', 'Electives']) then 'slate'
   else colour
 end;
 

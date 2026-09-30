@@ -130,6 +130,15 @@
   --ring: #2e66ea;
 }
 
+/* Light values are set inline per subject; the class picks light or dark
+   here so the .dark override isn't beaten by the inline style. */
+.subject-colour {
+  --subject-deep: var(--subject-light-deep);
+  --subject-tint: var(--subject-light-tint);
+  --subject-tint-2: var(--subject-light-tint-2);
+  --subject-ink: var(--subject-light-ink);
+}
+
 .dark .subject-colour {
   --subject-deep: var(--subject-dark-ink);
   --subject-tint: var(--subject-dark-tint);
