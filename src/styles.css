@@ -132,6 +132,7 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    font-synthesis: none;
     -webkit-font-smoothing: antialiased;
   }
   h1, h2 { letter-spacing: -0.02em; }

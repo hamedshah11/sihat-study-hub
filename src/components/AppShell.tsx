@@ -21,7 +21,9 @@ function useNavItems(): NavItem[] {
   const { data: role } = useQuery({
     queryKey: ["app-shell-role"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return null;
       const { data: profile } = await supabase
         .from("profiles")
@@ -61,8 +63,7 @@ function useFocusMode() {
   const tab = (location.search as { tab?: string }).tab;
   return (
     location.pathname.endsWith("/exam") ||
-    (location.pathname.includes("/chapters/") &&
-      (tab === "quiz" || tab === "flashcards"))
+    (location.pathname.includes("/chapters/") && (tab === "quiz" || tab === "flashcards"))
   );
 }
 
@@ -172,11 +173,11 @@ export function useSession() {
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUserId(session?.user?.id ?? null);
-      },
-    );
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserId(session?.user?.id ?? null);
+    });
     supabase.auth.getSession().then(({ data }) => {
       setUserId(data.session?.user?.id ?? null);
       setLoading(false);
