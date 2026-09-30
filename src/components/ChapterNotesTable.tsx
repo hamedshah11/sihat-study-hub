@@ -43,7 +43,7 @@ export function ChapterNotesTable({ children }: { children?: React.ReactNode }) 
 
       {scrollable && (
         <div
-          className="pointer-events-none absolute inset-y-0 right-4 top-0 w-6 bg-gradient-to-l from-card to-transparent sm:right-0"
+          className="pointer-events-none absolute inset-y-0 right-4 top-0 w-6 bg-card sm:right-0"
           aria-hidden="true"
         />
       )}

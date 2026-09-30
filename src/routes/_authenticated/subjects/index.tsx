@@ -22,7 +22,7 @@ function SubjectIcon({ name, className }: { name?: string | null; className?: st
 
 // Stable subtle accent per subject (hash → palette)
 const ACCENTS = [
-  { bar: "#2D9D9B", chipBg: "rgba(45,157,155,0.10)", chipFg: "#1F7A78" },
+  { bar: "#1F4FD8", chipBg: "rgba(31,79,216,0.10)", chipFg: "#163C9E" },
   { bar: "#1F3A5F", chipBg: "rgba(31,58,95,0.08)",  chipFg: "#1F3A5F" },
   { bar: "#7C3AED", chipBg: "rgba(124,58,237,0.10)", chipFg: "#5B21B6" },
   { bar: "#0EA5A4", chipBg: "rgba(14,165,164,0.10)", chipFg: "#0F766E" },
@@ -115,7 +115,7 @@ function SubjectsList() {
               <span
                 aria-hidden
                 className="absolute inset-x-0 top-0 h-1"
-                style={{ background: `linear-gradient(90deg, ${a.bar}, transparent 85%)` }}
+                style={{ background: a.bar }}
               />
               <span
                 aria-hidden

@@ -24,7 +24,7 @@ function Landing() {
       </div>
       <div className="mx-auto w-full max-w-[480px] md:max-w-[640px] flex-1 flex flex-col px-6 pt-12 pb-8">
         <header className="animate-fade-up flex items-center gap-2.5">
-          <div className="size-10 rounded-xl bg-gradient-to-br from-primary to-accent text-primary-foreground grid place-items-center font-bold shadow-glow">
+          <div className="size-10 rounded-xl bg-primary text-primary-foreground grid place-items-center font-bold shadow-glow">
             S
           </div>
           <span className="font-display text-2xl font-bold text-primary tracking-tight">Sihat</span>
@@ -33,14 +33,14 @@ function Landing() {
         <main className="flex-1 flex flex-col justify-center py-16">
           <h1 className="animate-fade-up stagger-1 font-display text-4xl md:text-5xl font-bold leading-tight text-primary">
             Study smarter,<br />
-            <span className="bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent">not harder.</span>
+            <span className="text-primary">not harder.</span>
           </h1>
           <p className="animate-fade-up stagger-2 mt-4 text-muted-foreground">
             Built for nursing students at every stage of the BSN curriculum.
           </p>
 
           <ul className="mt-10 space-y-4">
-            <Feature stagger="stagger-3" tone="teal" icon={<BookOpen className="size-5" />}>
+            <Feature stagger="stagger-3" tone="cobalt" icon={<BookOpen className="size-5" />}>
               Pre-built study material for your BSN curriculum
             </Feature>
             <Feature stagger="stagger-4" tone="navy" icon={<Sparkles className="size-5" />}>
@@ -70,7 +70,7 @@ function Landing() {
 }
 
 const FEATURE_TONES = {
-  teal: "bg-accent/10 text-accent",
+  cobalt: "bg-accent/10 text-accent",
   navy: "bg-primary/10 text-primary",
   flame: "bg-streak/10 text-streak",
 } as const;

@@ -270,7 +270,7 @@ function HomePage() {
           <section className="animate-fade-up stagger-1 rounded-2xl border bg-card p-4 shadow-soft">
             <div className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-2 font-semibold text-primary">
-                <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-accent to-primary text-[11px] font-bold text-primary-foreground">
+                <span className="grid size-7 place-items-center rounded-lg bg-primary text-[11px] font-bold text-primary-foreground">
                   {lvl.level}
                 </span>
                 {lvl.name}
@@ -281,7 +281,7 @@ function HomePage() {
             </div>
             <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="progress-shine h-full rounded-full bg-gradient-to-r from-accent to-accent/70 transition-all duration-700"
+                className="h-full rounded-full bg-primary transition-all duration-700"
                 style={{ width: `${pct}%` }}
               />
             </div>
@@ -332,7 +332,7 @@ function HomePage() {
           </Link>
         </section>
       ) : (
-        <section className="hero-gradient animate-fade-up stagger-3 rounded-2xl p-6 text-primary-foreground shadow-lifted">
+        <section className="bg-primary animate-fade-up stagger-3 rounded-2xl p-6 text-primary-foreground shadow-lifted">
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest opacity-80">
             <Sparkles className="size-3.5" /> Your session
           </p>
@@ -392,7 +392,7 @@ function HomePage() {
               chapterId={cont?.chapterId}
             />
             <SecondaryCard
-              tone="teal"
+              tone="cobalt"
               stagger="stagger-4"
               icon={<Layers className="size-5" />}
               label="Review flashcards"
@@ -433,7 +433,7 @@ function HomePage() {
 
 const CARD_TONES = {
   navy: { bg: "rgba(31,58,95,0.08)", fg: "#1F3A5F" },
-  teal: { bg: "rgba(45,157,155,0.10)", fg: "#1F7A78" },
+  cobalt: { bg: "rgba(31,79,216,0.10)", fg: "#163C9E" },
   amber: { bg: "rgba(217,119,6,0.10)", fg: "#92400E" },
   violet: { bg: "rgba(124,58,237,0.10)", fg: "#5B21B6" },
 } as const;

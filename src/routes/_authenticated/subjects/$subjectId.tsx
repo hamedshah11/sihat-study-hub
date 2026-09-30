@@ -111,7 +111,7 @@ function SubjectDetail() {
           to="/subjects/$subjectId/exam"
           params={{ subjectId }}
           search={{}}
-          className="hero-gradient animate-fade-up stagger-1 group mt-6 flex items-center gap-4 rounded-2xl p-5 text-primary-foreground shadow-lifted transition-transform active:scale-[0.99]"
+          className="bg-primary animate-fade-up stagger-1 group mt-6 flex items-center gap-4 rounded-2xl p-5 text-primary-foreground shadow-lifted transition-transform active:scale-[0.99]"
         >
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/15">
             <ClipboardCheck className="size-5" />
@@ -151,7 +151,7 @@ function SubjectDetail() {
               <span
                 className={`inline-flex size-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${
                   done
-                    ? "bg-gradient-to-br from-accent to-primary text-primary-foreground shadow-glow"
+                    ? "bg-primary text-primary-foreground shadow-glow"
                     : "bg-accent/10 text-accent"
                 }`}
               >
@@ -176,7 +176,7 @@ function SubjectDetail() {
                 })()}
                 <span className="mt-1.5 block h-1.5 w-full max-w-[160px] overflow-hidden rounded-full bg-muted">
                   <span
-                    className="block h-full rounded-full bg-gradient-to-r from-accent to-accent/70 transition-all duration-700"
+                    className="block h-full rounded-full bg-primary transition-all duration-700"
                     style={{ width: `${Math.max(0, Math.min(100, score ?? 0))}%` }}
                   />
                 </span>

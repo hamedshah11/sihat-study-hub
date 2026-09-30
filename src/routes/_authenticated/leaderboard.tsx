@@ -36,7 +36,7 @@ function LeaderboardPage() {
           <ArrowLeft className="size-4" /> Home
         </Link>
         <div className="mt-4 flex items-center gap-2.5">
-          <span className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-accent to-primary text-primary-foreground shadow-glow">
+          <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground shadow-glow">
             <Trophy className="size-5" />
           </span>
           <h1 className="font-display text-2xl font-bold text-primary">This week</h1>
@@ -65,10 +65,10 @@ function LeaderboardPage() {
                   <div
                     className={`grid place-items-center rounded-full font-display font-bold text-primary-foreground shadow-lifted ${
                       rank === 1
-                        ? "size-16 bg-gradient-to-br from-amber-400 to-amber-600 text-xl"
+                        ? "size-16 bg-amber-500 text-xl"
                         : rank === 2
-                          ? "size-13 bg-gradient-to-br from-slate-300 to-slate-500 text-lg"
-                          : "size-13 bg-gradient-to-br from-orange-300 to-orange-500 text-lg"
+                          ? "size-13 bg-slate-400 text-lg"
+                          : "size-13 bg-orange-400 text-lg"
                     } ${isMe ? "ring-2 ring-accent ring-offset-2 ring-offset-background" : ""}`}
                   >
                     {(r.first_name ?? "—").charAt(0).toUpperCase()}
@@ -80,10 +80,10 @@ function LeaderboardPage() {
                   <div
                     className={`mt-2 w-full rounded-t-xl border border-b-0 ${
                       rank === 1
-                        ? "h-20 bg-gradient-to-b from-amber-100 to-card border-amber-200"
+                        ? "h-20 bg-amber-100 border-amber-200"
                         : rank === 2
-                          ? "h-13 bg-gradient-to-b from-slate-100 to-card border-slate-200"
-                          : "h-9 bg-gradient-to-b from-orange-100 to-card border-orange-200"
+                          ? "h-13 bg-slate-100 border-slate-200"
+                          : "h-9 bg-orange-100 border-orange-200"
                     } grid place-items-start justify-center pt-2`}
                   >
                     <span className="font-display text-lg font-bold text-muted-foreground/60">{rank}</span>

@@ -256,7 +256,7 @@ function ProgressPage() {
                         <p className="truncate text-sm font-medium text-foreground">{ch.chapterTitle}</p>
                         <div className="mt-1.5 h-1.5 w-full max-w-[180px] overflow-hidden rounded-full bg-muted">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-accent to-accent/70 transition-all duration-700"
+                            className="h-full rounded-full bg-primary transition-all duration-700"
                             style={{ width: `${Math.max(0, Math.min(100, ch.masteryScore ?? 0))}%` }}
                           />
                         </div>
@@ -345,8 +345,8 @@ function HeroTile({
       className="card-lift relative overflow-hidden rounded-2xl border p-5 shadow-soft"
       style={
         isStreak
-          ? { background: "linear-gradient(135deg, rgba(249,115,22,0.14), rgba(249,115,22,0.04))", borderColor: "rgba(249,115,22,0.25)" }
-          : { background: "linear-gradient(135deg, rgba(45,157,155,0.14), rgba(45,157,155,0.04))", borderColor: "rgba(45,157,155,0.25)" }
+          ? { background: "var(--streak-bg)", borderColor: "var(--streak)" }
+          : { background: "var(--primary-tint)", borderColor: "var(--primary-tint-2)" }
       }
     >
       <div
@@ -361,7 +361,7 @@ function HeroTile({
         style={
           isStreak
             ? { background: "rgba(249,115,22,0.18)", color: "#C2410C" }
-            : { background: "rgba(45,157,155,0.18)", color: "#0F766E" }
+            : { background: "rgba(31,79,216,0.18)", color: "#0F766E" }
         }
       >
         {icon}
