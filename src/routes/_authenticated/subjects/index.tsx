@@ -1,143 +1,210 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { subjectColourVariables } from "@/lib/subject-colours";
 import * as Icons from "lucide-react";
-import { ArrowRight, BookOpen } from "lucide-react";
+import { BookOpen } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/subjects/")({
   head: () => ({ meta: [{ title: "Subjects — Sihat" }] }),
   component: SubjectsList,
 });
 
-function toPascal(s: string) {
-  return s.split(/[-_\s]/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join("");
+type Filter = "all" | "progress" | "new";
+
+function toPascal(value: string) {
+  return value
+    .split(/[-_\s]/)
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join("");
 }
 
-function SubjectIcon({ name, className }: { name?: string | null; className?: string }) {
+function SubjectIcon({ name }: { name?: string | null }) {
   const key = name ? toPascal(name) : "";
-  const Cmp = (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[key] || BookOpen;
-  return <Cmp className={className ?? "size-6"} />;
-}
-
-// Stable subtle accent per subject (hash → palette)
-const ACCENTS = [
-  { bar: "#1F4FD8", chipBg: "rgba(31,79,216,0.10)", chipFg: "#163C9E" },
-  { bar: "#1F3A5F", chipBg: "rgba(31,58,95,0.08)",  chipFg: "#1F3A5F" },
-  { bar: "#7C3AED", chipBg: "rgba(124,58,237,0.10)", chipFg: "#5B21B6" },
-  { bar: "#0EA5A4", chipBg: "rgba(14,165,164,0.10)", chipFg: "#0F766E" },
-  { bar: "#D97706", chipBg: "rgba(217,119,6,0.10)",  chipFg: "#92400E" },
-  { bar: "#DB2777", chipBg: "rgba(219,39,119,0.10)", chipFg: "#9D174D" },
-];
-function accentFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return ACCENTS[h % ACCENTS.length];
+  const Icon =
+    (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[key] ||
+    BookOpen;
+  return <Icon className="size-[22px]" />;
 }
 
 function SubjectsList() {
+  const [filter, setFilter] = useState<Filter>("all");
   const { data, isLoading } = useQuery({
     queryKey: ["subjects-list"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { semesterName: null, subjects: [] as any[] };
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return { semesterName: null, subjects: [] };
 
       const { data: profile } = await supabase
-        .from("profiles").select("batch_id").eq("id", user.id).maybeSingle();
-
+        .from("profiles")
+        .select("batch_id")
+        .eq("id", user.id)
+        .maybeSingle();
       let currentSemesterNumber: number | null = null;
       let semesterName: string | null = null;
-
       if (profile?.batch_id) {
         const { data: batch } = await supabase
-          .from("batches").select("current_semester_id").eq("id", profile.batch_id).maybeSingle();
+          .from("batches")
+          .select("current_semester_id")
+          .eq("id", profile.batch_id)
+          .maybeSingle();
         if (batch?.current_semester_id) {
-          const { data: sem } = await supabase
-            .from("semesters").select("name, number").eq("id", batch.current_semester_id).maybeSingle();
-          if (sem) {
-            currentSemesterNumber = sem.number;
-            semesterName = sem.name;
-          }
+          const { data: semester } = await supabase
+            .from("semesters")
+            .select("name, number")
+            .eq("id", batch.current_semester_id)
+            .maybeSingle();
+          currentSemesterNumber = semester?.number ?? null;
+          semesterName = semester?.name ?? null;
         }
       }
 
-      const { data: semesters } = await supabase
-        .from("semesters").select("id, number");
-      const semMap = new Map((semesters ?? []).map(s => [s.id, s.number]));
-      const allowedSemIds = currentSemesterNumber == null
-        ? null
-        : new Set((semesters ?? []).filter(s => s.number <= currentSemesterNumber).map(s => s.id));
+      const [{ data: semesters }, { data: subjects }, { data: chapters }] = await Promise.all([
+        supabase.from("semesters").select("id, number"),
+        supabase.from("subjects").select("id, name, icon, colour, display_order, semester_id"),
+        supabase.from("chapters").select("id, subject_id").eq("status", "published"),
+      ]);
+      const semesterNumbers = new Map(
+        (semesters ?? []).map((semester) => [semester.id, semester.number]),
+      );
+      const allowedSemesterIds =
+        currentSemesterNumber == null
+          ? null
+          : new Set(
+              (semesters ?? [])
+                .filter((semester) => semester.number <= currentSemesterNumber)
+                .map((semester) => semester.id),
+            );
+      const visibleSubjects = (subjects ?? []).filter(
+        (subject) =>
+          !allowedSemesterIds ||
+          (subject.semester_id && allowedSemesterIds.has(subject.semester_id)),
+      );
+      const chapterIds = (chapters ?? []).map((chapter) => chapter.id);
+      const { data: progress } = chapterIds.length
+        ? await supabase
+            .from("chapter_progress")
+            .select("chapter_id, completed_at")
+            .eq("user_id", user.id)
+            .in("chapter_id", chapterIds)
+        : { data: [] };
+      const completed = new Set(
+        (progress ?? []).filter((item) => item.completed_at).map((item) => item.chapter_id),
+      );
 
-      const { data: subjects } = await supabase
-        .from("subjects").select("id, name, description, icon, display_order, semester_id");
-
-      const filtered = (subjects ?? [])
-        .filter(s => !allowedSemIds || (s.semester_id && allowedSemIds.has(s.semester_id)))
-        .map(s => ({ ...s, _semNum: s.semester_id ? semMap.get(s.semester_id) ?? 99 : 99 }))
-        .sort((a, b) => a._semNum - b._semNum || (a.display_order ?? 0) - (b.display_order ?? 0));
-
-      return { semesterName: semesterName ?? "All semesters", subjects: filtered };
+      return {
+        semesterName: semesterName ?? "All semesters",
+        subjects: visibleSubjects
+          .map((subject) => {
+            const subjectChapters = (chapters ?? []).filter(
+              (chapter) => chapter.subject_id === subject.id,
+            );
+            const done = subjectChapters.filter((chapter) => completed.has(chapter.id)).length;
+            return {
+              ...subject,
+              chapterCount: subjectChapters.length,
+              done,
+              semesterNumber: subject.semester_id
+                ? (semesterNumbers.get(subject.semester_id) ?? 99)
+                : 99,
+            };
+          })
+          .sort(
+            (a, b) =>
+              a.semesterNumber - b.semesterNumber ||
+              (a.display_order ?? 0) - (b.display_order ?? 0),
+          ),
+      };
     },
   });
 
+  const subjects = (data?.subjects ?? []).filter(
+    (subject) =>
+      filter === "all" || (filter === "progress" ? subject.done > 0 : subject.done === 0),
+  );
+
   return (
-    <div>
+    <div className="mx-auto max-w-3xl pb-4">
       <header className="animate-fade-up">
-        <h1 className="font-display text-[26px] font-bold text-primary tracking-tight">Your Subjects</h1>
-        <p className="caption mt-1">{data?.semesterName ?? "…"}</p>
+        <p className="text-sm text-muted-foreground">{data?.semesterName ?? "…"}</p>
+        <h1 className="font-display text-[40px] leading-none text-foreground">Subjects</h1>
       </header>
 
-      <div className="mt-6 grid gap-4 grid-cols-1 md:grid-cols-2">
-        {isLoading && Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-36 rounded-2xl" />
+      <div
+        className="animate-fade-up stagger-1 mt-7 flex gap-2 overflow-x-auto pb-1"
+        aria-label="Filter subjects"
+      >
+        {(
+          [
+            ["all", "All"],
+            ["progress", "In progress"],
+            ["new", "Not started"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setFilter(value)}
+            aria-pressed={filter === value}
+            className={`h-11 shrink-0 rounded-full border px-5 text-sm font-semibold ${filter === value ? "border-foreground bg-foreground text-background" : "bg-card text-foreground"}`}
+          >
+            {label}
+          </button>
         ))}
+      </div>
 
-        {!isLoading && data?.subjects.length === 0 && (
-          <div className="md:col-span-2 rounded-2xl border bg-card p-8 text-center shadow-sm">
-            <div className="mx-auto inline-flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <BookOpen className="size-5" />
-            </div>
-            <p className="mt-3 text-sm text-muted-foreground">
-              No subjects are published yet — check back soon.
-            </p>
+      <div className="mt-7 space-y-3">
+        {isLoading &&
+          Array.from({ length: 5 }).map((_, index) => (
+            <Skeleton key={index} className="h-[104px] rounded-[20px]" />
+          ))}
+        {!isLoading && subjects.length === 0 && (
+          <div className="rounded-[20px] border bg-card p-8 text-center text-sm text-muted-foreground">
+            No subjects match this filter.
           </div>
         )}
-
-        {!isLoading && data?.subjects.map((s, i) => {
-          const a = accentFor(s.id);
+        {subjects.map((subject, index) => {
+          const percentage = subject.chapterCount
+            ? Math.round((subject.done / subject.chapterCount) * 100)
+            : 0;
           return (
             <Link
-              key={s.id}
+              key={subject.id}
               to="/subjects/$subjectId"
-              params={{ subjectId: s.id }}
-              className={`card-lift animate-fade-up stagger-${Math.min(i + 1, 6)} group relative block overflow-hidden rounded-2xl border bg-card p-5 shadow-soft`}
+              params={{ subjectId: subject.id }}
+              style={subjectColourVariables(subject.colour)}
+              className={`subject-colour card-lift animate-fade-up stagger-${Math.min(index + 1, 6)} flex items-center gap-3 rounded-[20px] border bg-card px-3.5 py-3`}
             >
-              <span
-                aria-hidden
-                className="absolute inset-x-0 top-0 h-1"
-                style={{ background: a.bar }}
-              />
-              <span
-                aria-hidden
-                className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full opacity-[0.07] transition-transform duration-300 group-hover:scale-125"
-                style={{ background: a.bar }}
-              />
-              <div className="flex items-start gap-3">
-                <div
-                  className="inline-flex size-12 shrink-0 items-center justify-center rounded-xl shadow-soft"
-                  style={{ background: a.chipBg, color: a.chipFg }}
-                >
-                  <SubjectIcon name={s.icon} className="size-6" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-display font-semibold text-foreground leading-tight">{s.name}</h3>
-                  {s.description && (
-                    <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{s.description}</p>
+              <span className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-subject text-white">
+                <SubjectIcon name={subject.icon} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="truncate text-sm font-bold text-foreground">{subject.name}</span>
+                  {percentage === 0 ? (
+                    <span className="rounded-full bg-subject-tint px-2.5 py-1 text-xs font-bold text-subject-ink">
+                      New
+                    </span>
+                  ) : (
+                    <span className="text-sm font-bold text-subject-ink">{percentage}%</span>
                   )}
-                </div>
-                <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
-              </div>
-              <p className="mt-4 text-xs text-muted-foreground">Not started</p>
+                </span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  {subject.chapterCount} chapter{subject.chapterCount === 1 ? "" : "s"}
+                  {subject.done > 0 && ` · ${subject.done} done`}
+                </span>
+                <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-subject-tint">
+                  <span
+                    className="animate-bar-fill block h-full rounded-full bg-subject"
+                    style={{ width: `${percentage}%` }}
+                  />
+                </span>
+              </span>
             </Link>
           );
         })}
