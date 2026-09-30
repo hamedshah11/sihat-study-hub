@@ -22,6 +22,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { SUBJECT_COLOURS, type SubjectColour } from "@/lib/subject-colours";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,6 +52,7 @@ type SubjectRow = {
   name: string;
   semester_id: string | null;
   display_order: number | null;
+  colour: string;
 };
 type SemesterRow = { id: string; name: string; number: number };
 
@@ -85,20 +87,25 @@ function AdminDashboard() {
   const { data: tree } = useQuery({
     queryKey: ["admin-content-tree"],
     queryFn: async () => {
-      const [{ data: semesters }, { data: subjects }, { data: chapters }, { data: questions }, { data: flashcards }] =
-        await Promise.all([
-          supabase.from("semesters").select("id, name, number").order("number"),
-          supabase
-            .from("subjects")
-            .select("id, name, semester_id, display_order")
-            .order("display_order"),
-          supabase
-            .from("chapters")
-            .select("id, title, status, display_order, subject_id")
-            .order("display_order"),
-          supabase.from("questions").select("id, chapter_id, status"),
-          supabase.from("flashcards").select("id, chapter_id, status"),
-        ]);
+      const [
+        { data: semesters },
+        { data: subjects },
+        { data: chapters },
+        { data: questions },
+        { data: flashcards },
+      ] = await Promise.all([
+        supabase.from("semesters").select("id, name, number").order("number"),
+        supabase
+          .from("subjects")
+          .select("id, name, semester_id, display_order, colour")
+          .order("display_order"),
+        supabase
+          .from("chapters")
+          .select("id, title, status, display_order, subject_id")
+          .order("display_order"),
+        supabase.from("questions").select("id, chapter_id, status"),
+        supabase.from("flashcards").select("id, chapter_id, status"),
+      ]);
       const qByChapter: Record<string, { draft: number; approved: number }> = {};
       for (const q of (questions ?? []) as { chapter_id: string | null; status: string | null }[]) {
         if (!q.chapter_id) continue;
@@ -107,7 +114,10 @@ function AdminDashboard() {
         else if (q.status === "draft") qByChapter[q.chapter_id].draft++;
       }
       const fByChapter: Record<string, { draft: number; approved: number }> = {};
-      for (const f of (flashcards ?? []) as { chapter_id: string | null; status: string | null }[]) {
+      for (const f of (flashcards ?? []) as {
+        chapter_id: string | null;
+        status: string | null;
+      }[]) {
         if (!f.chapter_id) continue;
         fByChapter[f.chapter_id] ??= { draft: 0, approved: 0 };
         if (f.status === "approved") fByChapter[f.chapter_id].approved++;
@@ -272,10 +282,7 @@ function SubjectNode({
                   </div>
                   <StatusBadge status={ch.status ?? "draft"} />
                 </a>
-                <ReorderChapterButtons
-                  chapters={chapters}
-                  index={idx}
-                />
+                <ReorderChapterButtons chapters={chapters} index={idx} />
                 <DeleteChapterButton chapterId={ch.id} chapterTitle={ch.title} />
               </div>
             );
@@ -292,7 +299,11 @@ function StatusBadge({ status }: { status: string }) {
     in_review: "bg-amber-100 text-amber-900",
     published: "bg-accent text-accent-foreground",
   };
-  return <Badge className={"shrink-0 " + (map[status] ?? "bg-muted text-muted-foreground")}>{status}</Badge>;
+  return (
+    <Badge className={"shrink-0 " + (map[status] ?? "bg-muted text-muted-foreground")}>
+      {status}
+    </Badge>
+  );
 }
 
 function NewSubjectDialog({ semesters }: { semesters: SemesterRow[] }) {
@@ -303,6 +314,7 @@ function NewSubjectDialog({ semesters }: { semesters: SemesterRow[] }) {
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState("");
   const [order, setOrder] = useState("0");
+  const [colour, setColour] = useState<SubjectColour>("cobalt");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -312,6 +324,7 @@ function NewSubjectDialog({ semesters }: { semesters: SemesterRow[] }) {
     setDescription("");
     setIcon("");
     setOrder("0");
+    setColour("cobalt");
     setErr(null);
   };
 
@@ -324,6 +337,7 @@ function NewSubjectDialog({ semesters }: { semesters: SemesterRow[] }) {
       description: description || null,
       icon: icon || null,
       display_order: Number(order) || 0,
+      colour,
     });
     setBusy(false);
     if (error) {
@@ -337,27 +351,50 @@ function NewSubjectDialog({ semesters }: { semesters: SemesterRow[] }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) reset();
+      }}
+    >
       <DialogTrigger asChild>
-        <Button><Plus className="size-4" /> New subject</Button>
+        <Button>
+          <Plus className="size-4" /> New subject
+        </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>New subject</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>New subject</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <Field label="Semester">
             <Select value={semesterId} onValueChange={setSemesterId}>
-              <SelectTrigger><SelectValue placeholder="Select semester" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Select semester" />
+              </SelectTrigger>
               <SelectContent>
                 {semesters.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-          <Field label="Description"><Textarea value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
-          <Field label="Icon (lucide name or emoji)"><Input value={icon} onChange={(e) => setIcon(e.target.value)} /></Field>
-          <Field label="Display order"><Input type="number" value={order} onChange={(e) => setOrder(e.target.value)} /></Field>
+          <Field label="Name">
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
+          <Field label="Description">
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
+          </Field>
+          <Field label="Icon (lucide name or emoji)">
+            <Input value={icon} onChange={(e) => setIcon(e.target.value)} />
+          </Field>
+          <ColourSelect value={colour} onChange={setColour} />
+          <Field label="Display order">
+            <Input type="number" value={order} onChange={(e) => setOrder(e.target.value)} />
+          </Field>
           {err && <p className="text-sm text-destructive">{err}</p>}
         </div>
         <DialogFooter>
@@ -407,25 +444,43 @@ function NewChapterDialog({ subjects }: { subjects: SubjectRow[] }) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) reset();
+      }}
+    >
       <DialogTrigger asChild>
-        <Button variant="outline"><Plus className="size-4" /> New chapter</Button>
+        <Button variant="outline">
+          <Plus className="size-4" /> New chapter
+        </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>New chapter</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>New chapter</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <Field label="Subject">
             <Select value={subjectId} onValueChange={setSubjectId}>
-              <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Select subject" />
+              </SelectTrigger>
               <SelectContent>
                 {subjects.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Title"><Input value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
-          <Field label="Display order"><Input type="number" value={order} onChange={(e) => setOrder(e.target.value)} /></Field>
+          <Field label="Title">
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+          </Field>
+          <Field label="Display order">
+            <Input type="number" value={order} onChange={(e) => setOrder(e.target.value)} />
+          </Field>
           {err && <p className="text-sm text-destructive">{err}</p>}
         </div>
         <DialogFooter>
@@ -452,13 +507,16 @@ function EditSubjectDialog({
   const [description, setDescription] = useState("");
   const [icon, setIcon] = useState("");
   const [order, setOrder] = useState(String(subject.display_order ?? 0));
+  const [colour, setColour] = useState<SubjectColour>(
+    (subject.colour as SubjectColour) || "cobalt",
+  );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const loadFresh = async () => {
     const { data } = await supabase
       .from("subjects")
-      .select("name, description, icon, display_order, semester_id")
+      .select("name, description, icon, display_order, semester_id, colour")
       .eq("id", subject.id)
       .maybeSingle();
     if (data) {
@@ -467,6 +525,7 @@ function EditSubjectDialog({
       setIcon(data.icon ?? "");
       setOrder(String(data.display_order ?? 0));
       setSemesterId(data.semester_id ?? "");
+      setColour((data.colour as SubjectColour) || "cobalt");
     }
   };
 
@@ -481,6 +540,7 @@ function EditSubjectDialog({
         description: description || null,
         icon: icon || null,
         display_order: Number(order) || 0,
+        colour,
       })
       .eq("id", subject.id);
     setBusy(false);
@@ -545,6 +605,7 @@ function EditSubjectDialog({
           <Field label="Icon (lucide name or emoji)">
             <Input value={icon} onChange={(e) => setIcon(e.target.value)} />
           </Field>
+          <ColourSelect value={colour} onChange={setColour} />
           <Field label="Display order">
             <Input type="number" value={order} onChange={(e) => setOrder(e.target.value)} />
           </Field>
@@ -569,7 +630,41 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function DeleteChapterButton({ chapterId, chapterTitle }: { chapterId: string; chapterTitle: string }) {
+function ColourSelect({
+  value,
+  onChange,
+}: {
+  value: SubjectColour;
+  onChange: (value: SubjectColour) => void;
+}) {
+  return (
+    <Field label="Colour">
+      <Select value={value} onValueChange={(next) => onChange(next as SubjectColour)}>
+        <SelectTrigger>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {Object.entries(SUBJECT_COLOURS).map(([key, colour]) => (
+            <SelectItem key={key} value={key}>
+              <span className="flex items-center gap-2">
+                <span className="size-3 rounded-full" style={{ backgroundColor: colour.fill }} />
+                {colour.label}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  );
+}
+
+function DeleteChapterButton({
+  chapterId,
+  chapterTitle,
+}: {
+  chapterId: string;
+  chapterTitle: string;
+}) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -582,8 +677,15 @@ function DeleteChapterButton({ chapterId, chapterTitle }: { chapterId: string; c
     const { data: fc } = await supabase.from("flashcards").select("id").eq("chapter_id", chapterId);
     const fcIds = (fc ?? []).map((r) => r.id);
     if (fcIds.length > 0) {
-      const { error: e1 } = await supabase.from("flashcard_reviews").delete().in("flashcard_id", fcIds);
-      if (e1) { setBusy(false); setErr(e1.message); return; }
+      const { error: e1 } = await supabase
+        .from("flashcard_reviews")
+        .delete()
+        .in("flashcard_id", fcIds);
+      if (e1) {
+        setBusy(false);
+        setErr(e1.message);
+        return;
+      }
     }
     const steps = [
       await supabase.from("flashcards").delete().eq("chapter_id", chapterId),
@@ -593,11 +695,18 @@ function DeleteChapterButton({ chapterId, chapterTitle }: { chapterId: string; c
       await supabase.from("tutor_messages").delete().eq("chapter_id", chapterId),
     ];
     for (const s of steps) {
-      if (s.error) { setBusy(false); setErr(s.error.message); return; }
+      if (s.error) {
+        setBusy(false);
+        setErr(s.error.message);
+        return;
+      }
     }
     const { error } = await supabase.from("chapters").delete().eq("id", chapterId);
     setBusy(false);
-    if (error) { setErr(error.message); return; }
+    if (error) {
+      setErr(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["admin-content-tree"] });
     qc.invalidateQueries({ queryKey: ["admin-stats"] });
     setOpen(false);
@@ -640,13 +749,7 @@ function DeleteChapterButton({ chapterId, chapterTitle }: { chapterId: string; c
   );
 }
 
-function ReorderChapterButtons({
-  chapters,
-  index,
-}: {
-  chapters: ChapterRow[];
-  index: number;
-}) {
+function ReorderChapterButtons({ chapters, index }: { chapters: ChapterRow[]; index: number }) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
 
@@ -675,7 +778,11 @@ function ReorderChapterButtons({
         size="icon"
         aria-label="Move up"
         disabled={busy || index === 0}
-        onClick={(e) => { e.stopPropagation(); e.preventDefault(); swap(-1); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          swap(-1);
+        }}
         className="h-6 w-6"
       >
         <ArrowUp className="size-3" />
@@ -685,7 +792,11 @@ function ReorderChapterButtons({
         size="icon"
         aria-label="Move down"
         disabled={busy || index === chapters.length - 1}
-        onClick={(e) => { e.stopPropagation(); e.preventDefault(); swap(1); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          swap(1);
+        }}
         className="h-6 w-6"
       >
         <ArrowDown className="size-3" />

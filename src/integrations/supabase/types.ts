@@ -718,6 +718,7 @@ export type Database = {
       }
       subjects: {
         Row: {
+          colour: string
           created_at: string | null
           description: string | null
           display_order: number | null
@@ -727,6 +728,7 @@ export type Database = {
           semester_id: string | null
         }
         Insert: {
+          colour?: string
           created_at?: string | null
           description?: string | null
           display_order?: number | null
@@ -736,6 +738,7 @@ export type Database = {
           semester_id?: string | null
         }
         Update: {
+          colour?: string
           created_at?: string | null
           description?: string | null
           display_order?: number | null

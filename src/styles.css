@@ -45,6 +45,11 @@
   --color-success-ink: var(--success-ink);
   --color-warning-bg: var(--warning-bg);
   --color-warning-ink: var(--warning-ink);
+  --color-subject: var(--subject);
+  --color-subject-deep: var(--subject-deep);
+  --color-subject-tint: var(--subject-tint);
+  --color-subject-tint-2: var(--subject-tint-2);
+  --color-subject-ink: var(--subject-ink);
   --shadow-soft: 0 10px 30px rgba(11, 31, 63, 0.08);
   --shadow-lifted: 0 10px 30px rgba(11, 31, 63, 0.08);
   --shadow-glow: 0 10px 30px rgba(11, 31, 63, 0.08);
@@ -123,6 +128,22 @@
   --border: #1c3154;
   --input: #1c3154;
   --ring: #2e66ea;
+}
+
+/* Light values are set inline per subject; the class picks light or dark
+   here so the .dark override isn't beaten by the inline style. */
+.subject-colour {
+  --subject-deep: var(--subject-light-deep);
+  --subject-tint: var(--subject-light-tint);
+  --subject-tint-2: var(--subject-light-tint-2);
+  --subject-ink: var(--subject-light-ink);
+}
+
+.dark .subject-colour {
+  --subject-deep: var(--subject-dark-ink);
+  --subject-tint: var(--subject-dark-tint);
+  --subject-tint-2: var(--subject-dark-tint-2);
+  --subject-ink: var(--subject-dark-ink);
 }
 
 @layer base {
