@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ClipboardCheck, ArrowRight } from "lucide-react";
 import { EXAM_MODES } from "@/lib/exam-config";
 import { useExamSummary } from "@/lib/exam-history";
+import { useMistakes } from "@/lib/mistakes-data";
 
 export const Route = createFileRoute("/_authenticated/subjects/$subjectId")({
   head: () => ({ meta: [{ title: "Subject — Sihat" }] }),
@@ -22,6 +23,13 @@ function masteryBadge(score: number | null) {
 function SubjectDetail() {
   const { subjectId } = Route.useParams();
   const { data: examSummary } = useExamSummary(subjectId);
+  const { data: mistakes } = useMistakes();
+  const mistakesByChapter = new Map<string, number>();
+  for (const m of mistakes?.due ?? []) {
+    if (m.chapterId) {
+      mistakesByChapter.set(m.chapterId, (mistakesByChapter.get(m.chapterId) ?? 0) + 1);
+    }
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ["subject-detail", subjectId],
@@ -43,7 +51,26 @@ function SubjectDetail() {
         progressMap = new Map((progress ?? []).map(p => [p.chapter_id, Number(p.mastery_score)]));
       }
 
-      return { subject, chapters: chapters ?? [], progressMap };
+      // Flashcards due now, per chapter (cards the student has started).
+      const dueCards = new Map<string, number>();
+      if (user && chapters && chapters.length > 0) {
+        const { data: due } = await supabase
+          .from("flashcard_reviews")
+          .select("flashcard_id, flashcards!inner(chapter_id, status)")
+          .eq("user_id", user.id)
+          .lte("due_at", new Date().toISOString())
+          .eq("flashcards.status", "approved")
+          .in(
+            "flashcards.chapter_id",
+            chapters.map((c) => c.id),
+          );
+        for (const r of (due ?? []) as unknown as { flashcards: { chapter_id: string } }[]) {
+          const id = r.flashcards?.chapter_id;
+          if (id) dueCards.set(id, (dueCards.get(id) ?? 0) + 1);
+        }
+      }
+
+      return { subject, chapters: chapters ?? [], progressMap, dueCards };
     },
   });
 
@@ -132,6 +159,21 @@ function SubjectDetail() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium text-foreground">{c.title}</span>
+                {(() => {
+                  const cards = data.dueCards.get(c.id) ?? 0;
+                  const errs = mistakesByChapter.get(c.id) ?? 0;
+                  if (!cards && !errs) return null;
+                  return (
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {[
+                        cards > 0 && `${cards} card${cards === 1 ? "" : "s"} due`,
+                        errs > 0 && `${errs} mistake${errs === 1 ? "" : "s"} to fix`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  );
+                })()}
                 <span className="mt-1.5 block h-1.5 w-full max-w-[160px] overflow-hidden rounded-full bg-muted">
                   <span
                     className="block h-full rounded-full bg-gradient-to-r from-accent to-accent/70 transition-all duration-700"
