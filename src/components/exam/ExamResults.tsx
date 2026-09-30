@@ -1,16 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  ArrowRight,
-  CheckCircle2,
-  Clock,
-  Flag,
-  MinusCircle,
-  RotateCcw,
-  Target,
-  Trophy,
-  XCircle,
-} from "lucide-react";
+import { ArrowRight, CheckCircle2, Flag, MinusCircle, RotateCcw, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { celebrate } from "@/lib/celebrate";
 import { EXAM_MODES, EXAM_PASS_MARK } from "@/lib/exam-config";
@@ -125,46 +115,56 @@ export function ExamResults({
   return (
     <div className="mt-4 space-y-5">
       {/* Score */}
-      <section
-        className={cn(
-          "animate-scale-in rounded-2xl p-6 text-center shadow-lifted",
-          result.passed ? "bg-primary text-primary-foreground" : "border bg-card",
-        )}
-      >
+      <section className="animate-scale-in p-4 text-center">
         <div
-          className={cn(
-            "mx-auto inline-flex items-center justify-center rounded-full p-3.5",
-            result.passed ? "bg-white/15" : "bg-accent/10 text-accent",
-          )}
+          className="mx-auto grid size-40 place-items-center rounded-full bg-[conic-gradient(var(--subject)_var(--score),var(--subject-tint)_0)] p-2"
+          style={{ "--score": `${result.pct * 3.6}deg` } as React.CSSProperties}
         >
-          {result.passed ? <Trophy className="size-7" /> : <Target className="size-7" />}
+          <div className="grid size-full place-items-center rounded-full bg-background">
+            <span>
+              <strong className="block font-display text-5xl font-normal text-foreground">
+                {result.pct}%
+              </strong>
+              <span className="text-xs text-muted-foreground">
+                {result.score} / {result.total}
+              </span>
+            </span>
+          </div>
         </div>
         <p className="mt-2 text-xs font-semibold uppercase tracking-widest opacity-80">
           {modeLabel}
         </p>
-        <p className={cn("mt-1 text-5xl font-bold tabular-nums", !result.passed && "text-primary")}>
-          {result.pct}%
-        </p>
-        <p className={cn("mt-1 text-sm", result.passed ? "opacity-90" : "text-muted-foreground")}>
-          {result.score} of {result.total} correct ·{" "}
-          {result.passed ? "Passed" : `${Math.round(EXAM_PASS_MARK * 100)}% needed to pass`}
-        </p>
-        <div
-          className={cn(
-            "mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs",
-            result.passed ? "opacity-90" : "text-muted-foreground",
-          )}
-        >
-          <span className="inline-flex items-center gap-1">
-            <Clock className="size-3.5" /> {minutesLabel(result.timeTakenSeconds)}
+        <h1 className="mt-1 font-display text-[34px] text-foreground">
+          {result.passed ? "Nicely done" : "Keep going"}
+        </h1>
+        {!result.passed && (
+          <p className="text-sm text-muted-foreground">
+            {Math.round(EXAM_PASS_MARK * 100)}% is needed to pass.
+          </p>
+        )}
+        {result.xpAwarded > 0 && (
+          <span className="animate-pop mt-3 inline-flex rounded-full bg-streak-bg px-3 py-1.5 text-xs font-bold text-streak-ink">
+            +{result.xpAwarded} XP
           </span>
-          {result.answered < result.total && (
-            <span className="inline-flex items-center gap-1">
-              <MinusCircle className="size-3.5" /> {result.total - result.answered} unanswered
-            </span>
-          )}
-          {result.xpAwarded > 0 && <span className="font-semibold">+{result.xpAwarded} XP</span>}
-          {result.late && <span>Submitted after time</span>}
+        )}
+      </section>
+
+      <section className="grid grid-cols-3 gap-2">
+        <div className="rounded-2xl bg-card p-3 text-center">
+          <strong className="block text-xl text-success-ink">{result.score}</strong>
+          <span className="text-[11px] text-muted-foreground">Correct</span>
+        </div>
+        <div className="rounded-2xl bg-card p-3 text-center">
+          <strong className="block text-xl text-destructive-ink">
+            {result.total - result.score}
+          </strong>
+          <span className="text-[11px] text-muted-foreground">Missed</span>
+        </div>
+        <div className="rounded-2xl bg-card p-3 text-center">
+          <strong className="block text-sm text-foreground">
+            {minutesLabel(result.timeTakenSeconds)}
+          </strong>
+          <span className="text-[11px] text-muted-foreground">Time</span>
         </div>
       </section>
 
@@ -212,7 +212,7 @@ export function ExamResults({
               <Link
                 to="/chapters/$chapterId"
                 params={{ chapterId: w.chapterId }}
-                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--subject)] px-3 py-1.5 text-xs font-semibold text-primary-foreground"
               >
                 Study <ArrowRight className="size-3" />
               </Link>
@@ -304,7 +304,7 @@ function ReviewCard({
               key={i}
               className={cn(
                 "flex items-start gap-2.5 rounded-xl border p-3 text-sm",
-                isCorrect && "border-accent bg-accent/10",
+                isCorrect && "border-[var(--subject)] bg-[var(--subject-tint)]",
                 isPicked && !isCorrect && "border-destructive bg-destructive/10",
               )}
             >
@@ -377,7 +377,7 @@ function MistakePractice({
         </p>
         <button
           onClick={onExit}
-          className="mt-5 inline-flex items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
+          className="mt-5 inline-flex items-center justify-center rounded-full bg-[var(--subject)] px-5 py-3 text-sm font-semibold text-primary-foreground"
         >
           Back to results
         </button>
@@ -415,7 +415,7 @@ function MistakePractice({
                 className={cn(
                   "flex min-h-[48px] w-full items-center gap-3 rounded-xl border p-3 text-left text-sm transition-colors",
                   !revealed && "hover:border-accent/40",
-                  revealed && isCorrect && "border-accent bg-accent/10",
+                  revealed && isCorrect && "border-[var(--subject)] bg-[var(--subject-tint)]",
                   revealed && isPicked && !isCorrect && "border-destructive bg-destructive/10",
                 )}
               >
@@ -444,7 +444,7 @@ function MistakePractice({
       {revealed && (
         <button
           onClick={next}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--subject)] px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft"
         >
           Next <ArrowRight className="size-4" />
         </button>

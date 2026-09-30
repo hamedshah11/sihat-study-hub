@@ -226,7 +226,7 @@ export function ExamRunner({
         </div>
         <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-accent transition-all"
+            className="h-full rounded-full bg-[var(--subject)] transition-all"
             style={{ width: `${(answeredCount / total) * 100}%` }}
           />
         </div>
@@ -237,8 +237,11 @@ export function ExamRunner({
       </div>
 
       {/* Question */}
-      <div key={q.id} className="animate-fade-up mt-4 rounded-2xl border bg-card p-5 shadow-soft">
-        <p className="text-base font-medium leading-relaxed text-primary">{q.prompt}</p>
+      <div key={q.id} className="animate-fade-up mt-6">
+        <p className="text-xs font-bold tracking-[0.12em] text-[var(--subject-ink)]">
+          QUESTION {index + 1} OF {total}
+        </p>
+        <p className="mt-3 font-display text-[30px] leading-[1.15] text-foreground">{q.prompt}</p>
         <div className="mt-4 space-y-2" role="radiogroup" aria-label="Options">
           {q.options.map((opt, i) => {
             const picked = selected === i;
@@ -250,16 +253,16 @@ export function ExamRunner({
                 onClick={() => choose(i)}
                 disabled={timeUp || submitting}
                 className={cn(
-                  "flex min-h-[48px] w-full items-center gap-3 rounded-xl border p-3 text-left text-sm transition-colors",
+                  "flex min-h-[58px] w-full items-center gap-3 rounded-2xl border bg-card p-3 text-left text-sm transition-colors",
                   picked
-                    ? "border-accent bg-accent/10 text-foreground"
-                    : "hover:border-accent/40 hover:bg-secondary/60",
+                    ? "border-[var(--subject)] bg-[var(--subject-tint)] text-foreground"
+                    : "hover:border-[var(--subject)] hover:bg-[var(--subject-tint)]",
                 )}
               >
                 <span
                   className={cn(
                     "grid size-7 shrink-0 place-items-center rounded-lg text-xs font-bold",
-                    picked ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground",
+                    picked ? "bg-[var(--subject)] text-white" : "bg-muted text-muted-foreground",
                   )}
                 >
                   {LETTERS[i] ?? i + 1}
@@ -308,7 +311,7 @@ export function ExamRunner({
         {index < total - 1 ? (
           <button
             onClick={() => go(index + 1)}
-            className="inline-flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-soft"
+            className="inline-flex size-12 items-center justify-center rounded-full bg-[var(--subject)] text-white shadow-soft"
             aria-label="Next question"
           >
             <ChevronRight className="size-5" />
@@ -317,7 +320,7 @@ export function ExamRunner({
           <button
             onClick={() => setConfirmOpen(true)}
             disabled={submitting}
-            className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-5 text-sm font-bold text-primary-foreground shadow-soft disabled:opacity-60"
+            className="inline-flex h-12 items-center justify-center rounded-full bg-[var(--subject)] px-5 text-sm font-bold text-white shadow-soft disabled:opacity-60"
           >
             Submit
           </button>

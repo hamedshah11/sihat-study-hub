@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { answerMistake } from "@/lib/study.functions";
 import { MISTAKES_QUERY_KEY, useMistakes } from "@/lib/mistakes-data";
 import { MISTAKE_CLEAR_AFTER, MISTAKE_SECOND_GAP_DAYS } from "@/lib/mistakes";
+import { subjectColourVariables } from "@/lib/subject-colours";
 
 export const Route = createFileRoute("/_authenticated/review")({
   head: () => ({ meta: [{ title: "Fix your mistakes — Sihat" }] }),
@@ -25,6 +26,7 @@ type ReviewQuestion = {
   correct_index: number;
   explanation: string | null;
   chapterTitle: string | null;
+  subjectColour: string | null;
   /** Already answered right once since the mistake: one more right clears it. */
   clearsOnRight: boolean;
 };
@@ -46,7 +48,9 @@ function ReviewPage() {
     queryFn: async (): Promise<ReviewQuestion[]> => {
       const { data, error } = await supabase
         .from("questions")
-        .select("id, prompt, options, correct_index, explanation, chapters(title)")
+        .select(
+          "id, prompt, options, correct_index, explanation, chapters(title, subjects(colour))",
+        )
         .in("id", ids)
         .eq("status", "approved");
       if (error) throw error;
@@ -61,6 +65,9 @@ function ReviewPage() {
             explanation: q.explanation,
             chapterTitle:
               (q as unknown as { chapters: { title: string } | null }).chapters?.title ?? null,
+            subjectColour:
+              (q as unknown as { chapters: { subjects: { colour: string | null } | null } | null })
+                .chapters?.subjects?.colour ?? null,
             clearsOnRight: (history?.get(q.id)?.rightSinceWrong ?? 0) >= MISTAKE_CLEAR_AFTER - 1,
           },
         ]),
@@ -199,7 +206,7 @@ function ReviewRunner({
   const isRight = picked === q.correct_index;
 
   return (
-    <div className="mt-6 space-y-3">
+    <div className="subject-colour mt-6 space-y-3" style={subjectColourVariables(q.subjectColour)}>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>
           {index + 1} of {questions.length}
@@ -210,14 +217,14 @@ function ReviewRunner({
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-accent transition-all"
+          className="h-full rounded-full bg-[var(--subject)] transition-all"
           style={{ width: `${((index + (revealed ? 1 : 0)) / questions.length) * 100}%` }}
         />
       </div>
 
-      <div key={q.id} className="animate-fade-up rounded-2xl border bg-card p-5 shadow-soft">
+      <div key={q.id} className="animate-fade-up">
         {q.chapterTitle && <p className="text-xs text-muted-foreground">{q.chapterTitle}</p>}
-        <p className="mt-1 text-base font-medium text-primary">{q.prompt}</p>
+        <p className="mt-3 font-display text-[30px] leading-[1.15] text-foreground">{q.prompt}</p>
         <div className="mt-4 space-y-2">
           {q.options.map((opt, i) => {
             const correct = i === q.correct_index;
@@ -228,10 +235,11 @@ function ReviewRunner({
                 disabled={revealed}
                 onClick={() => void choose(i)}
                 className={cn(
-                  "flex min-h-[48px] w-full items-center gap-3 rounded-xl border p-3 text-left text-sm transition-colors",
-                  !revealed && "hover:border-accent/40 hover:bg-secondary/60",
-                  revealed && correct && "border-accent bg-accent/10",
-                  revealed && mine && !correct && "border-destructive bg-destructive/10",
+                  "flex min-h-[58px] w-full items-center gap-3 rounded-2xl border bg-card p-3 text-left text-sm transition-colors",
+                  !revealed && "hover:border-[var(--subject)] hover:bg-[var(--subject-tint)]",
+                  revealed && correct && "animate-pop border-2 border-success bg-success-bg",
+                  revealed && mine && !correct && "border-2 border-destructive bg-destructive-bg",
+                  revealed && !correct && !mine && "opacity-70",
                 )}
               >
                 <span className="font-bold text-muted-foreground">{LETTERS[i] ?? i + 1}</span>
@@ -243,12 +251,7 @@ function ReviewRunner({
           })}
         </div>
         {revealed && (
-          <div
-            className={cn(
-              "mt-4 rounded-xl p-3 text-sm",
-              isRight ? "bg-accent/10" : "bg-destructive/10",
-            )}
-          >
+          <div className={cn("mt-4 rounded-xl p-3 text-sm", "bg-[var(--subject-tint)]")}>
             <p className="font-medium">{isRight ? "Correct!" : "Not quite."}</p>
             {q.explanation && <p className="mt-1 text-muted-foreground">{q.explanation}</p>}
           </div>
@@ -264,7 +267,7 @@ function ReviewRunner({
       {revealed && (
         <button
           onClick={next}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft"
+          className="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[var(--subject)] px-5 text-sm font-semibold text-white shadow-soft"
         >
           {index + 1 < questions.length ? "Next" : "Finish"} <ArrowRight className="size-4" />
         </button>

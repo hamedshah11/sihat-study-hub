@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CheckCircle2, XCircle, ClipboardList, Trophy, RotateCcw } from "lucide-react";
+import { CheckCircle2, XCircle, ClipboardList, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
 import { submitQuiz } from "@/lib/study.functions";
@@ -12,6 +12,7 @@ import { awardBadgesIfNeeded } from "@/lib/award-badges";
 import { celebrate } from "@/lib/celebrate";
 import { buildHistory, pickQuizQuestions } from "@/lib/mistakes";
 import { loadAnswerLog, MISTAKES_QUERY_KEY } from "@/lib/mistakes-data";
+import { Link } from "@tanstack/react-router";
 
 type Question = {
   id: string;
@@ -130,10 +131,7 @@ function QuizRunner({
   const handleReveal = () => {
     if (selected === null) return;
     const correct = selected === q.correct_index;
-    setAnswers((prev) => [
-      ...prev,
-      { questionId: q.id, selectedIndex: selected, correct },
-    ]);
+    setAnswers((prev) => [...prev, { questionId: q.id, selectedIndex: selected, correct }]);
     setRevealed(true);
   };
 
@@ -177,29 +175,32 @@ function QuizRunner({
     const pct = Math.round((score / total) * 100);
     const passed = pct >= 80;
     return (
-      <div className="mt-4 rounded-xl border bg-card p-6 text-center animate-scale-in">
-        <div className="mx-auto inline-flex items-center justify-center rounded-full bg-accent/10 p-4 text-accent">
-          <Trophy className="size-8" />
+      <div className="animate-scale-in px-1 pb-8 pt-8 text-center">
+        <div
+          className="mx-auto grid size-40 place-items-center rounded-full bg-[conic-gradient(var(--subject)_var(--score),var(--subject-tint)_0)] p-2"
+          style={{ "--score": `${pct * 3.6}deg` } as React.CSSProperties}
+        >
+          <div className="grid size-full place-items-center rounded-full bg-background">
+            <span>
+              <strong className="block font-display text-5xl font-normal text-foreground">
+                {score}/{total}
+              </strong>
+              <span className="text-xs font-semibold text-muted-foreground">{pct}%</span>
+            </span>
+          </div>
         </div>
-        <p className="mt-3 text-3xl font-bold text-primary">{score}/{total}</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {passed
-            ? mastery !== null && mastery < 80
-              ? "Great score! Keep it up to raise your chapter mastery."
-              : "Excellent work! You've mastered this chapter."
-            : score >= total / 2
-              ? "Good effort. Review and try again to master it."
-              : "Keep going. Review the notes and give it another shot."}
-        </p>
+        <h2 className="mt-5 font-display text-[34px] text-foreground">
+          {passed ? "Nicely done" : "Keep going"}
+        </h2>
         {mastery !== null && (
-          <div className="mx-auto mt-4 max-w-[240px]">
+          <div className="mx-auto mt-2 max-w-[260px]">
             <div className="flex items-baseline justify-between text-xs text-muted-foreground">
               <span>Chapter mastery</span>
               <span className="font-semibold tabular-nums text-foreground">{mastery}%</span>
             </div>
             <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className={cn("h-full rounded-full", mastery >= 80 ? "bg-accent" : "bg-streak")}
+                className="h-full rounded-full bg-[var(--subject)]"
                 style={{ width: `${Math.max(3, mastery)}%` }}
               />
             </div>
@@ -207,16 +208,29 @@ function QuizRunner({
           </div>
         )}
         {awardedXp !== null && (
-          <p className="mt-2 text-xs font-semibold text-accent">
+          <p className="animate-pop mx-auto mt-4 w-fit rounded-full bg-streak-bg px-3 py-1.5 text-xs font-bold text-streak-ink">
             {awardedXp > 0
               ? `+${awardedXp} XP`
               : "Retakes still build mastery. XP for this chapter's quiz resets tomorrow."}
           </p>
         )}
-        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-card p-4">
+            <strong className="block text-2xl text-success-ink">{score}</strong>
+            <span className="text-xs text-muted-foreground">Correct</span>
+          </div>
+          <div className="rounded-2xl bg-card p-4">
+            <strong className="block text-2xl text-destructive-ink">{total - score}</strong>
+            <span className="text-xs text-muted-foreground">Missed</span>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-col gap-2">
           {answers.some((a) => !a.correct) && (
-            <Button variant="outline" onClick={() => setReviewMode(true)}>
-              Review wrong answers
+            <Button
+              onClick={() => setReviewMode(true)}
+              className="h-13 rounded-2xl bg-[var(--subject)] text-white hover:bg-[var(--subject)]/90"
+            >
+              Review {total - score} mistake{total - score === 1 ? "" : "s"}
             </Button>
           )}
           <Button
@@ -232,7 +246,7 @@ function QuizRunner({
               onRetake();
             }}
           >
-            Retake quiz
+            Try another quiz
           </Button>
         </div>
       </div>
@@ -240,9 +254,7 @@ function QuizRunner({
   }
 
   if (finished && reviewMode) {
-    const wrong = answers
-      .map((a, i) => ({ a, q: questions[i] }))
-      .filter((x) => !x.a.correct);
+    const wrong = answers.map((a, i) => ({ a, q: questions[i] })).filter((x) => !x.a.correct);
     return (
       <div className="mt-4 space-y-4">
         {wrong.map(({ a, q }) => (
@@ -270,9 +282,7 @@ function QuizRunner({
                 );
               })}
             </div>
-            {q.explanation && (
-              <p className="mt-3 text-sm text-muted-foreground">{q.explanation}</p>
-            )}
+            {q.explanation && <p className="mt-3 text-sm text-muted-foreground">{q.explanation}</p>}
           </div>
         ))}
         <Button variant="outline" onClick={() => setReviewMode(false)} className="w-full">
@@ -283,24 +293,45 @@ function QuizRunner({
   }
 
   return (
-    <div className="mt-4 rounded-xl bg-surface p-5">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Question {index + 1} of {total}</span>
-        <span>Score {score}</span>
-      </div>
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full bg-accent transition-all"
-          style={{ width: `${((index + (revealed ? 1 : 0)) / total) * 100}%` }}
-        />
+    <div className="min-h-dvh px-1 pb-8 pt-6 md:px-4">
+      <div className="flex items-center gap-3">
+        <Link
+          to="/chapters/$chapterId"
+          params={{ chapterId }}
+          search={{}}
+          aria-label="End quiz"
+          className="grid size-11 shrink-0 place-items-center rounded-[14px] border bg-card"
+        >
+          <X className="size-5" />
+        </Link>
+        <div className="flex flex-1 gap-1">
+          {questions.map((_, segment) => (
+            <span
+              key={segment}
+              className={cn(
+                "h-2 flex-1 rounded-full",
+                segment < answers.length &&
+                  (answers[segment]?.correct ? "bg-success" : "bg-destructive"),
+                segment === index && !revealed && "bg-[var(--subject)]",
+                segment > index && "bg-[var(--subject-tint-2)]",
+              )}
+            />
+          ))}
+        </div>
+        <span className="text-xs font-bold text-[var(--subject-ink)]">
+          {index + 1} / {total}
+        </span>
       </div>
 
       {reviewIds.has(q.id) && (
-        <p className="mt-4 inline-flex items-center gap-1 rounded-full bg-streak/10 px-2.5 py-1 text-[11px] font-semibold text-streak">
+        <p className="mt-8 inline-flex items-center gap-1 rounded-full bg-streak-bg px-2.5 py-1 text-[11px] font-semibold text-streak-ink">
           <RotateCcw className="size-3" /> You missed this one before
         </p>
       )}
-      <p className="mt-4 text-base font-medium text-primary">{q.prompt}</p>
+      <p className="mt-8 text-xs font-bold tracking-[0.12em] text-[var(--subject-ink)]">
+        QUESTION {index + 1} OF {total}
+      </p>
+      <p className="mt-3 font-display text-[30px] leading-[1.15] text-foreground">{q.prompt}</p>
 
       <RadioGroup
         value={selected !== null ? String(selected) : ""}
@@ -316,14 +347,17 @@ function QuizRunner({
             <label
               key={i}
               className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-md border p-3 text-sm transition-colors",
-                !revealed && isPicked && "border-accent bg-accent/5",
-                showCorrect && "border-accent bg-accent/10",
-                showWrong && "border-destructive bg-destructive/10",
-                revealed && "cursor-default",
+                "flex min-h-[58px] cursor-pointer items-center gap-3 rounded-2xl border bg-card p-3 text-sm transition-colors",
+                !revealed && isPicked && "border-[var(--subject)] bg-[var(--subject-tint)]",
+                showCorrect && "animate-pop border-2 border-success bg-success-bg",
+                showWrong && "border-2 border-destructive bg-destructive-bg",
+                revealed && !showCorrect && !showWrong && "cursor-default opacity-70",
               )}
             >
-              <RadioGroupItem value={String(i)} disabled={revealed} />
+              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-xs font-bold">
+                {String.fromCharCode(65 + i)}
+              </span>
+              <RadioGroupItem value={String(i)} disabled={revealed} className="sr-only" />
               <span className="flex-1">{opt}</span>
               {showCorrect && <CheckCircle2 className="size-4 text-accent" />}
               {showWrong && <XCircle className="size-4 text-destructive" />}
@@ -334,35 +368,34 @@ function QuizRunner({
 
       {revealed && (
         <div
-          className={cn(
-            "mt-4 rounded-md p-3 text-sm",
-            answers[answers.length - 1]?.correct
-              ? "bg-accent/10 text-foreground"
-              : "bg-destructive/10 text-foreground",
-          )}
+          className={cn("mt-4 rounded-2xl bg-[var(--subject-tint)] p-4 text-sm text-foreground")}
         >
           <p className="font-medium">
             {answers[answers.length - 1]?.correct ? "Correct!" : "Not quite."}
           </p>
-          {q.explanation && (
-            <p className="mt-1 text-muted-foreground">{q.explanation}</p>
-          )}
+          {q.explanation && <p className="mt-1 text-muted-foreground">{q.explanation}</p>}
         </div>
       )}
 
-      <div className="mt-5 flex justify-end">
+      <div className="mt-5">
         {!revealed ? (
-          <Button onClick={handleReveal} disabled={selected === null}>
-            Submit
+          <Button
+            onClick={handleReveal}
+            disabled={selected === null}
+            className="h-[52px] w-full rounded-2xl bg-[var(--subject)] text-white hover:bg-[var(--subject)]/90"
+          >
+            Check answer
           </Button>
         ) : (
-          <Button onClick={handleNext} disabled={saving}>
-            {index + 1 < total ? "Next" : saving ? "Saving…" : "Finish"}
+          <Button
+            onClick={handleNext}
+            disabled={saving}
+            className="h-[52px] w-full rounded-2xl bg-[var(--subject)] text-white hover:bg-[var(--subject)]/90"
+          >
+            {index + 1 < total ? "Next question" : saving ? "Saving…" : "See results"}
           </Button>
         )}
       </div>
     </div>
   );
 }
-
-

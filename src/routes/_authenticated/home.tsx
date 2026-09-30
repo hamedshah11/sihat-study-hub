@@ -3,12 +3,38 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Flame, Sparkles, BookOpen, Layers, ClipboardList, MessageCircle, ArrowRight, Trophy, RotateCcw } from "lucide-react";
+import * as Icons from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  ChevronRight,
+  Flame,
+  RotateCcw,
+  Sparkles,
+  Trophy,
+} from "lucide-react";
 import { levelFromXp } from "@/lib/levels";
 import { displayStreak } from "@/lib/streak";
 import { useMistakes } from "@/lib/mistakes-data";
 import { checkLevelUp } from "@/lib/celebrate";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { subjectColourVariables } from "@/lib/subject-colours";
+
+function toPascal(value: string) {
+  return value
+    .split(/[-_\s]/)
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join("");
+}
+
+function SubjectIcon({ name }: { name?: string | null }) {
+  const key = name ? toPascal(name) : "";
+  const Icon =
+    (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[key] ||
+    BookOpen;
+  return <Icon className="size-5" />;
+}
 
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({ meta: [{ title: "Home — Sihat" }] }),
@@ -16,13 +42,20 @@ export const Route = createFileRoute("/_authenticated/home")({
 });
 
 type Recommendation =
-  | { kind: "flashcards"; chapterId: string; chapterTitle: string; dueCount: number; quizPending?: { chapterId: string; chapterTitle: string } }
+  | {
+      kind: "flashcards";
+      chapterId: string;
+      chapterTitle: string;
+      dueCount: number;
+      quizPending?: { chapterId: string; chapterTitle: string };
+    }
   | { kind: "quiz"; chapterId: string; chapterTitle: string }
   | { kind: "chapter"; chapterId: string; chapterTitle: string; subjectName: string | null }
   | { kind: "empty" };
 
 function estimateMinutes(rec: Recommendation): number {
-  if (rec.kind === "flashcards") return Math.max(3, Math.ceil(rec.dueCount * 0.5)) + (rec.quizPending ? 5 : 0);
+  if (rec.kind === "flashcards")
+    return Math.max(3, Math.ceil(rec.dueCount * 0.5)) + (rec.quizPending ? 5 : 0);
   if (rec.kind === "quiz") return 5;
   if (rec.kind === "chapter") return 8;
   return 0;
@@ -35,7 +68,9 @@ function HomePage() {
   const { data, isLoading } = useQuery({
     queryKey: ["home-today"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return null;
       const uid = user.id;
       const nowIso = new Date().toISOString();
@@ -60,7 +95,10 @@ function HomePage() {
           .select("flashcard_id, due_at")
           .eq("user_id", uid)
           .lte("due_at", nowIso),
-        supabase.from("chapter_progress").select("chapter_id, mastery_score, completed_at, last_attempt_at").eq("user_id", uid),
+        supabase
+          .from("chapter_progress")
+          .select("chapter_id, mastery_score, completed_at, last_attempt_at")
+          .eq("user_id", uid),
         supabase.rpc("batch_weekly_leaderboard"),
       ]);
 
@@ -93,7 +131,7 @@ function HomePage() {
 
       // 2) Unfinished quiz — chapter_progress with attempts? We don't have attempts column reliably; use mastery_score < 80 and not completed
       const unfinishedProgress = (progressRows ?? []).find(
-        (p: any) => !p.completed_at && (p.mastery_score ?? 0) > 0
+        (p: any) => !p.completed_at && (p.mastery_score ?? 0) > 0,
       );
       let unfinishedQuiz: { chapterId: string; chapterTitle: string } | null = null;
       if (unfinishedProgress) {
@@ -108,8 +146,24 @@ function HomePage() {
       }
 
       // 3) Next published chapter from student's current semester (batch -> semester -> subjects -> chapters)
-      let nextChapter: { chapterId: string; chapterTitle: string; subjectName: string | null } | null = null;
-      const completedIds = new Set((progressRows ?? []).filter((p: any) => p.completed_at).map((p: any) => p.chapter_id));
+      let nextChapter: {
+        chapterId: string;
+        chapterTitle: string;
+        subjectName: string | null;
+      } | null = null;
+      let continueSubjects: Array<{
+        id: string;
+        name: string;
+        icon: string | null;
+        colour: string | null;
+        nextChapter: { id: string; title: string; displayOrder: number | null } | null;
+        completed: number;
+        chapterCount: number;
+        lastActivity: string | null;
+      }> = [];
+      const completedIds = new Set(
+        (progressRows ?? []).filter((p: any) => p.completed_at).map((p: any) => p.chapter_id),
+      );
       let subjectIds: string[] = [];
       if (profile?.batch_id) {
         const { data: batch } = await supabase
@@ -120,7 +174,7 @@ function HomePage() {
         if (batch?.current_semester_id) {
           const { data: subjects } = await supabase
             .from("subjects")
-            .select("id, name")
+            .select("id, name, icon, colour, display_order")
             .eq("semester_id", batch.current_semester_id);
           subjectIds = (subjects ?? []).map((s: any) => s.id);
           if (subjectIds.length) {
@@ -133,8 +187,56 @@ function HomePage() {
             const next = (chapters ?? []).find((c: any) => !completedIds.has(c.id));
             if (next) {
               const subj = (subjects ?? []).find((s: any) => s.id === next.subject_id);
-              nextChapter = { chapterId: next.id, chapterTitle: next.title, subjectName: subj?.name ?? null };
+              nextChapter = {
+                chapterId: next.id,
+                chapterTitle: next.title,
+                subjectName: subj?.name ?? null,
+              };
             }
+            continueSubjects = (subjects ?? [])
+              .map((subject: any) => {
+                const subjectChapters = (chapters ?? []).filter(
+                  (chapter: any) => chapter.subject_id === subject.id,
+                );
+                const subjectChapterIds = new Set(
+                  subjectChapters.map((chapter: any) => chapter.id),
+                );
+                const subjectProgress = (progressRows ?? []).filter((progress: any) =>
+                  subjectChapterIds.has(progress.chapter_id),
+                );
+                const unfinished = subjectChapters.find(
+                  (chapter: any) => !completedIds.has(chapter.id),
+                );
+                const lastActivity =
+                  subjectProgress
+                    .map((progress: any) => progress.last_attempt_at ?? progress.completed_at)
+                    .filter(Boolean)
+                    .sort()
+                    .at(-1) ?? null;
+                return {
+                  id: subject.id,
+                  name: subject.name,
+                  icon: subject.icon,
+                  colour: subject.colour,
+                  nextChapter: unfinished
+                    ? {
+                        id: unfinished.id,
+                        title: unfinished.title,
+                        displayOrder: unfinished.display_order,
+                      }
+                    : null,
+                  completed: subjectChapters.filter((chapter: any) => completedIds.has(chapter.id))
+                    .length,
+                  chapterCount: subjectChapters.length,
+                  lastActivity,
+                  displayOrder: subject.display_order ?? 0,
+                };
+              })
+              .sort(
+                (a, b) =>
+                  (b.lastActivity ?? "").localeCompare(a.lastActivity ?? "") ||
+                  a.displayOrder - b.displayOrder,
+              );
           }
         }
       }
@@ -151,7 +253,11 @@ function HomePage() {
           const { data: subj } = next.subject_id
             ? await supabase.from("subjects").select("name").eq("id", next.subject_id).maybeSingle()
             : { data: null };
-          nextChapter = { chapterId: next.id, chapterTitle: next.title, subjectName: subj?.name ?? null };
+          nextChapter = {
+            chapterId: next.id,
+            chapterTitle: next.title,
+            subjectName: subj?.name ?? null,
+          };
         }
       }
 
@@ -171,18 +277,38 @@ function HomePage() {
       }
 
       // Leaderboard peek: find my rank and gap to next spot
-      const rows = (leaderboard ?? []) as Array<{ user_id: string; first_name: string | null; weekly_xp: number }>;
-      let peek: { rank: number; gap: number; total: number; batchName: string | null } | null = null;
+      const rows = (leaderboard ?? []) as Array<{
+        user_id: string;
+        first_name: string | null;
+        weekly_xp: number;
+      }>;
+      let peek: {
+        rank: number;
+        gap: number;
+        total: number;
+        batchName: string | null;
+        nextName: string | null;
+      } | null = null;
       if (rows.length) {
         const idx = rows.findIndex((r) => r.user_id === uid);
         if (idx >= 0) {
           let batchName: string | null = null;
           if (profile?.batch_id) {
-            const { data: b } = await supabase.from("batches").select("name").eq("id", profile.batch_id).maybeSingle();
+            const { data: b } = await supabase
+              .from("batches")
+              .select("name")
+              .eq("id", profile.batch_id)
+              .maybeSingle();
             batchName = b?.name ?? null;
           }
           const gap = idx === 0 ? 0 : rows[idx - 1].weekly_xp - rows[idx].weekly_xp;
-          peek = { rank: idx + 1, gap, total: rows.length, batchName };
+          peek = {
+            rank: idx + 1,
+            gap,
+            total: rows.length,
+            batchName,
+            nextName: idx === 0 ? null : rows[idx - 1].first_name,
+          };
         }
       }
 
@@ -191,7 +317,7 @@ function HomePage() {
         streak: displayStreak(streak),
         xpTotal,
         recommendation,
-        continueChapter: nextChapter,
+        continueSubjects,
         peek,
       };
     },
@@ -209,19 +335,23 @@ function HomePage() {
   function recHeadline(): string {
     if (!rec) return "";
     if (rec.kind === "flashcards") {
-      const base = `Today: ${rec.dueCount} flashcard${rec.dueCount === 1 ? "" : "s"} due`;
-      return rec.quizPending ? `${base} and 1 quiz on ${rec.quizPending.chapterTitle}` : `${base} in ${rec.chapterTitle}`;
+      return `${rec.dueCount} card${rec.dueCount === 1 ? "" : "s"} to review`;
     }
-    if (rec.kind === "quiz") return `Today: finish your quiz on ${rec.chapterTitle}`;
-    if (rec.kind === "chapter") return `Today: start ${rec.chapterTitle}`;
+    if (rec.kind === "quiz") return `Finish your quiz on ${rec.chapterTitle}`;
+    if (rec.kind === "chapter") return `Start ${rec.chapterTitle}`;
     return "You're all caught up";
   }
 
   function startStudying() {
     if (!rec || rec.kind === "empty") return;
     if (rec.kind === "flashcards" || rec.kind === "quiz" || rec.kind === "chapter") {
-      const tab = rec.kind === "flashcards" ? "flashcards" : rec.kind === "quiz" ? "quiz" : undefined;
-      navigate({ to: "/chapters/$chapterId", params: { chapterId: rec.chapterId }, search: { tab } });
+      const tab =
+        rec.kind === "flashcards" ? "flashcards" : rec.kind === "quiz" ? "quiz" : undefined;
+      navigate({
+        to: "/chapters/$chapterId",
+        params: { chapterId: rec.chapterId },
+        search: { tab },
+      });
     }
   }
 
@@ -229,13 +359,8 @@ function HomePage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-16 rounded-xl" />
-        <Skeleton className="h-44 rounded-2xl" />
-        <div className="grid grid-cols-2 gap-3">
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-        </div>
+        <Skeleton className="h-[250px] rounded-[30px]" />
+        <Skeleton className="h-[170px] rounded-3xl" />
       </div>
     );
   }
@@ -245,236 +370,159 @@ function HomePage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
+  const firstName = data?.name.trim().split(/\s+/)[0] || "there";
+
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-3xl space-y-[22px] pb-4">
       {/* Header */}
       <header className="animate-fade-up flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">{greeting},</p>
-          <h1 className="font-display text-[26px] font-bold text-primary">{data?.name}</h1>
+          <h1 className="font-display text-[40px] leading-[1.05] text-foreground">{firstName}</h1>
         </div>
-        <div className="flex items-center gap-1.5 rounded-full border border-streak/30 bg-streak/10 px-3.5 py-2 text-streak shadow-soft">
-          <Flame className={`size-4 ${(data?.streak ?? 0) > 0 ? "animate-flame fill-streak/30" : ""}`} />
+        <div className="flex h-[38px] items-center gap-1.5 rounded-full bg-streak/10 px-3.5 text-streak">
+          <Flame
+            className={`size-4 ${(data?.streak ?? 0) > 0 ? "animate-flame fill-streak/30" : ""}`}
+          />
           <span className="text-sm font-bold tabular-nums">{data?.streak ?? 0}</span>
         </div>
       </header>
 
       <InstallPrompt />
 
-
-      {/* Level bar */}
-      {(() => {
-        const lvl = levelFromXp(data?.xpTotal ?? 0);
-        const pct = lvl.xpForLevel > 0 ? Math.min(100, (lvl.xpIntoLevel / lvl.xpForLevel) * 100) : 0;
-        return (
-          <section className="animate-fade-up stagger-1 rounded-2xl border bg-card p-4 shadow-soft">
-            <div className="flex items-center justify-between text-sm">
-              <span className="flex items-center gap-2 font-semibold text-primary">
-                <span className="grid size-7 place-items-center rounded-lg bg-primary text-[11px] font-bold text-primary-foreground">
-                  {lvl.level}
-                </span>
-                {lvl.name}
-              </span>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {lvl.xpIntoLevel} / {lvl.xpForLevel} XP
-              </span>
-            </div>
-            <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-700"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </section>
-        );
-      })()}
-
-      {/* Leaderboard peek */}
-      {data?.peek && (
-        <Link
-          to="/leaderboard"
-          className="animate-fade-up stagger-2 group flex items-center justify-between rounded-2xl border bg-card px-4 py-3.5 shadow-soft transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lifted"
+      <section className="animate-fade-up stagger-1 relative flex h-[250px] flex-col overflow-hidden rounded-[30px] bg-primary p-[22px] text-primary-foreground">
+        <span
+          aria-hidden
+          className="absolute -right-14 -top-16 size-[190px] rounded-full bg-sky-400/90"
+        />
+        <span
+          aria-hidden
+          className="animate-float-slow absolute right-[30px] top-10 size-[110px] rounded-full bg-violet-500/95"
+        />
+        <span
+          aria-hidden
+          className="absolute -right-5 top-[92px] size-20 rounded-full bg-teal-400/90"
+        />
+        <p className="relative flex items-center gap-1.5 text-xs font-semibold text-blue-100">
+          <Sparkles className="size-3.5" /> Today
+        </p>
+        <h2
+          className={`relative mt-4 max-w-[75%] font-bold leading-[1.05] ${rec?.kind === "flashcards" ? "text-[42px]" : "font-display text-[30px]"}`}
         >
-          <div className="flex items-center gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
-              <Trophy className="size-4" />
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                You're #{data.peek.rank}{data.peek.batchName ? ` in ${data.peek.batchName}` : ""}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {data.peek.rank === 1
-                  ? "Leading this week"
-                  : `${data.peek.gap} XP behind the next spot`}
-              </p>
-            </div>
-          </div>
-          <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
-        </Link>
-      )}
-
-      {/* Main card */}
-      {rec?.kind === "empty" ? (
-        <section className="animate-fade-up stagger-3 rounded-2xl border bg-card p-6 text-center shadow-soft">
-          <div className="mx-auto inline-flex items-center justify-center rounded-full bg-accent/10 p-4 text-accent">
-            <Sparkles className="size-6" />
-          </div>
-          <h2 className="mt-3 font-display text-lg font-bold text-primary">You're all caught up</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            No flashcards due and no new chapters right now. Browse subjects to explore more.
-          </p>
+          {recHeadline()}
+        </h2>
+        <p className="relative mt-1 text-sm text-blue-100">
+          {rec?.kind === "empty"
+            ? "No reviews or unfinished chapters right now"
+            : `About ${minutes} minute${minutes === 1 ? "" : "s"}`}
+        </p>
+        {rec?.kind === "empty" ? (
           <Link
             to="/subjects"
-            className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform hover:scale-[1.02] active:scale-[0.98]"
+            className="relative mt-auto flex h-[52px] items-center justify-center gap-2 rounded-2xl bg-white text-sm font-bold text-primary"
           >
             Browse subjects <ArrowRight className="size-4" />
           </Link>
-        </section>
-      ) : (
-        <section className="bg-primary animate-fade-up stagger-3 rounded-2xl p-6 text-primary-foreground shadow-lifted">
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest opacity-80">
-            <Sparkles className="size-3.5" /> Your session
-          </p>
-          <h2 className="font-display mt-2 text-xl font-bold leading-snug">{recHeadline()}</h2>
-          <p className="mt-2 text-sm opacity-80">Estimated time: {minutes} minute{minutes === 1 ? "" : "s"}</p>
+        ) : (
           <button
             onClick={startStudying}
-            className="relative mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-background px-5 py-3.5 text-sm font-bold text-primary shadow-lifted transition-transform hover:scale-[1.02] active:scale-[0.98]"
+            className="relative mt-auto flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-white text-sm font-bold text-primary"
           >
             Start studying <ArrowRight className="size-4" />
           </button>
-        </section>
-      )}
+        )}
+      </section>
 
       {/* Mistakes due for review (only shown when there are some). */}
       {(mistakes?.due.length ?? 0) > 0 && (
         <Link
           to="/review"
-          className="card-lift animate-fade-up stagger-3 group flex items-center gap-3.5 rounded-2xl border border-streak/30 bg-card p-4 shadow-soft"
+          className="animate-fade-up stagger-2 group flex items-center gap-3 rounded-[20px] border bg-card px-3.5 py-3"
         >
-          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-streak/10 text-streak">
-            <RotateCcw className="size-5" />
+          <span className="grid size-[38px] shrink-0 place-items-center rounded-xl bg-streak/10 text-streak">
+            <RotateCcw className="size-[18px]" />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold text-foreground">
               Fix {mistakes!.due.length} mistake{mistakes!.due.length === 1 ? "" : "s"}
             </span>
-            <span className="block text-xs text-muted-foreground">
-              Questions you got wrong, back for another try · about{" "}
-              {Math.max(2, Math.ceil(Math.min(mistakes!.due.length, 10) * 0.5))} min
-            </span>
           </span>
-          <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
+          <ChevronRight className="size-[18px] shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
         </Link>
       )}
 
-      {/* Secondary cards: each opens the matching chapter tab directly. */}
-      {(() => {
-        const cont = data?.continueChapter ?? null;
-        const flashChapterId = rec?.kind === "flashcards" ? rec.chapterId : cont?.chapterId;
-        const quizChapter =
-          rec?.kind === "quiz"
-            ? { id: rec.chapterId, title: rec.chapterTitle }
-            : rec?.kind === "flashcards" && rec.quizPending
-              ? { id: rec.quizPending.chapterId, title: rec.quizPending.chapterTitle }
-              : cont
-                ? { id: cont.chapterId, title: cont.chapterTitle }
-                : null;
-        return (
-          <section className="grid grid-cols-2 gap-3">
-            <SecondaryCard
-              tone="navy"
-              stagger="stagger-3"
-              icon={<BookOpen className="size-5" />}
-              label="Continue chapter"
-              sublabel={cont?.chapterTitle ?? "Browse subjects"}
-              chapterId={cont?.chapterId}
-            />
-            <SecondaryCard
-              tone="cobalt"
-              stagger="stagger-4"
-              icon={<Layers className="size-5" />}
-              label="Review flashcards"
-              sublabel={
-                rec?.kind === "flashcards"
-                  ? `${rec.dueCount} due today`
-                  : cont
-                    ? `New cards: ${cont.chapterTitle}`
-                    : "Open a chapter"
-              }
-              chapterId={flashChapterId}
-              tab="flashcards"
-            />
-            <SecondaryCard
-              tone="amber"
-              stagger="stagger-5"
-              icon={<ClipboardList className="size-5" />}
-              label="Take a quiz"
-              sublabel={quizChapter?.title ?? "Test yourself"}
-              chapterId={quizChapter?.id}
-              tab="quiz"
-            />
-            <SecondaryCard
-              tone="violet"
-              stagger="stagger-6"
-              icon={<MessageCircle className="size-5" />}
-              label="Ask tutor"
-              sublabel={cont?.chapterTitle ?? "Pick a chapter"}
-              chapterId={cont?.chapterId}
-              tab="tutor"
-            />
-          </section>
-        );
-      })()}
+      <section className="space-y-3">
+        <div className="animate-fade-up stagger-2 flex items-baseline justify-between">
+          <h2 className="text-[17px] font-bold">Continue learning</h2>
+          <Link to="/subjects" className="text-[13px] font-semibold text-primary">
+            All subjects
+          </Link>
+        </div>
+        <div className="-mr-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 pr-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {(data?.continueSubjects ?? []).map((subject, index) => {
+            const percentage = subject.chapterCount
+              ? (subject.completed / subject.chapterCount) * 100
+              : 0;
+            const linkProps = subject.nextChapter
+              ? ({
+                  to: "/chapters/$chapterId",
+                  params: { chapterId: subject.nextChapter.id },
+                } as const)
+              : ({ to: "/subjects/$subjectId", params: { subjectId: subject.id } } as const);
+            return (
+              <Link
+                {...linkProps}
+                key={subject.id}
+                style={subjectColourVariables(subject.colour)}
+                className={`subject-colour animate-fade-up stagger-${Math.min(index + 3, 6)} relative flex h-[170px] w-[150px] shrink-0 snap-start flex-col overflow-hidden rounded-3xl bg-[var(--subject)] p-3.5 text-white`}
+              >
+                <span
+                  aria-hidden
+                  className="absolute -right-[30px] -top-[30px] size-24 rounded-full bg-white/10"
+                />
+                <span className="relative grid size-[38px] place-items-center rounded-xl bg-white/20">
+                  <SubjectIcon name={subject.icon} />
+                </span>
+                <span className="relative mt-auto text-[15px] font-bold leading-tight line-clamp-2">
+                  {subject.name}
+                </span>
+                <span className="relative my-2 truncate text-xs text-white/85">
+                  {subject.nextChapter
+                    ? `${subject.nextChapter.displayOrder ? `Ch ${subject.nextChapter.displayOrder} · ` : ""}${subject.nextChapter.title}`
+                    : "All chapters complete"}
+                </span>
+                <span className="relative h-[5px] overflow-hidden rounded-full bg-white/25">
+                  <span
+                    className="block h-full rounded-full bg-white transition-all"
+                    style={{ width: `${percentage}%` }}
+                  />
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {data?.peek && (
+        <Link
+          to="/leaderboard"
+          className="animate-fade-up stagger-6 group flex items-center gap-3 rounded-[20px] border bg-card px-3.5 py-3 text-foreground"
+        >
+          <span className="grid size-[38px] shrink-0 place-items-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+            <Trophy className="size-[19px]" />
+          </span>
+          <span className="min-w-0 flex-1 text-sm">
+            <strong>#{data.peek.rank} this week</strong>{" "}
+            <span className="text-muted-foreground">
+              ·{" "}
+              {data.peek.rank === 1
+                ? "Leading the leaderboard"
+                : `${data.peek.gap} XP to pass ${data.peek.nextName ?? "the next student"}`}
+            </span>
+          </span>
+          <ChevronRight className="size-[18px] shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        </Link>
+      )}
     </div>
-  );
-}
-
-const CARD_TONES = {
-  navy: { bg: "rgba(31,58,95,0.08)", fg: "#1F3A5F" },
-  cobalt: { bg: "rgba(31,79,216,0.10)", fg: "#163C9E" },
-  amber: { bg: "rgba(217,119,6,0.10)", fg: "#92400E" },
-  violet: { bg: "rgba(124,58,237,0.10)", fg: "#5B21B6" },
-} as const;
-
-function SecondaryCard({
-  tone,
-  stagger,
-  icon,
-  label,
-  sublabel,
-  chapterId,
-  tab,
-}: {
-  tone: keyof typeof CARD_TONES;
-  stagger: string;
-  icon: React.ReactNode;
-  label: string;
-  sublabel: string;
-  /** Chapter to open; without one the card falls back to the subjects list. */
-  chapterId?: string;
-  tab?: "quiz" | "flashcards" | "tutor";
-}) {
-  const t = CARD_TONES[tone];
-  const linkProps = chapterId
-    ? ({ to: "/chapters/$chapterId", params: { chapterId }, search: { tab } } as const)
-    : ({ to: "/subjects" } as const);
-  return (
-    <Link
-      {...linkProps}
-      className={`card-lift animate-fade-up ${stagger} flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-soft`}
-    >
-      <div
-        className="inline-flex size-10 items-center justify-center rounded-xl"
-        style={{ background: t.bg, color: t.fg }}
-      >
-        {icon}
-      </div>
-      <div>
-        <p className="text-sm font-semibold text-foreground">{label}</p>
-        <p className="text-xs text-muted-foreground line-clamp-1">{sublabel}</p>
-      </div>
-    </Link>
   );
 }
