@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sihat redesign: Chapter notes</title>
+<!-- Mobile screen, fixed 390 x 844 frame. Sample data only. See ../README.md and ../DESIGN_SPEC.md. -->
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#EEF3FB;color:#0B1F3F}
+a{color:#1F4FD8}a:hover{color:#163C9E}
+.serif{font-family:'Instrument Serif',Georgia,serif;font-weight:400;letter-spacing:-0.01em}
+@keyframes fu{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.fu{animation:fu .6s cubic-bezier(.22,1,.36,1) both}
+.d1{animation-delay:.06s}.d2{animation-delay:.12s}.d3{animation-delay:.18s}.d4{animation-delay:.24s}.d5{animation-delay:.3s}.d6{animation-delay:.36s}.d7{animation-delay:.42s}
+@keyframes ring{from{stroke-dashoffset:264}}
+.ring{animation:ring 1.4s .2s cubic-bezier(.22,1,.36,1) both}
+@keyframes bar{from{transform:scaleX(0)}}
+.bar{transform-origin:left center;animation:bar 1.1s .3s cubic-bezier(.22,1,.36,1) both}
+@keyframes col{from{transform:scaleY(0)}}
+.col{transform-origin:center bottom;animation:col .9s cubic-bezier(.22,1,.36,1) both}
+@keyframes flame{0%,100%{transform:scale(1)}50%{transform:scale(1.16)}}
+.flame{display:inline-flex;animation:flame 1.8s ease-in-out infinite;transform-origin:50% 80%}
+@keyframes pop{0%{transform:scale(.94)}55%{transform:scale(1.04)}100%{transform:scale(1)}}
+.pop{animation:pop .5s .2s ease-out both}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.float{animation:float 5s ease-in-out infinite}
+@keyframes dot{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.dot{animation:dot 1.2s infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<style>html{background:#C9D2E3}body{display:flex;justify-content:center;padding:24px 0}</style>
+</head>
+<body>
+<div id="screen" style="width: 390px; height: 844px; position: relative; overflow: hidden; box-sizing: border-box; background: #EEF3FB; color: #0B1F3F">
+
+<section style="position:absolute;left:0;right:0;top:0;height:300px;background:#6D4AE8;color:#FFFFFF;overflow:hidden">
+  <div aria-hidden="true" style="position:absolute;right:-70px;top:-60px;width:220px;height:220px;border-radius:50%;background:#8B6CF0"></div>
+<div aria-hidden="true" class="float" style="position:absolute;right:40px;top:70px;width:90px;height:90px;border-radius:50%;background:#A78BFA;opacity:.7"></div>
+<div aria-hidden="true" style="position:absolute;left:-50px;bottom:-70px;width:160px;height:160px;border-radius:50%;background:#4B2DB8;opacity:.6"></div>
+  <div aria-hidden="true" style="position:absolute;left:0;top:0;right:0;height:4px;background:rgba(255,255,255,.25)"><div class="bar" style="width:40%;height:4px;background:#FFFFFF"></div></div>
+  <div style="position:absolute;left:20px;right:20px;top:48px;display:flex;flex-direction:column;gap:12px">
+    <div class="fu" style="display:flex;align-items:center;justify-content:space-between">
+      <a href="04-subject-detail.html" aria-label="Back to chapters" style="width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.18);color:#FFFFFF;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></a>
+      <span style="font-size:12px;font-weight:600;color:#E6DDFF;letter-spacing:.06em">A&amp;P I · CHAPTER 4</span>
+      <a href="09-tutor.html" aria-label="Ask tutor" style="width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,.18);color:#FFFFFF;display:flex;align-items:center;justify-content:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 3v4M21 5h-4"/></svg></a>
+    </div>
+    <h1 class="serif fu d1" style="margin:0;font-size:40px;line-height:1.02">The Skeleton</h1>
+    <div class="fu d1" style="font-size:13px;color:#E6DDFF;margin-top:-6px">Bone types, functions and the two divisions</div>
+    <nav aria-label="Chapter sections" class="fu d2" style="display:flex;gap:4px;padding:4px;border-radius:16px;background:rgba(255,255,255,.18);overflow:hidden"><a href="#" data-note="not designed" style="display:flex;align-items:center;gap:6px;height:38px;padding:0 14px;border-radius:12px;background:#FFFFFF;color:#4B2DB8;text-decoration:none;font-size:13px;font-weight:700;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Notes</a><a href="08-flashcards.html" style="display:flex;align-items:center;gap:6px;height:38px;padding:0 12px;border-radius:12px;color:#FFFFFF;text-decoration:none;font-size:13px;font-weight:600;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>Flashcards</a><a href="06-chapter-quiz.html" style="display:flex;align-items:center;gap:6px;height:38px;padding:0 12px;border-radius:12px;color:#FFFFFF;text-decoration:none;font-size:13px;font-weight:600;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>Quiz</a><a href="#" data-note="not designed" style="display:flex;align-items:center;gap:6px;height:38px;padding:0 12px;border-radius:12px;color:#FFFFFF;text-decoration:none;font-size:13px;font-weight:600;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4z"/></svg>Videos</a><a href="#" data-note="not designed" style="display:flex;align-items:center;gap:6px;height:38px;padding:0 12px;border-radius:12px;color:#FFFFFF;text-decoration:none;font-size:13px;font-weight:600;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>Diagrams</a></nav>
+  </div>
+</section>
+<article class="fu d3" style="position:absolute;left:20px;right:20px;top:276px;border-radius:22px;background:#FFFFFF;border:1px solid #DCE4F2;padding:18px;display:flex;flex-direction:column;gap:12px;box-shadow:0 14px 30px rgba(11,31,63,.08)">
+  <h2 style="margin:0;font-size:18px;font-weight:700">4.1 Functions of the skeleton</h2>
+  <p style="margin:0;font-size:14.5px;line-height:1.65;color:#0B1F3F">The skeleton gives the body its shape and supports soft tissue. It <b>protects</b> vital organs, like the brain inside the skull and the heart and lungs inside the ribcage, and gives muscles something to pull on.</p>
+  <div style="border-radius:16px;background:#FFF4E0;color:#8A4B00;padding:12px 14px;display:flex;gap:10px">
+    <span style="flex-shrink:0;margin-top:1px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></span>
+    <div style="font-size:13px;line-height:1.5"><b>Exam trap.</b> In adults, blood cells are made in red marrow in flat bones and the ends of long bones. The shafts hold yellow marrow.</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+    <div style="border-radius:14px;background:#ECE6FF;color:#4B2DB8;padding:10px"><div style="font-size:11px">Adult total</div><div style="font-size:18px;font-weight:700;color:#0B1F3F">206</div><div style="font-size:11px">bones</div></div><div style="border-radius:14px;background:#ECE6FF;color:#4B2DB8;padding:10px"><div style="font-size:11px">Axial</div><div style="font-size:18px;font-weight:700;color:#0B1F3F">80</div><div style="font-size:11px">bones</div></div><div style="border-radius:14px;background:#ECE6FF;color:#4B2DB8;padding:10px"><div style="font-size:11px">Appendicular</div><div style="font-size:18px;font-weight:700;color:#0B1F3F">126</div><div style="font-size:11px">bones</div></div>
+  </div>
+</article>
+<a href="08-flashcards.html" class="fu d5" style="position:absolute;left:20px;right:20px;bottom:100px;display:flex;align-items:center;gap:12px;padding:10px 10px 10px 16px;border-radius:18px;background:#4B2DB8;color:#FFFFFF;text-decoration:none">
+  <div style="flex-grow:1"><div style="font-size:13px;font-weight:700">Done reading?</div><div style="font-size:12px;color:#E6DDFF">18 flashcards waiting for this chapter</div></div>
+  <span style="display:flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:12px;background:#FFFFFF;color:#4B2DB8;font-size:13px;font-weight:700">Review <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+</a>
+<nav style="position:absolute;left:16px;right:16px;bottom:20px;height:64px;background:#FFFFFF;border:1px solid #DCE4F2;border-radius:22px;box-shadow:0 10px 30px rgba(11,31,63,.08);display:flex;align-items:center;justify-content:space-between;padding:0 10px;box-sizing:border-box"><a href="02-home.html" aria-label="Home" style="display:flex;align-items:center;justify-content:center;width:46px;height:44px;border-radius:14px;color:#5A6B88;text-decoration:none"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></a><a href="03-subjects.html" style="display:flex;align-items:center;gap:8px;height:44px;padding:0 16px;border-radius:14px;background:#1F4FD8;color:#FFFFFF;text-decoration:none;font-size:13px;font-weight:600"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Subjects</a><a href="09-tutor.html" aria-label="Tutor" style="display:flex;align-items:center;justify-content:center;width:46px;height:44px;border-radius:14px;color:#5A6B88;text-decoration:none"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 3v4M21 5h-4"/></svg></a><a href="10-progress.html" aria-label="Progress" style="display:flex;align-items:center;justify-content:center;width:46px;height:44px;border-radius:14px;color:#5A6B88;text-decoration:none"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></a><a href="12-profile.html" aria-label="Profile" style="display:flex;align-items:center;justify-content:center;width:46px;height:44px;border-radius:14px;color:#5A6B88;text-decoration:none"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></a></nav>
+
+</div>
+</body>
+</html>
