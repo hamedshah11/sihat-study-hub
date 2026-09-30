@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sihat redesign: Quiz results</title>
+<!-- Mobile screen, fixed 390 x 844 frame. Sample data only. See ../README.md and ../DESIGN_SPEC.md. -->
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:#EEF3FB;color:#0B1F3F}
+a{color:#1F4FD8}a:hover{color:#163C9E}
+.serif{font-family:'Instrument Serif',Georgia,serif;font-weight:400;letter-spacing:-0.01em}
+@keyframes fu{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.fu{animation:fu .6s cubic-bezier(.22,1,.36,1) both}
+.d1{animation-delay:.06s}.d2{animation-delay:.12s}.d3{animation-delay:.18s}.d4{animation-delay:.24s}.d5{animation-delay:.3s}.d6{animation-delay:.36s}.d7{animation-delay:.42s}
+@keyframes ring{from{stroke-dashoffset:264}}
+.ring{animation:ring 1.4s .2s cubic-bezier(.22,1,.36,1) both}
+@keyframes bar{from{transform:scaleX(0)}}
+.bar{transform-origin:left center;animation:bar 1.1s .3s cubic-bezier(.22,1,.36,1) both}
+@keyframes col{from{transform:scaleY(0)}}
+.col{transform-origin:center bottom;animation:col .9s cubic-bezier(.22,1,.36,1) both}
+@keyframes flame{0%,100%{transform:scale(1)}50%{transform:scale(1.16)}}
+.flame{display:inline-flex;animation:flame 1.8s ease-in-out infinite;transform-origin:50% 80%}
+@keyframes pop{0%{transform:scale(.94)}55%{transform:scale(1.04)}100%{transform:scale(1)}}
+.pop{animation:pop .5s .2s ease-out both}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.float{animation:float 5s ease-in-out infinite}
+@keyframes dot{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.dot{animation:dot 1.2s infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<style>html{background:#C9D2E3}body{display:flex;justify-content:center;padding:24px 0}</style>
+</head>
+<body>
+<div id="screen" style="width: 390px; height: 844px; position: relative; overflow: hidden; box-sizing: border-box; background: #EEF3FB; color: #0B1F3F">
+
+<div aria-hidden="true" style="position:absolute;left:0;right:0;top:0;height:470px;background:#ECE6FF;border-radius:0 0 40px 40px"></div>
+<div class="float" aria-hidden="true" style="position:absolute;left:40px;top:90px;width:10px;height:10px;border-radius:3px;background:#6D4AE8;transform:rotate(20deg);animation-delay:-0s"></div><div class="float" aria-hidden="true" style="position:absolute;left:320px;top:70px;width:14px;height:14px;border-radius:3px;background:#D9CCFF;transform:rotate(20deg);animation-delay:-1s"></div><div class="float" aria-hidden="true" style="position:absolute;left:80px;top:250px;width:8px;height:8px;border-radius:99px;background:#F59E0B;transform:rotate(20deg);animation-delay:-2s"></div><div class="float" aria-hidden="true" style="position:absolute;left:300px;top:230px;width:10px;height:10px;border-radius:3px;background:#6D4AE8;transform:rotate(20deg);animation-delay:-3s"></div><div class="float" aria-hidden="true" style="position:absolute;left:190px;top:60px;width:7px;height:7px;border-radius:99px;background:#38BDF8;transform:rotate(20deg);animation-delay:-1s"></div><div class="float" aria-hidden="true" style="position:absolute;left:350px;top:330px;width:8px;height:8px;border-radius:99px;background:#D9CCFF;transform:rotate(20deg);animation-delay:-2s"></div><div class="float" aria-hidden="true" style="position:absolute;left:30px;top:360px;width:12px;height:12px;border-radius:3px;background:#A78BFA;transform:rotate(20deg);animation-delay:-0s"></div>
+<div style="position:absolute;left:20px;right:20px;top:84px;display:flex;flex-direction:column;align-items:center;gap:14px">
+  <div class="fu"><div style="position:relative;width:170px;height:170px;flex-shrink:0"><svg width="170" height="170" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="42" fill="none" stroke="#D9CCFF" stroke-width="9"/><circle class="ring" cx="50" cy="50" r="42" fill="none" stroke="#6D4AE8" stroke-width="9" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="52.8" transform="rotate(-90 50 50)"/></svg><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font-size:34px;font-weight:700;color:#0B1F3F">8/10</span><span style="font-size:11px;color:#4B2DB8">correct</span></div></div></div>
+  <h1 class="serif fu d1" style="margin:6px 0 0;font-size:42px;line-height:1">Nicely done</h1>
+  <p class="fu d2" style="margin:0;font-size:14px;color:#4B2DB8;text-align:center">The Skeleton · chapter mastery is now 72%</p>
+  <div class="fu d3 pop" style="display:flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:99px;background:#FFF1E6;color:#B84708;font-size:14px;font-weight:700"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg>+80 XP</div>
+  <div class="fu d4" style="display:flex;gap:10px;width:100%;margin-top:28px"><div style="flex-grow:1;flex-basis:0;border-radius:18px;background:#FFFFFF;border:1px solid #DCE4F2;padding:12px;text-align:center"><div style="font-size:20px;font-weight:700;color:#0E6B47">8</div><div style="font-size:12px;color:#5A6B88">Correct</div></div><div style="flex-grow:1;flex-basis:0;border-radius:18px;background:#FFFFFF;border:1px solid #DCE4F2;padding:12px;text-align:center"><div style="font-size:20px;font-weight:700;color:#B42318">2</div><div style="font-size:12px;color:#5A6B88">Missed</div></div><div style="flex-grow:1;flex-basis:0;border-radius:18px;background:#FFFFFF;border:1px solid #DCE4F2;padding:12px;text-align:center"><div style="font-size:20px;font-weight:700;color:#0B1F3F">6:40</div><div style="font-size:12px;color:#5A6B88">Time</div></div></div>
+</div>
+<div class="fu d5" style="position:absolute;left:20px;right:20px;bottom:28px;display:flex;flex-direction:column;gap:10px">
+  <a href="06-chapter-quiz.html" style="display:flex;align-items:center;justify-content:center;gap:8px;height:56px;border-radius:18px;background:#6D4AE8;color:#FFFFFF;text-decoration:none;font-size:15px;font-weight:700"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Review 2 mistakes</a>
+  <a href="05-chapter-notes.html" style="display:flex;align-items:center;justify-content:center;height:56px;border-radius:18px;background:#FFFFFF;border:1px solid #DCE4F2;color:#0B1F3F;text-decoration:none;font-size:15px;font-weight:700">Back to chapter</a>
+</div>
+
+</div>
+</body>
+</html>
