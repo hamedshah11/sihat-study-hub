@@ -25,6 +25,9 @@ import {
 // user. Scores are recomputed here from the answers — the client's claimed
 // score is ignored entirely.
 
+// Chapter mastery is the average of this many most recent quiz attempts.
+const MASTERY_WINDOW = 3;
+
 // ---------------------------------------------------------------------------
 // submitQuiz — grades a quiz attempt server-side and records score, mastery,
 // XP and streak. The client sends only its selections; it cannot set the score.
@@ -127,13 +130,31 @@ export const submitQuiz = createServerFn({ method: "POST" })
       .eq("chapter_id", data.chapterId)
       .maybeSingle();
 
+    // Mastery = average of the last MASTERY_WINDOW quiz scores (this one
+    // included), so one lucky 5/5 doesn't mark a chapter mastered forever
+    // and a chapter the student is now getting wrong shows up as weak again.
+    const { data: recent } = await supabaseAdmin
+      .from("quiz_attempts")
+      .select("score, total_questions")
+      .eq("user_id", userId)
+      .eq("chapter_id", data.chapterId)
+      .order("attempted_at", { ascending: false })
+      .limit(MASTERY_WINDOW);
+    const recentPcts = (recent ?? [])
+      .filter((a) => a.total_questions > 0)
+      .map((a) => a.score / a.total_questions);
+    if (recentPcts.length === 0) recentPcts.push(pct);
+    const rollingMastery = Math.round(
+      (recentPcts.reduce((a, b) => a + b, 0) / recentPcts.length) * 100,
+    );
+
     await supabaseAdmin.from("chapter_progress").upsert(
       {
         user_id: userId,
         chapter_id: data.chapterId,
         attempts: (existing?.attempts ?? 0) + 1,
         last_attempt_at: now,
-        mastery_score: Math.max(existing?.mastery_score ?? 0, masteryScore),
+        mastery_score: rollingMastery,
         completed_at: existing?.completed_at ?? (passed ? now : null),
       },
       { onConflict: "user_id,chapter_id" },
@@ -153,7 +174,14 @@ export const submitQuiz = createServerFn({ method: "POST" })
     if (xpSource) await insertXp(userId, xpSource);
     await bumpStreak(userId);
 
-    return { score, total, passed, masteryScore, awardedXp: xpSource ? XP_AMOUNTS[xpSource] : 0 };
+    return {
+      score,
+      total,
+      passed,
+      masteryScore: rollingMastery,
+      attemptScore: masteryScore,
+      awardedXp: xpSource ? XP_AMOUNTS[xpSource] : 0,
+    };
   });
 
 // ---------------------------------------------------------------------------

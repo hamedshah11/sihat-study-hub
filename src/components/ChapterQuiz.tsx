@@ -118,6 +118,8 @@ function QuizRunner({
   const [saving, setSaving] = useState(false);
   // null = not known (e.g. the save failed)
   const [awardedXp, setAwardedXp] = useState<number | null>(null);
+  // Chapter mastery after this attempt (average of recent quizzes), from the server.
+  const [mastery, setMastery] = useState<number | null>(null);
   const submit = useServerFn(submitQuiz);
   const queryClient = useQueryClient();
 
@@ -159,6 +161,7 @@ function QuizRunner({
         },
       });
       setAwardedXp(res.awardedXp);
+      setMastery(res.masteryScore);
       void queryClient.invalidateQueries({ queryKey: MISTAKES_QUERY_KEY });
       await awardBadgesIfNeeded();
     } catch (e) {
@@ -181,11 +184,28 @@ function QuizRunner({
         <p className="mt-3 text-3xl font-bold text-primary">{score}/{total}</p>
         <p className="mt-1 text-sm text-muted-foreground">
           {passed
-            ? "Excellent work! You've mastered this chapter."
+            ? mastery !== null && mastery < 80
+              ? "Great score! Keep it up to raise your chapter mastery."
+              : "Excellent work! You've mastered this chapter."
             : score >= total / 2
-              ? "Good effort — review and try again to master it."
-              : "Keep going — review the notes and give it another shot."}
+              ? "Good effort. Review and try again to master it."
+              : "Keep going. Review the notes and give it another shot."}
         </p>
+        {mastery !== null && (
+          <div className="mx-auto mt-4 max-w-[240px]">
+            <div className="flex items-baseline justify-between text-xs text-muted-foreground">
+              <span>Chapter mastery</span>
+              <span className="font-semibold tabular-nums text-foreground">{mastery}%</span>
+            </div>
+            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn("h-full rounded-full", mastery >= 80 ? "bg-accent" : "bg-streak")}
+                style={{ width: `${Math.max(3, mastery)}%` }}
+              />
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">Average of your last 3 quizzes</p>
+          </div>
+        )}
         {awardedXp !== null && (
           <p className="mt-2 text-xs font-semibold text-accent">
             {awardedXp > 0
@@ -208,6 +228,7 @@ function QuizRunner({
               setFinished(false);
               setReviewMode(false);
               setAwardedXp(null);
+              setMastery(null);
               onRetake();
             }}
           >

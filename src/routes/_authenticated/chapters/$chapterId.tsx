@@ -4,7 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  ChevronLeft,
+  ClipboardList,
+  Image as ImageIcon,
+  Layers,
+  Sparkles,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { DiagramMarkdownImage, diagramUrlTransform } from "@/components/DiagramMarkdownImage";
 import { ChapterNotesTable } from "@/components/ChapterNotesTable";
@@ -18,6 +26,15 @@ import { ChapterVideos } from "@/components/ChapterVideos";
 
 const CHAPTER_TABS = ["notes", "quiz", "flashcards", "diagrams", "tutor"] as const;
 type ChapterTab = (typeof CHAPTER_TABS)[number];
+
+// Short labels + icons so all five tabs fit on a phone.
+const TAB_ITEMS: { value: ChapterTab; label: string; icon: typeof BookOpen }[] = [
+  { value: "notes", label: "Notes", icon: BookOpen },
+  { value: "quiz", label: "Quiz", icon: ClipboardList },
+  { value: "flashcards", label: "Cards", icon: Layers },
+  { value: "diagrams", label: "Diagrams", icon: ImageIcon },
+  { value: "tutor", label: "Tutor", icon: Sparkles },
+];
 
 // ?tab= lets other screens (Home, Progress) open a chapter straight on the
 // quiz or flashcards instead of always landing on Notes.
@@ -117,28 +134,17 @@ function ChapterDetail() {
       </header>
 
       <Tabs value={activeTab} onValueChange={setTab} className="animate-fade-up stagger-1 mt-6">
-        <TabsList className="grid h-auto w-full grid-cols-5 rounded-xl border bg-secondary/80 p-1 shadow-soft">
-          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="notes">
-            Notes
-          </TabsTrigger>
-          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="quiz">
-            Quiz
-          </TabsTrigger>
-          <TabsTrigger
-            className="rounded-lg py-1.5 data-[state=active]:shadow-soft"
-            value="flashcards"
-          >
-            Flashcards
-          </TabsTrigger>
-          <TabsTrigger
-            className="rounded-lg py-1.5 data-[state=active]:shadow-soft"
-            value="diagrams"
-          >
-            Diagrams
-          </TabsTrigger>
-          <TabsTrigger className="rounded-lg py-1.5 data-[state=active]:shadow-soft" value="tutor">
-            Tutor
-          </TabsTrigger>
+        <TabsList className="grid h-auto w-full grid-cols-5 gap-0.5 rounded-xl border bg-secondary/80 p-1 shadow-soft">
+          {TAB_ITEMS.map(({ value, label, icon: Icon }) => (
+            <TabsTrigger
+              key={value}
+              value={value}
+              className="flex min-h-[48px] flex-col gap-0.5 rounded-lg px-0.5 py-1.5 text-[11px] leading-none data-[state=active]:shadow-soft"
+            >
+              <Icon className="size-4" />
+              {label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="notes">
@@ -154,6 +160,7 @@ function ChapterDetail() {
             </div>
             <ChapterNoteDiagrams chapterId={chapterId} excludedPaths={embeddedDiagramPaths} />
           </div>
+          <NextStepCard onPick={setTab} />
           <ChapterVideos chapterId={chapterId} />
           {updated && (
             <div className="mt-3 rounded-xl border bg-card px-4 py-3 text-xs text-muted-foreground shadow-soft">
@@ -175,6 +182,36 @@ function ChapterDetail() {
           <ChapterTutor chapterId={chapterId} />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+/** Shown after the notes: turn reading into practice straight away. */
+function NextStepCard({ onPick }: { onPick: (tab: string) => void }) {
+  const go = (tab: ChapterTab) => {
+    onPick(tab);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  return (
+    <div className="mt-4 rounded-2xl border bg-card p-5 shadow-soft">
+      <p className="font-display text-base font-bold text-primary">Finished reading?</p>
+      <p className="mt-0.5 text-sm text-muted-foreground">
+        Test yourself now while it's fresh. It's the fastest way to remember it.
+      </p>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button
+          onClick={() => go("quiz")}
+          className="inline-flex items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform active:scale-[0.98]"
+        >
+          Take quiz <ArrowRight className="size-4" />
+        </button>
+        <button
+          onClick={() => go("flashcards")}
+          className="inline-flex items-center justify-center gap-1.5 rounded-full border bg-card px-4 py-3 text-sm font-semibold text-foreground shadow-soft transition-transform active:scale-[0.98]"
+        >
+          <Layers className="size-4" /> Flashcards
+        </button>
+      </div>
     </div>
   );
 }

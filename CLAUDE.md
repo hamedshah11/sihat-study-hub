@@ -63,6 +63,10 @@ covers one missed day; one is earned every 7 streak days, max 2), live in
 Screens show `displayStreak()`, not the raw `current_streak`, because the
 stored value only changes when the student next studies.
 
+Chapter mastery (`chapter_progress.mastery_score`) is the average of the
+last 3 quiz attempts (`MASTERY_WINDOW` in `study.functions.ts`), not the best
+score ever, so weak areas stay honest.
+
 Quiz XP is capped per chapter per PKT day in `submitQuiz`: the first attempt
 earns quiz XP (or pass XP), and a later attempt earns pass XP only if it is
 the first pass that day. Exam XP is capped once per subject per day.
