@@ -168,7 +168,7 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
       </div>
       <div className="mx-auto w-full max-w-[480px] px-6 pt-10 pb-12">
         <Link to="/" className="animate-fade-up mb-8 inline-flex items-center gap-2.5">
-          <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-primary to-accent text-sm font-bold text-primary-foreground shadow-glow">
+          <div className="grid size-10 place-items-center rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-glow">
             S
           </div>
           <span className="font-display text-xl font-bold text-primary">Sihat</span>

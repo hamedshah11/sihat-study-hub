@@ -74,7 +74,7 @@ function ProfilePage() {
       <h1 className="animate-fade-up font-display text-2xl font-bold text-primary">Profile</h1>
 
       {/* Identity card */}
-      <div className="hero-gradient animate-fade-up stagger-1 mt-6 flex items-center gap-4 rounded-2xl p-5 text-primary-foreground shadow-lifted">
+      <div className="bg-primary animate-fade-up stagger-1 mt-6 flex items-center gap-4 rounded-2xl p-5 text-primary-foreground shadow-lifted">
         <span className="grid size-14 shrink-0 place-items-center rounded-full bg-white/15 font-display text-xl font-bold backdrop-blur-sm ring-2 ring-white/25">
           {initials}
         </span>
@@ -110,7 +110,7 @@ function ProfilePage() {
                 title={earned ? `Earned ${new Date(b.earnedAt!).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : b.description}
                 className={`flex flex-col items-center text-center rounded-2xl border p-3 transition-all ${
                   earned
-                    ? "border-accent/30 bg-gradient-to-b from-accent/15 to-accent/5 shadow-soft hover:-translate-y-0.5 hover:shadow-glow"
+                    ? "border-accent/30 bg-primary-tint shadow-soft hover:-translate-y-0.5 hover:shadow-glow"
                     : "bg-muted/40 border-muted opacity-60"
                 }`}
               >

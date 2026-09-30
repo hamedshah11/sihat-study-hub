@@ -128,7 +128,7 @@ export function ExamResults({
       <section
         className={cn(
           "animate-scale-in rounded-2xl p-6 text-center shadow-lifted",
-          result.passed ? "hero-gradient text-primary-foreground" : "border bg-card",
+          result.passed ? "bg-primary text-primary-foreground" : "border bg-card",
         )}
       >
         <div

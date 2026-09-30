@@ -75,7 +75,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Lovable App" },
       { name: "description", content: "Sihat Study Hub is a mobile-first study app for nursing students." },
       { name: "author", content: "Lovable" },
-      { name: "theme-color", content: "#1F3A5F" },
+      { name: "theme-color", content: "#1F4FD8" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
       { name: "apple-mobile-web-app-title", content: "Sihat" },
@@ -94,7 +94,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap",
       },
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.webmanifest" },
@@ -111,6 +111,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('sihat-theme')||'system';var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.dataset.theme=t}catch(e){}})()`,
+          }}
+        />
         <HeadContent />
       </head>
       <body>
@@ -125,12 +130,22 @@ import { Toaster } from "@/components/ui/sonner";
 
 import { useEffect } from "react";
 import { registerServiceWorker } from "@/lib/register-sw";
+import { applyTheme, getThemePreference } from "@/lib/theme";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
     registerServiceWorker();
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const syncTheme = () => applyTheme(getThemePreference());
+    syncTheme();
+    media.addEventListener("change", syncTheme);
+    window.addEventListener("storage", syncTheme);
+    return () => {
+      media.removeEventListener("change", syncTheme);
+      window.removeEventListener("storage", syncTheme);
+    };
   }, []);
 
   return (
@@ -140,4 +155,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-
