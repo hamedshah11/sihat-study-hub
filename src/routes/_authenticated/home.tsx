@@ -401,7 +401,7 @@ function HomePage() {
         />
         <span
           aria-hidden
-          className="absolute -right-5 top-[92px] size-20 rounded-full bg-teal-400/90"
+          className="absolute -right-5 top-[92px] size-20 rounded-full bg-sky-400/90"
         />
         <p className="relative flex items-center gap-1.5 text-xs font-semibold text-blue-100">
           <Sparkles className="size-3.5" /> Today

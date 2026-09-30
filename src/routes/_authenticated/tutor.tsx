@@ -128,13 +128,13 @@ function TutorPracticePage() {
   }, [chapterId]);
 
   return (
-    <div className="flex flex-col gap-4 pb-4">
+    <div className="flex flex-col gap-5 pb-4">
       <header className="animate-fade-up flex flex-col gap-1">
         <div className="flex items-center gap-2.5">
-          <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground shadow-glow">
+          <span className="grid size-11 place-items-center rounded-[15px] bg-primary-tint text-primary">
             <Sparkles className="size-5" />
           </span>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-primary">AI Tutor</h1>
+          <h1 className="font-display text-[38px] font-normal tracking-tight text-foreground">AI Tutor</h1>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           Practice viva-style. Pick a chapter, answer in your own words, get instant feedback.
@@ -142,7 +142,7 @@ function TutorPracticePage() {
       </header>
 
       {/* Chapter picker */}
-      <div className="animate-fade-up stagger-1 rounded-2xl bg-card border border-border p-4 flex flex-col gap-2 shadow-soft">
+      <div className="animate-fade-up stagger-1 rounded-[22px] bg-card p-4 flex flex-col gap-2 shadow-soft">
         <label htmlFor="chapter" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Chapter
         </label>
@@ -157,7 +157,7 @@ function TutorPracticePage() {
             id="chapter"
             value={chapterId}
             onChange={(e) => setChapterId(e.target.value)}
-            className="w-full min-h-11 rounded-lg bg-surface border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
+            className="w-full min-h-12 rounded-full bg-primary-tint px-4 py-2 text-sm font-semibold text-primary-deep outline-none focus:ring-2 focus:ring-primary"
           >
             {chapters.map((c) => (
               <option key={c.id} value={c.id}>
@@ -169,7 +169,7 @@ function TutorPracticePage() {
       </div>
 
       {/* Question card */}
-      <div className="animate-fade-up stagger-2 rounded-2xl bg-card border border-border p-4 flex flex-col gap-3 shadow-soft">
+      <div className="animate-fade-up stagger-2 rounded-[22px] bg-card p-5 flex flex-col gap-3 shadow-soft">
         <div className="flex items-center justify-between gap-2">
           <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
             <Sparkles className="size-4 text-primary" /> Question

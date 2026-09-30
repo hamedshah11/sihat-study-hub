@@ -162,21 +162,26 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
   return (
     <div className="relative isolate min-h-screen overflow-hidden bg-background">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="animate-float-slow absolute -top-28 -right-20 size-[380px] rounded-full bg-accent/15 blur-3xl" />
-        <div className="absolute top-1/2 -left-32 size-[360px] rounded-full bg-primary/[0.08] blur-3xl" />
-        <div className="animate-float-slow absolute -bottom-36 right-1/3 size-[320px] rounded-full bg-streak/[0.07] blur-3xl [animation-delay:-4s]" />
+        <div className="absolute -right-36 -top-28 size-[420px] rounded-full bg-primary-tint" />
+        <div className="absolute -right-16 -top-10 size-[260px] rounded-full bg-primary-tint-2" />
+        <div className="animate-float-slow absolute right-8 top-28 w-[150px] rotate-6 rounded-[18px] bg-card p-3.5 shadow-lifted">
+          <p className="text-[10px] font-bold tracking-wider text-primary">FLASHCARD</p>
+          <p className="mt-1.5 font-display text-[17px] leading-tight text-foreground">Normal adult pulse?</p>
+          <div className="mt-2.5 h-1.5 rounded-full bg-primary-tint" /><div className="mt-1.5 h-1.5 w-3/5 rounded-full bg-primary-tint" />
+        </div>
       </div>
-      <div className="mx-auto w-full max-w-[480px] px-6 pt-10 pb-12">
-        <Link to="/" className="animate-fade-up mb-8 inline-flex items-center gap-2.5">
-          <div className="grid size-10 place-items-center rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-glow">
+      <div className="mx-auto w-full max-w-[480px] px-6 pb-12 pt-[60px]">
+        <Link to="/" className="animate-fade-up inline-flex items-center gap-2.5">
+          <div className="grid size-12 place-items-center rounded-[15px] bg-primary font-display text-3xl text-primary-foreground shadow-glow">
             S
           </div>
-          <span className="font-display text-xl font-bold text-primary">Sihat</span>
         </Link>
-        <h1 className="animate-fade-up stagger-1 font-display text-[26px] font-bold text-primary">{title}</h1>
-        {subtitle && <p className="animate-fade-up stagger-1 mt-1 text-sm text-muted-foreground mb-7" >{subtitle}</p>}
-        {!subtitle && <div className="mb-6" />}
-        <div className="animate-fade-up stagger-2 rounded-2xl border bg-card p-6 shadow-soft">
+        <h1 className="animate-fade-up stagger-1 mt-[145px] font-display text-[44px] font-normal leading-[1.02] text-foreground">Study smarter<br />for every <em className="text-primary">shift.</em></h1>
+        <div className="animate-fade-up stagger-2 mt-3">
+          <h2 className="text-base font-bold text-foreground">{title}</h2>
+          {subtitle && <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{subtitle}</p>}
+        </div>
+        <div className="animate-fade-up stagger-3 mt-6 [&_input]:h-[52px] [&_input]:rounded-2xl [&_input]:bg-card [&_button[type=submit]]:h-[54px] [&_button[type=submit]]:rounded-2xl">
           {children}
         </div>
       </div>

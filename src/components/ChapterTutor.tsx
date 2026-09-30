@@ -12,9 +12,11 @@ type Msg = {
   role: string;
   content: string;
   created_at: string;
+  source?: string | null;
 };
 
 const DAILY_LIMIT = 50;
+const SUGGESTIONS = ["Quiz me on this", "Give me a mnemonic", "Explain simply"];
 
 export function ChapterTutor({ chapterId }: { chapterId: string }) {
   const qc = useQueryClient();
@@ -64,9 +66,7 @@ export function ChapterTutor({ chapterId }: { chapterId: string }) {
   const remaining = Math.max(0, DAILY_LIMIT - (todayCount ?? 0));
   const overLimit = (todayCount ?? 0) >= DAILY_LIMIT;
 
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault();
-    const question = input.trim();
+  async function sendQuestion(question: string) {
     if (!question || sending || overLimit) return;
     setError(null);
     setLimitMsg(null);
@@ -103,29 +103,34 @@ export function ChapterTutor({ chapterId }: { chapterId: string }) {
     }
   }
 
+  function handleSend(e: React.FormEvent) {
+    e.preventDefault();
+    void sendQuestion(input.trim());
+  }
+
   if (isLoading) return <Skeleton className="h-64 rounded-xl mt-4" />;
 
   return (
-    <div className="mt-4 flex flex-col gap-3">
+    <div className="mt-5 flex flex-col gap-3">
       <div
         ref={scrollRef}
-        className="rounded-xl bg-surface p-4 min-h-[280px] max-h-[60vh] overflow-y-auto flex flex-col gap-3"
+        className="min-h-[320px] max-h-[60vh] overflow-y-auto rounded-[28px] bg-primary-tint/40 p-4 flex flex-col gap-4"
       >
         {!messages?.length ? (
           <div className="m-auto text-center text-sm text-muted-foreground">
-            <div className="mx-auto inline-flex items-center justify-center rounded-full bg-muted p-3 text-muted-foreground">
+            <div className="mx-auto inline-flex items-center justify-center rounded-2xl bg-primary-tint p-3 text-primary">
               <Sparkles className="size-6" />
             </div>
             <p className="mt-2">Ask anything about this chapter.</p>
           </div>
         ) : (
           messages.map((m) => (
-            <div
-              key={m.id}
-              className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm ${
+            <div key={m.id} className={`flex max-w-[88%] gap-2 ${m.role === "user" ? "self-end" : "self-start"}`}>
+              {m.role === "assistant" && <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-primary-tint text-primary"><Sparkles className="size-4" /></span>}
+              <div className={`rounded-[20px] px-4 py-3 text-sm leading-relaxed shadow-soft ${
                 m.role === "user"
-                  ? "self-end bg-primary text-primary-foreground"
-                  : "self-start bg-muted text-foreground"
+                  ? "rounded-br-md bg-primary text-primary-foreground"
+                  : "rounded-tl-md bg-card text-foreground"
               }`}
             >
               {m.role === "assistant" ? (
@@ -135,12 +140,13 @@ export function ChapterTutor({ chapterId }: { chapterId: string }) {
               ) : (
                 <p className="whitespace-pre-wrap">{m.content}</p>
               )}
+              {m.role === "assistant" && m.source && <span className="mt-3 inline-flex rounded-full bg-primary-tint px-2.5 py-1 text-[11px] font-semibold text-primary-deep">From {m.source}</span>}
+              </div>
             </div>
           ))
         )}
         {sending && (
-          <div className="self-start rounded-2xl bg-muted px-4 py-2 text-sm text-muted-foreground">
-            Thinking…
+          <div className="flex self-start items-center gap-2"><span className="grid size-8 place-items-center rounded-xl bg-primary-tint text-primary"><Sparkles className="size-4" /></span><div className="flex gap-1 rounded-[20px] rounded-tl-md bg-card px-4 py-3 shadow-soft" aria-label="Tutor is typing">{[0,1,2].map((dot) => <span key={dot} className="typing-dot size-1.5 rounded-full bg-primary" />)}</div>
           </div>
         )}
       </div>
@@ -152,7 +158,10 @@ export function ChapterTutor({ chapterId }: { chapterId: string }) {
         </div>
       )}
 
-      <form onSubmit={handleSend} className="flex items-center gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {SUGGESTIONS.map((suggestion) => <button key={suggestion} type="button" disabled={sending || overLimit} onClick={() => void sendQuestion(suggestion)} className="shrink-0 rounded-full border bg-card px-3.5 py-2 text-xs font-semibold text-primary-deep disabled:opacity-50">{suggestion}</button>)}
+      </div>
+      <form onSubmit={handleSend} className="flex items-center gap-2 rounded-[18px] bg-card p-1.5 shadow-soft">
         <input
           type="text"
           value={input}
@@ -160,12 +169,12 @@ export function ChapterTutor({ chapterId }: { chapterId: string }) {
           placeholder={overLimit ? "Daily limit reached" : "Ask something about this chapter..."}
           disabled={sending || overLimit}
           maxLength={1000}
-          className="flex-1 rounded-full bg-surface px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
+          className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none disabled:opacity-60"
         />
         <button
           type="submit"
           disabled={sending || overLimit || !input.trim()}
-          className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground size-11 disabled:opacity-50"
+          className="inline-flex size-11 items-center justify-center rounded-[14px] bg-primary text-primary-foreground disabled:opacity-50"
           aria-label="Send"
         >
           <Send className="size-4" />

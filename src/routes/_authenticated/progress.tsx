@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RecentExams } from "@/components/exam/RecentExams";
-import { displayStreak, FREEZE_EVERY_DAYS, MAX_FREEZES } from "@/lib/streak";
-import { Flame, Sparkles, ClipboardList, Layers, AlertCircle, ArrowRight, Trophy, Target } from "lucide-react";
+import { displayStreak } from "@/lib/streak";
+import { Flame, ClipboardList, Layers, AlertCircle, ArrowRight, Target } from "lucide-react";
+import { levelFromXp } from "@/lib/levels";
 
 export const Route = createFileRoute("/_authenticated/progress")({
   head: () => ({ meta: [{ title: "Progress — Sihat" }] }),
@@ -141,37 +142,21 @@ function ProgressPage() {
   }
 
   const weak = data?.weak ?? [];
+  const level = levelFromXp(data?.xpTotal ?? 0);
 
   return (
     <div className="space-y-6">
-      <h1 className="animate-fade-up font-display text-[26px] font-bold text-primary tracking-tight">Your Progress</h1>
+      <header className="animate-fade-up"><p className="text-sm text-muted-foreground">Your journey</p><h1 className="font-display text-[38px] font-normal leading-tight">Progress</h1></header>
 
-      {/* Hero tiles */}
-      <section className="animate-fade-up stagger-1 grid grid-cols-2 gap-3">
-        <HeroTile
-          tone="streak"
-          icon={<Flame className="size-6" />}
-          label="Current streak"
-          value={`${data?.streak ?? 0}`}
-          suffix={`day${(data?.streak ?? 0) === 1 ? "" : "s"}`}
-          note={
-            data?.freezes
-              ? `${data.freezes} streak freeze${data.freezes === 1 ? "" : "s"} saved`
-              : `Earn a freeze every ${FREEZE_EVERY_DAYS} days`
-          }
-          noteTitle={`A streak freeze saves your streak if you miss one day. You earn one every ${FREEZE_EVERY_DAYS} days of your streak (up to ${MAX_FREEZES}).`}
-        />
-        <HeroTile
-          tone="accent"
-          icon={<Sparkles className="size-6" />}
-          label="Total XP"
-          value={`${data?.xpTotal ?? 0}`}
-          suffix="XP"
-        />
+      <section className="animate-fade-up stagger-1 rounded-[24px] bg-primary p-5 text-primary-foreground shadow-lifted">
+        <div className="flex justify-between gap-3 text-sm font-bold"><span>Level {level.level} · {level.name}</span><span className="text-xs font-medium opacity-80">{level.xpIntoLevel} / {level.xpForLevel} XP</span></div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20"><div className="animate-bar-fill h-full rounded-full bg-white" style={{ width: `${(level.xpIntoLevel / level.xpForLevel) * 100}%` }} /></div>
+        <p className="mt-3 text-xs opacity-80">{level.xpForLevel - level.xpIntoLevel} XP to level {level.level + 1}</p>
       </section>
 
       {/* Secondary 2x2 */}
       <section className="animate-fade-up stagger-2 grid grid-cols-2 gap-3">
+        <StatCard icon={<Flame className="size-5" />} label={`Streak${data?.freezes ? ` · ${data.freezes} freeze${data.freezes === 1 ? "" : "s"}` : ""}`} value={`${data?.streak ?? 0}`} suffix={`day${(data?.streak ?? 0) === 1 ? "" : "s"}`} tone="streak" />
         <StatCard
           icon={<ClipboardList className="size-5" />}
           label="Quizzes done"
@@ -186,12 +171,6 @@ function ProgressPage() {
           icon={<Layers className="size-5" />}
           label="Cards reviewed"
           value={`${data?.cardsReviewed ?? 0}`}
-        />
-        <StatCard
-          icon={<Trophy className="size-5" />}
-          label="Best streak"
-          value={`${data?.longestStreak ?? 0}`}
-          suffix={`day${(data?.longestStreak ?? 0) === 1 ? "" : "s"}`}
         />
       </section>
 
@@ -300,19 +279,21 @@ function StatCard({
   label,
   value,
   suffix,
+  tone,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   suffix?: string;
+  tone?: "streak";
 }) {
   return (
-    <div className="card-lift flex flex-col gap-3 rounded-2xl border bg-card p-4 shadow-soft">
-      <div className="inline-flex size-9 items-center justify-center rounded-xl bg-accent/10 text-accent">
+    <div className="card-lift flex flex-col gap-3 rounded-[20px] border bg-card p-4 shadow-soft">
+      <div className={`inline-flex size-9 items-center justify-center rounded-xl ${tone === "streak" ? "bg-streak-bg text-streak-ink" : "bg-primary-tint text-primary-deep"}`}>
         {icon}
       </div>
       <div>
-        <p className="font-display text-lg font-bold text-foreground tabular-nums">
+        <p className="text-[22px] font-bold text-foreground tabular-nums">
           {value}
           {suffix && <span className="ml-1 font-sans text-xs font-medium text-muted-foreground">{suffix}</span>}
         </p>
@@ -321,65 +302,6 @@ function StatCard({
     </div>
   );
 }
-
-function HeroTile({
-  tone,
-  icon,
-  label,
-  value,
-  suffix,
-  note,
-  noteTitle,
-}: {
-  tone: "streak" | "accent";
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  suffix?: string;
-  note?: string;
-  noteTitle?: string;
-}) {
-  const isStreak = tone === "streak";
-  return (
-    <div
-      className="card-lift relative overflow-hidden rounded-2xl border p-5 shadow-soft"
-      style={
-        isStreak
-          ? { background: "var(--streak-bg)", borderColor: "var(--streak)" }
-          : { background: "var(--primary-tint)", borderColor: "var(--primary-tint-2)" }
-      }
-    >
-      <div
-        aria-hidden
-        className="absolute -bottom-5 -right-4 opacity-[0.1] [&>svg]:size-24"
-        style={{ color: isStreak ? "#C2410C" : "#0F766E" }}
-      >
-        {icon}
-      </div>
-      <div
-        className="inline-flex size-11 items-center justify-center rounded-xl shadow-soft"
-        style={
-          isStreak
-            ? { background: "rgba(249,115,22,0.18)", color: "#C2410C" }
-            : { background: "rgba(31,79,216,0.18)", color: "#0F766E" }
-        }
-      >
-        {icon}
-      </div>
-      <p className="font-display mt-3 text-3xl font-bold text-foreground tabular-nums">
-        {value}
-        {suffix && <span className="ml-1.5 font-sans text-sm font-medium text-muted-foreground">{suffix}</span>}
-      </p>
-      <p className="mt-0.5 text-xs font-medium text-muted-foreground">{label}</p>
-      {note && (
-        <p className="mt-1 text-[11px] text-muted-foreground" title={noteTitle}>
-          {note}
-        </p>
-      )}
-    </div>
-  );
-}
-
 
 
 function MasteryBadge({ score }: { score: number | null }) {
