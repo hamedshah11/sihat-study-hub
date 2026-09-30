@@ -175,7 +175,7 @@ function QuizRunner({
     const pct = Math.round((score / total) * 100);
     const passed = pct >= 80;
     return (
-      <div className="animate-scale-in px-1 pb-8 pt-8 text-center">
+      <div className="animate-scale-in px-4 pb-8 pt-8 text-center">
         <div
           className="mx-auto grid size-40 place-items-center rounded-full bg-[conic-gradient(var(--subject)_var(--score),var(--subject-tint)_0)] p-2"
           style={{ "--score": `${pct * 3.6}deg` } as React.CSSProperties}
@@ -293,7 +293,7 @@ function QuizRunner({
   }
 
   return (
-    <div className="min-h-dvh px-1 pb-8 pt-6 md:px-4">
+    <div className="min-h-dvh px-4 pb-8 pt-6 md:px-4">
       <div className="flex items-center gap-3">
         <Link
           to="/chapters/$chapterId"

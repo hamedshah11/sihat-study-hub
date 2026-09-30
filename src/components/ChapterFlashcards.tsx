@@ -226,7 +226,7 @@ function FlashcardRunner({
   ];
 
   return (
-    <div className="min-h-dvh bg-[linear-gradient(var(--subject-tint)_0_260px,transparent_260px)] px-1 pb-6 pt-6 md:px-4">
+    <div className="min-h-dvh bg-[linear-gradient(var(--subject-tint)_0_260px,transparent_260px)] px-4 pb-6 pt-6 md:px-4">
       <div className="flex items-center gap-3">
         <Link
           to="/chapters/$chapterId"
