@@ -13,6 +13,7 @@ export const XP_AMOUNTS = {
   tutor: 2,
   exam: 20,
   exam_pass: 35,
+  review: 10,
 } as const;
 
 export type XpSource = keyof typeof XP_AMOUNTS;
@@ -66,4 +67,39 @@ export async function bumpStreak(userId: string): Promise<void> {
       freezes_available: next.freezes_available,
     })
     .eq("user_id", userId);
+}
+
+export type AnswerLogEntry = {
+  questionId: string;
+  chapterId: string | null;
+  correct: boolean;
+};
+
+/**
+ * Append answers to the per-question log (question_answers), which drives
+ * quiz selection and "Fix your mistakes". Never throws: a logging failure
+ * (e.g. the table not created yet) must not fail the quiz or exam submit.
+ */
+export async function logAnswers(
+  userId: string,
+  source: "quiz" | "exam" | "review",
+  entries: AnswerLogEntry[],
+  answeredAt: string = new Date().toISOString(),
+): Promise<void> {
+  if (entries.length === 0) return;
+  try {
+    const { error } = await supabaseAdmin.from("question_answers").insert(
+      entries.map((e) => ({
+        user_id: userId,
+        question_id: e.questionId,
+        chapter_id: e.chapterId,
+        correct: e.correct,
+        source,
+        answered_at: answeredAt,
+      })),
+    );
+    if (error) console.error("logAnswers failed", error.message);
+  } catch (e) {
+    console.error("logAnswers failed", e);
+  }
 }

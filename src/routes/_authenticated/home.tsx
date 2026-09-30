@@ -3,9 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Flame, Sparkles, BookOpen, Layers, ClipboardList, MessageCircle, ArrowRight, Trophy } from "lucide-react";
+import { Flame, Sparkles, BookOpen, Layers, ClipboardList, MessageCircle, ArrowRight, Trophy, RotateCcw } from "lucide-react";
 import { levelFromXp } from "@/lib/levels";
 import { displayStreak } from "@/lib/streak";
+import { useMistakes } from "@/lib/mistakes-data";
 import { checkLevelUp } from "@/lib/celebrate";
 import { InstallPrompt } from "@/components/InstallPrompt";
 
@@ -29,6 +30,7 @@ function estimateMinutes(rec: Recommendation): number {
 
 function HomePage() {
   const navigate = useNavigate();
+  const { data: mistakes } = useMistakes();
 
   const { data, isLoading } = useQuery({
     queryKey: ["home-today"],
@@ -343,6 +345,28 @@ function HomePage() {
             Start studying <ArrowRight className="size-4" />
           </button>
         </section>
+      )}
+
+      {/* Mistakes due for review (only shown when there are some). */}
+      {(mistakes?.due.length ?? 0) > 0 && (
+        <Link
+          to="/review"
+          className="card-lift animate-fade-up stagger-3 group flex items-center gap-3.5 rounded-2xl border border-streak/30 bg-card p-4 shadow-soft"
+        >
+          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-streak/10 text-streak">
+            <RotateCcw className="size-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-foreground">
+              Fix {mistakes!.due.length} mistake{mistakes!.due.length === 1 ? "" : "s"}
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              Questions you got wrong, back for another try · about{" "}
+              {Math.max(2, Math.ceil(Math.min(mistakes!.due.length, 10) * 0.5))} min
+            </span>
+          </span>
+          <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
+        </Link>
       )}
 
       {/* Secondary cards: each opens the matching chapter tab directly. */}

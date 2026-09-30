@@ -2,7 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { XP_AMOUNTS, insertXp, bumpStreak, startOfTodayPkt } from "@/lib/activity.server";
+import {
+  XP_AMOUNTS,
+  insertXp,
+  bumpStreak,
+  startOfTodayPkt,
+  logAnswers,
+} from "@/lib/activity.server";
 import {
   DIFFICULTY_MIX,
   EXAM_GRACE_SECONDS,
@@ -590,6 +596,17 @@ export const submitExam = createServerFn({ method: "POST" })
         .single();
       return buildResult(again!, 0);
     }
+
+    // Unanswered questions are not logged: running out of time is not the
+    // same as getting a question wrong.
+    await logAnswers(
+      userId,
+      "exam",
+      graded
+        .filter((g) => g.selectedIndex !== null)
+        .map((g) => ({ questionId: g.questionId, chapterId: g.chapterId, correct: g.correct })),
+      submittedAt,
+    );
 
     // XP once per subject per PKT day, so exams can't be farmed. Only a
     // genuine attempt counts: at least half the paper answered.
