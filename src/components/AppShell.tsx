@@ -72,19 +72,7 @@ function FocusModeClose() {
   const chapterMatch = location.pathname.match(/\/chapters\/([^/]+)/);
   const subjectMatch = location.pathname.match(/\/subjects\/([^/]+)\/exam$/);
 
-  if (chapterMatch) {
-    return (
-      <Link
-        to="/chapters/$chapterId"
-        params={{ chapterId: chapterMatch[1] }}
-        search={{}}
-        aria-label="Close study session"
-        className="fixed top-[max(1rem,env(safe-area-inset-top))] left-4 z-50 grid size-11 place-items-center rounded-full border bg-card text-foreground shadow-soft"
-      >
-        <X className="size-5" />
-      </Link>
-    );
-  }
+  if (chapterMatch) return null;
 
   return subjectMatch ? (
     <Link

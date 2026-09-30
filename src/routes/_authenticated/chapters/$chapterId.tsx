@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +12,7 @@ import {
   ClipboardList,
   Image as ImageIcon,
   Layers,
+  Lightbulb,
   Sparkles,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -23,6 +25,7 @@ import { ChapterTutor } from "@/components/ChapterTutor";
 import { ChapterDiagramTest } from "@/components/ChapterDiagramTest";
 import { ChapterNoteDiagrams } from "@/components/ChapterNoteDiagrams";
 import { ChapterVideos } from "@/components/ChapterVideos";
+import { subjectColourVariables } from "@/lib/subject-colours";
 
 const CHAPTER_TABS = ["notes", "quiz", "flashcards", "diagrams", "tutor"] as const;
 type ChapterTab = (typeof CHAPTER_TABS)[number];
@@ -49,6 +52,7 @@ export const Route = createFileRoute("/_authenticated/chapters/$chapterId")({
 });
 
 function ChapterDetail() {
+  const [readingProgress, setReadingProgress] = useState(0);
   const { chapterId } = Route.useParams();
   const { tab } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
@@ -72,13 +76,24 @@ function ChapterDetail() {
       const { data: subject } = chapter.subject_id
         ? await supabase
             .from("subjects")
-            .select("id, name")
+            .select("id, name, colour")
             .eq("id", chapter.subject_id)
             .maybeSingle()
         : { data: null };
       return { chapter, subject };
     },
   });
+
+  useEffect(() => {
+    if (activeTab !== "notes") return;
+    const update = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      setReadingProgress(max > 0 ? Math.min(100, (window.scrollY / max) * 100) : 100);
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, [activeTab, data?.chapter]);
 
   if (isLoading) return <Skeleton className="h-64 rounded-xl" />;
 
@@ -111,59 +126,111 @@ function ChapterDetail() {
       })
     : null;
 
-  return (
-    <div>
-      <header className="animate-fade-up">
-        {subject ? (
-          <Link
-            to="/subjects/$subjectId"
-            params={{ subjectId: subject.id }}
-            className="inline-flex items-center gap-1 rounded-full border bg-card py-1.5 pl-2 pr-3.5 text-sm font-medium text-muted-foreground shadow-soft transition-colors hover:text-foreground"
-          >
-            <ChevronLeft className="size-4" /> {subject.name}
-          </Link>
-        ) : (
-          <Link
-            to="/subjects"
-            className="inline-flex items-center gap-1 rounded-full border bg-card py-1.5 pl-2 pr-3.5 text-sm font-medium text-muted-foreground shadow-soft transition-colors hover:text-foreground"
-          >
-            <ChevronLeft className="size-4" /> Subjects
-          </Link>
-        )}
-        <h1 className="font-display mt-4 text-2xl font-bold text-primary">{chapter.title}</h1>
-      </header>
+  const focusMode = activeTab === "quiz" || activeTab === "flashcards";
 
-      <Tabs value={activeTab} onValueChange={setTab} className="animate-fade-up stagger-1 mt-6">
-        <TabsList className="grid h-auto w-full grid-cols-5 gap-0.5 rounded-xl border bg-secondary/80 p-1 shadow-soft">
-          {TAB_ITEMS.map(({ value, label, icon: Icon }) => (
-            <TabsTrigger
-              key={value}
-              value={value}
-              className="flex min-h-[48px] flex-col gap-0.5 rounded-lg px-0.5 py-1.5 text-[11px] leading-none data-[state=active]:shadow-soft"
+  return (
+    <div
+      className="subject-colour -mx-4 -mt-6 md:mx-0 md:mt-0"
+      style={subjectColourVariables(subject?.colour)}
+    >
+      {!focusMode && (
+        <header className="animate-fade-up relative h-[300px] overflow-hidden rounded-b-[34px] bg-[var(--subject)] px-5 pt-6 text-white md:rounded-[34px]">
+          <div className="absolute inset-x-0 top-0 h-1 bg-white/25">
+            <div
+              className="h-full bg-white transition-[width]"
+              style={{ width: `${readingProgress}%` }}
+            />
+          </div>
+          <span
+            aria-hidden
+            className="absolute -right-16 -top-16 size-52 rounded-full bg-white/10"
+          />
+          <div className="relative flex items-center justify-between">
+            {subject ? (
+              <Link
+                to="/subjects/$subjectId"
+                params={{ subjectId: subject.id }}
+                className="grid size-10 place-items-center rounded-full bg-white/15 text-white backdrop-blur-sm"
+                aria-label={`Back to ${subject.name}`}
+              >
+                <ChevronLeft className="size-5" />
+              </Link>
+            ) : (
+              <Link
+                to="/subjects"
+                className="grid size-10 place-items-center rounded-full bg-white/15 text-white backdrop-blur-sm"
+                aria-label="Back to subjects"
+              >
+                <ChevronLeft className="size-5" />
+              </Link>
+            )}
+            <button
+              onClick={() => setTab("tutor")}
+              className="grid size-10 place-items-center rounded-full bg-white/15 text-white backdrop-blur-sm"
+              aria-label="Ask tutor"
             >
-              <Icon className="size-4" />
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+              <Sparkles className="size-[18px]" />
+            </button>
+          </div>
+          <p className="relative mt-8 text-xs font-semibold uppercase tracking-[0.14em] text-white/75">
+            {subject?.name ?? "Chapter"}
+          </p>
+          <h1 className="relative mt-2 max-w-xl font-display text-[40px] leading-[1.02]">
+            {chapter.title}
+          </h1>
+        </header>
+      )}
+
+      <Tabs
+        value={activeTab}
+        onValueChange={setTab}
+        className={focusMode ? "" : "animate-fade-up stagger-1 relative -mt-[68px]"}
+      >
+        {!focusMode && (
+          <TabsList className="mx-5 grid h-[52px] w-[calc(100%-2.5rem)] grid-cols-5 gap-0.5 rounded-2xl bg-white/15 p-1 backdrop-blur-sm">
+            {TAB_ITEMS.map(({ value, label, icon: Icon }) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className="flex min-h-11 flex-col gap-0.5 rounded-xl px-0.5 py-1.5 text-[11px] leading-none text-white data-[state=active]:bg-white data-[state=active]:text-[var(--subject-light-ink)] data-[state=active]:shadow-none"
+              >
+                <Icon className="size-4" />
+                {label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        )}
 
         <TabsContent value="notes">
-          <div className="rounded-2xl border bg-card p-5 mt-4 shadow-soft">
-            <div className="prose">
+          <div className="relative z-10 mx-4 mt-4 rounded-[28px] bg-card p-5 shadow-lifted md:mx-5">
+            <div className="prose prose-headings:text-foreground prose-h2:text-lg prose-h2:font-bold prose-p:text-[14.5px] prose-p:leading-[1.65] prose-table:border prose-th:border prose-th:p-2 prose-td:border prose-td:p-2">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 urlTransform={diagramUrlTransform}
-                components={{ img: DiagramMarkdownImage, table: ChapterNotesTable }}
+                components={{
+                  img: DiagramMarkdownImage,
+                  table: ChapterNotesTable,
+                  blockquote: ({ children }) => (
+                    <blockquote className="not-prose my-5 flex gap-3 rounded-2xl border-0 bg-warning-bg p-4 text-sm leading-relaxed text-warning-ink">
+                      <Lightbulb className="mt-0.5 size-5 shrink-0" />
+                      <div>{children}</div>
+                    </blockquote>
+                  ),
+                }}
               >
                 {chapter.summary_md || "_No notes yet._"}
               </ReactMarkdown>
             </div>
             <ChapterNoteDiagrams chapterId={chapterId} excludedPaths={embeddedDiagramPaths} />
           </div>
-          <NextStepCard onPick={setTab} />
-          <ChapterVideos chapterId={chapterId} />
+          <div className="mx-4 md:mx-5">
+            <NextStepCard onPick={setTab} />
+          </div>
+          <div className="mx-4 md:mx-5">
+            <ChapterVideos chapterId={chapterId} />
+          </div>
           {updated && (
-            <div className="mt-3 rounded-xl border bg-card px-4 py-3 text-xs text-muted-foreground shadow-soft">
+            <div className="mx-4 mt-3 rounded-xl border bg-card px-4 py-3 text-xs text-muted-foreground md:mx-5">
               Last updated {updated}
             </div>
           )}
@@ -173,7 +240,11 @@ function ChapterDetail() {
           <ChapterQuiz chapterId={chapterId} />
         </TabsContent>
         <TabsContent value="flashcards">
-          <ChapterFlashcards chapterId={chapterId} />
+          <ChapterFlashcards
+            chapterId={chapterId}
+            chapterTitle={chapter.title}
+            subjectName={subject?.name ?? null}
+          />
         </TabsContent>
         <TabsContent value="diagrams">
           <ChapterDiagramTest chapterId={chapterId} />
@@ -193,25 +264,17 @@ function NextStepCard({ onPick }: { onPick: (tab: string) => void }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   return (
-    <div className="mt-4 rounded-2xl border bg-card p-5 shadow-soft">
-      <p className="font-display text-base font-bold text-primary">Finished reading?</p>
-      <p className="mt-0.5 text-sm text-muted-foreground">
-        Test yourself now while it's fresh. It's the fastest way to remember it.
-      </p>
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <button
-          onClick={() => go("quiz")}
-          className="inline-flex items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform active:scale-[0.98]"
-        >
-          Take quiz <ArrowRight className="size-4" />
-        </button>
-        <button
-          onClick={() => go("flashcards")}
-          className="inline-flex items-center justify-center gap-1.5 rounded-full border bg-card px-4 py-3 text-sm font-semibold text-foreground shadow-soft transition-transform active:scale-[0.98]"
-        >
-          <Layers className="size-4" /> Flashcards
-        </button>
+    <div className="mt-4 flex items-center gap-4 rounded-[20px] bg-[var(--subject-light-deep)] p-4 text-white">
+      <div className="min-w-0 flex-1">
+        <p className="font-display text-xl">Done reading?</p>
+        <p className="mt-0.5 text-xs text-white/70">Review the key ideas while they are fresh.</p>
       </div>
+      <button
+        onClick={() => go("flashcards")}
+        className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-4 text-sm font-semibold text-[var(--subject-light-ink)]"
+      >
+        Review <ArrowRight className="size-4" />
+      </button>
     </div>
   );
 }

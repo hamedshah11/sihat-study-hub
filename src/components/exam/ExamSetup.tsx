@@ -131,7 +131,7 @@ export function ExamSetup({
           <button
             onClick={() => resume(data.active!.id)}
             disabled={starting}
-            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-transform active:scale-[0.98] disabled:opacity-60"
+            className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--subject)] px-5 py-3 text-sm font-semibold text-white shadow-soft transition-transform active:scale-[0.98] disabled:opacity-60"
           >
             <PlayCircle className="size-4" /> {minutesLeft > 0 ? "Resume exam" : "Open and submit"}
           </button>
@@ -256,7 +256,7 @@ export function ExamSetup({
             <button
               onClick={begin}
               disabled={!canStart || starting}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3.5 text-sm font-bold text-primary-foreground shadow-lifted transition-transform active:scale-[0.98] disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--subject)] px-5 py-3.5 text-sm font-bold text-primary-foreground shadow-lifted transition-transform active:scale-[0.98] disabled:opacity-50"
             >
               {starting ? "Preparing your paper…" : `Start ${config.label.toLowerCase()}`}
               {!starting && <ArrowRight className="size-4" />}

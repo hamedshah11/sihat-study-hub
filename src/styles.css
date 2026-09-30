@@ -139,6 +139,9 @@
   --subject-ink: var(--subject-light-ink);
 }
 
+.subject-colour .prose h1,
+.subject-colour .prose h2 { color: var(--subject-ink); }
+
 .dark .subject-colour {
   --subject-deep: var(--subject-dark-ink);
   --subject-tint: var(--subject-dark-tint);

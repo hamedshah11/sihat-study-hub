@@ -11,6 +11,7 @@ import { ExamSetup } from "@/components/exam/ExamSetup";
 import { ExamRunner } from "@/components/exam/ExamRunner";
 import { ExamResults } from "@/components/exam/ExamResults";
 import { MISTAKES_QUERY_KEY } from "@/lib/mistakes-data";
+import { subjectColourVariables } from "@/lib/subject-colours";
 
 const searchSchema = z.object({
   result: z.string().uuid().optional(),
@@ -36,7 +37,7 @@ function ExamPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("subjects")
-        .select("id, name")
+        .select("id, name, colour")
         .eq("id", subjectId)
         .maybeSingle();
       return data;
@@ -60,26 +61,28 @@ function ExamPage() {
   // While an exam is running, the runner owns the whole screen.
   if (exam) {
     return (
-      <ExamRunner
-        exam={exam}
-        subjectName={subject?.name ?? "Exam"}
-        onSubmitted={(r) => {
-          setExam(null);
-          setFreshResult(r);
-          qc.invalidateQueries({ queryKey: ["exam-overview", subjectId] });
-          qc.invalidateQueries({ queryKey: ["home-today"] });
-          qc.invalidateQueries({ queryKey: ["student-progress"] });
-          qc.invalidateQueries({ queryKey: ["exam-summary", subjectId] });
-          qc.invalidateQueries({ queryKey: ["recent-exams"] });
-          qc.invalidateQueries({ queryKey: MISTAKES_QUERY_KEY });
-          navigate({
-            to: "/subjects/$subjectId/exam",
-            params: { subjectId },
-            search: { result: r.attemptId },
-            replace: true,
-          });
-        }}
-      />
+      <div className="subject-colour pt-12" style={subjectColourVariables(subject?.colour)}>
+        <ExamRunner
+          exam={exam}
+          subjectName={subject?.name ?? "Exam"}
+          onSubmitted={(r) => {
+            setExam(null);
+            setFreshResult(r);
+            qc.invalidateQueries({ queryKey: ["exam-overview", subjectId] });
+            qc.invalidateQueries({ queryKey: ["home-today"] });
+            qc.invalidateQueries({ queryKey: ["student-progress"] });
+            qc.invalidateQueries({ queryKey: ["exam-summary", subjectId] });
+            qc.invalidateQueries({ queryKey: ["recent-exams"] });
+            qc.invalidateQueries({ queryKey: MISTAKES_QUERY_KEY });
+            navigate({
+              to: "/subjects/$subjectId/exam",
+              params: { subjectId },
+              search: { result: r.attemptId },
+              replace: true,
+            });
+          }}
+        />
+      </div>
     );
   }
 
@@ -91,7 +94,7 @@ function ExamPage() {
         : null;
 
   return (
-    <div>
+    <div className="subject-colour pt-12" style={subjectColourVariables(subject?.colour)}>
       <header className="animate-fade-up">
         <Link
           to="/subjects/$subjectId"
