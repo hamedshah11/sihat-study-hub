@@ -248,6 +248,11 @@ function QuizRunner({
           >
             Try another quiz
           </Button>
+          <Button variant="outline" asChild className="h-13 rounded-2xl">
+            <Link to="/chapters/$chapterId" params={{ chapterId }} search={{}}>
+              Back to chapter
+            </Link>
+          </Button>
         </div>
       </div>
     );
@@ -269,12 +274,12 @@ function QuizRunner({
                     key={i}
                     className={cn(
                       "rounded-md border p-3 text-sm",
-                      isCorrect && "border-accent bg-accent/10",
-                      isPicked && !isCorrect && "border-destructive bg-destructive/10",
+                      isCorrect && "border-success bg-success-bg",
+                      isPicked && !isCorrect && "border-destructive bg-destructive-bg",
                     )}
                   >
                     {opt}
-                    {isCorrect && <span className="ml-2 text-xs text-accent">Correct</span>}
+                    {isCorrect && <span className="ml-2 text-xs text-success-ink">Correct</span>}
                     {isPicked && !isCorrect && (
                       <span className="ml-2 text-xs text-destructive">Your answer</span>
                     )}

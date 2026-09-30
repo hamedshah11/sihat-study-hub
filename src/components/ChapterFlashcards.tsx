@@ -172,8 +172,10 @@ function FlashcardRunner({
           >
             Continue studying
           </Button>
-          <Button variant="outline" onClick={() => window.scrollTo({ top: 0 })}>
-            Back to chapter
+          <Button variant="outline" asChild>
+            <Link to="/chapters/$chapterId" params={{ chapterId }} search={{}}>
+              Back to chapter
+            </Link>
           </Button>
         </div>
       </div>
