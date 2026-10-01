@@ -190,7 +190,6 @@ function Row({
 function BatchSection({ batch }: { batch: string | null }) {
   const qc = useQueryClient();
   const apply = useServerFn(applyInviteCode);
-  const [showInput, setShowInput] = useState(!batch);
   const [code, setCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
@@ -199,6 +198,7 @@ function BatchSection({ batch }: { batch: string | null }) {
     not_found: "That code isn't valid",
     expired: "That code has expired",
     exhausted: "That code has been used up.",
+    already_enrolled: "Your batch is already assigned. Contact an administrator for help.",
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -211,7 +211,6 @@ function BatchSection({ batch }: { batch: string | null }) {
       if (res.ok) {
         setMessage({ kind: "success", text: "Joined batch successfully." });
         setCode("");
-        setShowInput(false);
         await qc.invalidateQueries({ queryKey: ["profile-page"] });
       } else {
         setMessage({ kind: "error", text: reasonMap[res.reason] ?? "Could not apply code." });
@@ -228,26 +227,17 @@ function BatchSection({ batch }: { batch: string | null }) {
 
   return (
     <section className="mt-4 rounded-[22px] bg-card p-5 shadow-soft">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Batch</p>
-          <p className="mt-0.5 text-foreground">{batch ?? "Not assigned"}</p>
-        </div>
-        {batch && !showInput && (
-          <button
-            type="button"
-            onClick={() => {
-              setShowInput(true);
-              setMessage(null);
-            }}
-            className="text-xs text-accent hover:underline"
-          >
-            Change batch
-          </button>
+      <div>
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">Batch</p>
+        <p className="mt-0.5 text-foreground">{batch ?? "Not assigned"}</p>
+        {batch && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Your batch is assigned by Sindh Institute. Contact an administrator if it is incorrect.
+          </p>
         )}
       </div>
 
-      {showInput && (
+      {!batch && (
         <form onSubmit={handleSubmit} className="mt-3 flex gap-2">
           <Input
             value={code}

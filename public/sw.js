@@ -2,7 +2,7 @@
    Bump CACHE_VERSION on every deploy to invalidate old caches. */
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js");
 
-const CACHE_VERSION = "v5";
+const CACHE_VERSION = "v6";
 workbox.core.setCacheNameDetails({ prefix: "sihat", suffix: CACHE_VERSION });
 
 self.addEventListener("install", (event) => {
@@ -10,19 +10,21 @@ self.addEventListener("install", (event) => {
 });
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((k) => k.startsWith("sihat-") && !k.endsWith(`-${CACHE_VERSION}`))
-          .map((k) => caches.delete(k)),
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => k.startsWith("sihat-") && !k.endsWith(`-${CACHE_VERSION}`))
+            .map((k) => caches.delete(k)),
+        ),
       ),
-    ),
   );
   self.clients.claim();
 });
 
-const { registerRoute, setCatchHandler } = workbox.routing;
-const { CacheFirst, NetworkFirst, StaleWhileRevalidate } = workbox.strategies;
+const { registerRoute } = workbox.routing;
+const { CacheFirst, StaleWhileRevalidate } = workbox.strategies;
 const { CacheableResponsePlugin } = workbox.cacheableResponse;
 const { ExpirationPlugin } = workbox.expiration;
 
@@ -75,23 +77,10 @@ registerRoute(
   }),
 );
 
-// Supabase REST GETs — stale-while-revalidate so previously-opened chapters,
-// notes and approved flashcards keep working offline. Skip auth + non-GET.
-registerRoute(
-  ({ url, request }) => {
-    if (request.method !== "GET") return false;
-    if (!url.hostname.endsWith(".supabase.co")) return false;
-    if (url.pathname.startsWith("/auth/")) return false;
-    if (url.pathname.startsWith("/functions/")) return false;
-    return url.pathname.startsWith("/rest/") || url.pathname.startsWith("/storage/");
-  },
-  new StaleWhileRevalidate({
-    cacheName: `sihat-supabase-get-${CACHE_VERSION}`,
-    plugins: [
-      new CacheableResponsePlugin({ statuses: [200] }),
-      new ExpirationPlugin({ maxEntries: 300, maxAgeSeconds: 30 * 24 * 60 * 60 }),
-    ],
-  }),
-);
+// Never cache Supabase REST responses. Workbox keys runtime-cache entries by
+// URL, not by the bearer token that RLS used to shape the response. Caching
+// authenticated API reads here could therefore show one student's personal
+// data to the next account using the same browser. Explicit, account-scoped
+// offline curriculum storage will be implemented separately in IndexedDB.
 
 // Never intercept POST/PUT/PATCH/DELETE — let them fail offline naturally.

@@ -21,8 +21,10 @@ batch.
 - **Deploy**: Cloudflare (via `@cloudflare/vite-plugin` + `wrangler.jsonc`,
   entry `src/server.ts`).
 - **Offline**: `public/sw.js`, a hand-written Workbox service worker
-  (stale-while-revalidate for HTML and Supabase REST GETs, cache-first for
-  static assets). Bump `CACHE_VERSION` on every deploy.
+  (stale-while-revalidate for HTML and cache-first for static assets). It does
+  not cache authenticated Supabase REST responses because Workbox's URL-only
+  cache keys could leak RLS-scoped data between accounts on a shared device.
+  Bump `CACHE_VERSION` on every deploy.
 
 ## Security model — read this before touching progress/gamification tables
 
@@ -178,11 +180,14 @@ review XP once per PKT day. Browser reads go through
 - No payment/subscription layer — access is invite-code gated
   (`invite_codes` table, `internal` vs `external` `student_type`), not
   billed.
-- No automated tests (no test runner configured in `package.json`) —
-  verification is manual + `bun run lint` + `bun run build`.
+- Automated coverage is currently limited to focused Vitest unit/regression
+  tests; continue to run `bun run test`, `bun run lint`, and `bun run build`.
 - `tutor-practice` and `award-badges`/`backfill-question-options` edge
   functions exist but are thinner/ops-oriented; not documented in depth
   here — read them directly before modifying.
 - No offline write queue — the service worker deliberately never
   intercepts POST/PUT/PATCH/DELETE, so writes (quiz submits, reviews,
   tutor questions) simply fail offline rather than syncing later.
+- Curriculum API responses are not yet stored for offline reading. Add an
+  explicit, account-scoped IndexedDB download flow rather than restoring a
+  shared runtime cache for authenticated Supabase REST requests.

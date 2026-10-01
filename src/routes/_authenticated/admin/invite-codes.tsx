@@ -81,7 +81,7 @@ function InviteCodesPage() {
   };
 
   const batchName = (id: string | null) =>
-    id ? data?.batches.find((b) => b.id === id)?.name ?? "—" : "—";
+    id ? (data?.batches.find((b) => b.id === id)?.name ?? "—") : "—";
 
   return (
     <div>
@@ -108,7 +108,11 @@ function InviteCodesPage() {
           </TableHeader>
           <TableBody>
             {isLoading && (
-              <TableRow><TableCell colSpan={5} className="text-muted-foreground">Loading…</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={5} className="text-muted-foreground">
+                  Loading…
+                </TableCell>
+              </TableRow>
             )}
             {data?.codes.map((c) => {
               const used = (c.used_count ?? 0) > 0;
@@ -126,9 +130,12 @@ function InviteCodesPage() {
                   <TableCell className="font-mono text-sm">{c.code}</TableCell>
                   <TableCell>{batchName(c.batch_id)}</TableCell>
                   <TableCell>
-                    {c.used_count ?? 0}{c.max_uses != null ? ` / ${c.max_uses}` : ""}
+                    {c.used_count ?? 0}
+                    {c.max_uses != null ? ` / ${c.max_uses}` : ""}
                   </TableCell>
-                  <TableCell><Badge className={state.cls}>{state.label}</Badge></TableCell>
+                  <TableCell>
+                    <Badge className={state.cls}>{state.label}</Badge>
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => revoke(c.code)}>
                       Revoke
@@ -138,7 +145,11 @@ function InviteCodesPage() {
               );
             })}
             {data && data.codes.length === 0 && (
-              <TableRow><TableCell colSpan={5} className="text-muted-foreground">No invite codes yet.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={5} className="text-muted-foreground">
+                  No invite codes yet.
+                </TableCell>
+              </TableRow>
             )}
           </TableBody>
         </Table>
@@ -150,19 +161,23 @@ function InviteCodesPage() {
 function CreateCodeDialog({ batches }: { batches: Batch[] }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [batchId, setBatchId] = useState<string>("none");
+  const [batchId, setBatchId] = useState("");
   const [maxUses, setMaxUses] = useState("100");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [lastCode, setLastCode] = useState<string | null>(null);
 
   const submit = async () => {
+    if (!batchId) {
+      setErr("Choose the batch this code should enrol students into.");
+      return;
+    }
     setBusy(true);
     setErr(null);
     const code = generateCode();
     const { error } = await supabase.from("invite_codes").insert({
       code,
-      batch_id: batchId === "none" ? null : batchId,
+      batch_id: batchId,
       max_uses: Number(maxUses) || 100,
     });
     setBusy(false);
@@ -180,7 +195,7 @@ function CreateCodeDialog({ batches }: { batches: Batch[] }) {
       onOpenChange={(o) => {
         setOpen(o);
         if (!o) {
-          setBatchId("none");
+          setBatchId("");
           setMaxUses("100");
           setErr(null);
           setLastCode(null);
@@ -188,19 +203,26 @@ function CreateCodeDialog({ batches }: { batches: Batch[] }) {
       }}
     >
       <DialogTrigger asChild>
-        <Button><Plus className="size-4" /> Create code</Button>
+        <Button>
+          <Plus className="size-4" /> Create code
+        </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Create invite code</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Create invite code</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <div>
-            <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Batch (optional)</p>
+            <p className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Batch</p>
             <Select value={batchId} onValueChange={setBatchId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a batch" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No batch</SelectItem>
                 {batches.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -217,13 +239,15 @@ function CreateCodeDialog({ batches }: { batches: Batch[] }) {
           {err && <p className="text-sm text-destructive">{err}</p>}
           {lastCode && (
             <div className="rounded-lg bg-surface p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Generated code</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Generated code
+              </p>
               <p className="mt-1 font-mono text-lg text-primary">{lastCode}</p>
             </div>
           )}
         </div>
         <DialogFooter>
-          <Button onClick={submit} disabled={busy}>
+          <Button onClick={submit} disabled={busy || !batchId}>
             {busy ? "Creating…" : lastCode ? "Generate another" : "Generate code"}
           </Button>
         </DialogFooter>
