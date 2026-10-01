@@ -1,74 +1,61 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useServerFn } from "@tanstack/react-start";
+import { CheckCircle2, ClipboardList, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CheckCircle2, XCircle, ClipboardList, RotateCcw, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useServerFn } from "@tanstack/react-start";
-import { submitQuiz } from "@/lib/study.functions";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getChapterQuiz, submitQuiz, type ChapterQuizQuestion } from "@/lib/study.functions";
 import { awardBadgesIfNeeded } from "@/lib/award-badges";
 import { celebrate } from "@/lib/celebrate";
-import { buildHistory, pickQuizQuestions } from "@/lib/mistakes";
-import { loadAnswerLog, MISTAKES_QUERY_KEY } from "@/lib/mistakes-data";
-import { Link } from "@tanstack/react-router";
-
-type Question = {
-  id: string;
-  prompt: string;
-  options: string[];
-  correct_index: number;
-  explanation: string | null;
-};
+import { MISTAKES_QUERY_KEY } from "@/lib/mistakes-data";
+import { cn } from "@/lib/utils";
 
 const QUIZ_SIZE = 5;
 
+type SubmittedAnswer = { questionId: string; selectedIndex: number };
+type QuizReview = SubmittedAnswer & {
+  prompt: string;
+  options: string[];
+  correct: boolean;
+  correctIndex: number;
+  explanation: string | null;
+};
+type QuizResult = {
+  score: number;
+  total: number;
+  passed: boolean;
+  masteryScore: number;
+  awardedXp: number;
+  review: QuizReview[];
+};
+
 export function ChapterQuiz({ chapterId }: { chapterId: string }) {
   const [seed, setSeed] = useState(0);
-
-  const { data: allQuestions, isLoading } = useQuery({
-    queryKey: ["chapter-quiz-questions", chapterId],
-    queryFn: async (): Promise<Question[]> => {
-      const { data, error } = await supabase
-        .from("questions")
-        .select("id, prompt, options, correct_index, explanation")
-        .eq("chapter_id", chapterId)
-        .eq("status", "approved");
-      if (error) throw error;
-      return (data ?? []).map((q) => ({
-        ...q,
-        options: Array.isArray(q.options) ? (q.options as string[]) : [],
-      }));
-    },
+  const loadQuiz = useServerFn(getChapterQuiz);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["chapter-quiz", chapterId, seed],
+    queryFn: () => loadQuiz({ data: { chapterId } }),
+    staleTime: Infinity,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
   });
 
-  // This student's answers in this chapter. Reloaded on every retake (seed)
-  // so the next quiz reflects what they just answered.
-  const { data: history, isLoading: historyLoading } = useQuery({
-    queryKey: ["chapter-answer-log", chapterId, seed],
-    queryFn: async () => buildHistory(await loadAnswerLog(chapterId)),
-  });
+  if (isLoading) return <Skeleton className="mt-4 h-64 rounded-xl" />;
 
-  // Due mistakes first, then questions never seen, then those seen longest ago.
-  const picked = useMemo(() => {
-    if (!allQuestions || allQuestions.length < QUIZ_SIZE || !history) return null;
-    const now = Date.now();
-    const questions = pickQuizQuestions(allQuestions, history, QUIZ_SIZE, now);
-    const reviewIds = new Set(
-      questions
-        .filter((q) => {
-          const due = history.get(q.id)?.mistakeDueAt;
-          return due !== null && due !== undefined && due <= now;
-        })
-        .map((q) => q.id),
+  if (error) {
+    return (
+      <div className="mt-4 rounded-xl bg-surface p-8 text-center">
+        <p className="text-sm text-destructive">The quiz could not be loaded.</p>
+        <Button className="mt-4" variant="outline" onClick={() => setSeed((value) => value + 1)}>
+          Try again
+        </Button>
+      </div>
     );
-    return { questions, reviewIds };
-  }, [allQuestions, history]);
+  }
 
-  if (isLoading || historyLoading) return <Skeleton className="h-64 rounded-xl mt-4" />;
-
-  if (!allQuestions || allQuestions.length < QUIZ_SIZE) {
+  if (!data || !data.quizId || data.available < QUIZ_SIZE || data.questions.length < QUIZ_SIZE) {
     return (
       <div className="mt-4 rounded-xl bg-surface p-10 text-center">
         <div className="mx-auto inline-flex items-center justify-center rounded-full bg-muted p-4 text-muted-foreground">
@@ -85,95 +72,72 @@ export function ChapterQuiz({ chapterId }: { chapterId: string }) {
     <QuizRunner
       key={seed}
       chapterId={chapterId}
-      questions={picked!.questions}
-      reviewIds={picked!.reviewIds}
-      onRetake={() => setSeed((s) => s + 1)}
+      quizId={data.quizId}
+      questions={data.questions}
+      onRetake={() => setSeed((value) => value + 1)}
     />
   );
 }
 
-type AnswerRecord = {
-  questionId: string;
-  selectedIndex: number;
-  correct: boolean;
-};
-
 function QuizRunner({
   chapterId,
+  quizId,
   questions,
-  reviewIds,
   onRetake,
 }: {
   chapterId: string;
-  questions: Question[];
-  /** Questions answered wrong before that are due again. */
-  reviewIds: Set<string>;
+  quizId: string;
+  questions: ChapterQuizQuestion[];
   onRetake: () => void;
 }) {
-  const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [revealed, setRevealed] = useState(false);
-  const [answers, setAnswers] = useState<AnswerRecord[]>([]);
-  const [finished, setFinished] = useState(false);
-  const [reviewMode, setReviewMode] = useState(false);
-  const [saving, setSaving] = useState(false);
-  // null = not known (e.g. the save failed)
-  const [awardedXp, setAwardedXp] = useState<number | null>(null);
-  // Chapter mastery after this attempt (average of recent quizzes), from the server.
-  const [mastery, setMastery] = useState<number | null>(null);
   const submit = useServerFn(submitQuiz);
   const queryClient = useQueryClient();
+  const [index, setIndex] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [answers, setAnswers] = useState<SubmittedAnswer[]>([]);
+  const [result, setResult] = useState<QuizResult | null>(null);
+  const [reviewMode, setReviewMode] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const q = questions[index];
+  const question = questions[index];
   const total = questions.length;
-  const score = answers.filter((a) => a.correct).length;
 
-  const handleReveal = () => {
-    if (selected === null) return;
-    const correct = selected === q.correct_index;
-    setAnswers((prev) => [...prev, { questionId: q.id, selectedIndex: selected, correct }]);
-    setRevealed(true);
-  };
+  async function continueQuiz() {
+    if (selected === null || saving) return;
+    const nextAnswers = [...answers, { questionId: question.id, selectedIndex: selected }];
+    setSaveError(null);
 
-  const handleNext = async () => {
     if (index + 1 < total) {
-      setIndex(index + 1);
+      setAnswers(nextAnswers);
+      setIndex((value) => value + 1);
       setSelected(null);
-      setRevealed(false);
+      window.scrollTo({ top: 0 });
       return;
     }
-    // Finish
+
     setSaving(true);
-    const finalAnswers = answers; // already includes the just-revealed answer
-    const finalScore = finalAnswers.filter((a) => a.correct).length;
     try {
-      // The server recomputes the score from the raw selections; the client's
-      // claimed score is never stored. XP/streak/mastery are written there too.
-      const res = await submit({
-        data: {
-          chapterId,
-          answers: finalAnswers.map((a) => ({
-            questionId: a.questionId,
-            selectedIndex: a.selectedIndex,
-          })),
-        },
-      });
-      setAwardedXp(res.awardedXp);
-      setMastery(res.masteryScore);
+      const response = (await submit({
+        data: { quizId, answers: nextAnswers },
+      })) as QuizResult;
+      setAnswers(nextAnswers);
+      setResult(response);
       void queryClient.invalidateQueries({ queryKey: MISTAKES_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["home-today"] });
       await awardBadgesIfNeeded();
-    } catch (e) {
-      console.error("Failed to save quiz results", e);
+      if (response.score >= 4) celebrate(response.score === response.total ? "big" : "small");
+    } catch (error) {
+      console.error("Failed to save quiz results", error);
+      setSaveError("Your quiz wasn't submitted. Check your connection and try again.");
     } finally {
       setSaving(false);
-      setFinished(true);
-      if (finalScore >= 4) celebrate(finalScore === total ? "big" : "small");
     }
-  };
+  }
 
-  if (finished && !reviewMode) {
-    const pct = Math.round((score / total) * 100);
-    const passed = pct >= 80;
+  if (result && !reviewMode) {
+    const pct = result.total ? Math.round((result.score / result.total) * 100) : 0;
+    const mistakes = result.review.filter((answer) => !answer.correct).length;
     return (
       <div className="animate-scale-in px-4 pb-8 pt-8 text-center">
         <div
@@ -183,71 +147,55 @@ function QuizRunner({
           <div className="grid size-full place-items-center rounded-full bg-background">
             <span>
               <strong className="block font-display text-5xl font-normal text-foreground">
-                {score}/{total}
+                {result.score}/{result.total}
               </strong>
               <span className="text-xs font-semibold text-muted-foreground">{pct}%</span>
             </span>
           </div>
         </div>
         <h2 className="mt-5 font-display text-[34px] text-foreground">
-          {passed ? "Nicely done" : "Keep going"}
+          {result.passed ? "Nicely done" : "Keep going"}
         </h2>
-        {mastery !== null && (
-          <div className="mx-auto mt-2 max-w-[260px]">
-            <div className="flex items-baseline justify-between text-xs text-muted-foreground">
-              <span>Chapter mastery</span>
-              <span className="font-semibold tabular-nums text-foreground">{mastery}%</span>
-            </div>
-            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-[var(--subject)]"
-                style={{ width: `${Math.max(3, mastery)}%` }}
-              />
-            </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">Average of your last 3 quizzes</p>
+        <div className="mx-auto mt-2 max-w-[260px]">
+          <div className="flex items-baseline justify-between text-xs text-muted-foreground">
+            <span>Chapter mastery</span>
+            <span className="font-semibold tabular-nums text-foreground">
+              {result.masteryScore}%
+            </span>
           </div>
-        )}
-        {awardedXp !== null && (
-          <p className="animate-pop mx-auto mt-4 w-fit rounded-full bg-streak-bg px-3 py-1.5 text-xs font-bold text-streak-ink">
-            {awardedXp > 0
-              ? `+${awardedXp} XP`
-              : "Retakes still build mastery. XP for this chapter's quiz resets tomorrow."}
-          </p>
-        )}
+          <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-[var(--subject)]"
+              style={{ width: `${Math.max(3, result.masteryScore)}%` }}
+            />
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">Average of your last 3 quizzes</p>
+        </div>
+        <p className="animate-pop mx-auto mt-4 w-fit rounded-full bg-streak-bg px-3 py-1.5 text-xs font-bold text-streak-ink">
+          {result.awardedXp > 0
+            ? `+${result.awardedXp} XP`
+            : "Retakes still build mastery. XP for this chapter's quiz resets tomorrow."}
+        </p>
         <div className="mt-6 grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-card p-4">
-            <strong className="block text-2xl text-success-ink">{score}</strong>
+            <strong className="block text-2xl text-success-ink">{result.score}</strong>
             <span className="text-xs text-muted-foreground">Correct</span>
           </div>
           <div className="rounded-2xl bg-card p-4">
-            <strong className="block text-2xl text-destructive-ink">{total - score}</strong>
+            <strong className="block text-2xl text-destructive-ink">{mistakes}</strong>
             <span className="text-xs text-muted-foreground">Missed</span>
           </div>
         </div>
         <div className="mt-3 flex flex-col gap-2">
-          {answers.some((a) => !a.correct) && (
+          {mistakes > 0 && (
             <Button
               onClick={() => setReviewMode(true)}
               className="h-13 rounded-2xl bg-[var(--subject)] text-white hover:bg-[var(--subject)]/90"
             >
-              Review {total - score} mistake{total - score === 1 ? "" : "s"}
+              Review {mistakes} mistake{mistakes === 1 ? "" : "s"}
             </Button>
           )}
-          <Button
-            onClick={() => {
-              setIndex(0);
-              setSelected(null);
-              setRevealed(false);
-              setAnswers([]);
-              setFinished(false);
-              setReviewMode(false);
-              setAwardedXp(null);
-              setMastery(null);
-              onRetake();
-            }}
-          >
-            Try another quiz
-          </Button>
+          <Button onClick={onRetake}>Try another quiz</Button>
           <Button variant="outline" asChild className="h-13 rounded-2xl">
             <Link to="/chapters/$chapterId" params={{ chapterId }} search={{}}>
               Back to chapter
@@ -258,27 +206,27 @@ function QuizRunner({
     );
   }
 
-  if (finished && reviewMode) {
-    const wrong = answers.map((a, i) => ({ a, q: questions[i] })).filter((x) => !x.a.correct);
+  if (result && reviewMode) {
+    const wrong = result.review.filter((answer) => !answer.correct);
     return (
       <div className="mt-4 space-y-4">
-        {wrong.map(({ a, q }) => (
-          <div key={q.id} className="rounded-xl bg-surface p-5">
-            <p className="font-medium text-primary">{q.prompt}</p>
+        {wrong.map((answer) => (
+          <div key={answer.questionId} className="rounded-xl bg-surface p-5">
+            <p className="font-medium text-primary">{answer.prompt}</p>
             <div className="mt-3 space-y-2">
-              {q.options.map((opt, i) => {
-                const isCorrect = i === q.correct_index;
-                const isPicked = i === a.selectedIndex;
+              {answer.options.map((option, optionIndex) => {
+                const isCorrect = optionIndex === answer.correctIndex;
+                const isPicked = optionIndex === answer.selectedIndex;
                 return (
                   <div
-                    key={i}
+                    key={optionIndex}
                     className={cn(
                       "rounded-md border p-3 text-sm",
                       isCorrect && "border-success bg-success-bg",
                       isPicked && !isCorrect && "border-destructive bg-destructive-bg",
                     )}
                   >
-                    {opt}
+                    {option}
                     {isCorrect && <span className="ml-2 text-xs text-success-ink">Correct</span>}
                     {isPicked && !isCorrect && (
                       <span className="ml-2 text-xs text-destructive">Your answer</span>
@@ -287,7 +235,9 @@ function QuizRunner({
                 );
               })}
             </div>
-            {q.explanation && <p className="mt-3 text-sm text-muted-foreground">{q.explanation}</p>}
+            {answer.explanation && (
+              <p className="mt-3 text-sm text-muted-foreground">{answer.explanation}</p>
+            )}
           </div>
         ))}
         <Button variant="outline" onClick={() => setReviewMode(false)} className="w-full">
@@ -315,9 +265,8 @@ function QuizRunner({
               key={segment}
               className={cn(
                 "h-2 flex-1 rounded-full",
-                segment < answers.length &&
-                  (answers[segment]?.correct ? "bg-success" : "bg-destructive"),
-                segment === index && !revealed && "bg-[var(--subject)]",
+                segment < index && "bg-[var(--subject)]",
+                segment === index && "bg-[var(--subject)]",
                 segment > index && "bg-[var(--subject-tint-2)]",
               )}
             />
@@ -328,7 +277,7 @@ function QuizRunner({
         </span>
       </div>
 
-      {reviewIds.has(q.id) && (
+      {question.isDueMistake && (
         <p className="mt-8 inline-flex items-center gap-1 rounded-full bg-streak-bg px-2.5 py-1 text-[11px] font-semibold text-streak-ink">
           <RotateCcw className="size-3" /> You missed this one before
         </p>
@@ -336,71 +285,52 @@ function QuizRunner({
       <p className="mt-8 text-xs font-bold tracking-[0.12em] text-[var(--subject-ink)]">
         QUESTION {index + 1} OF {total}
       </p>
-      <p className="mt-3 font-display text-[30px] leading-[1.15] text-foreground">{q.prompt}</p>
+      <p className="mt-3 font-display text-[30px] leading-[1.15] text-foreground">
+        {question.prompt}
+      </p>
 
       <RadioGroup
         value={selected !== null ? String(selected) : ""}
-        onValueChange={(v) => !revealed && setSelected(Number(v))}
+        onValueChange={(value) => setSelected(Number(value))}
         className="mt-4 space-y-2"
       >
-        {q.options.map((opt, i) => {
-          const isCorrect = i === q.correct_index;
-          const isPicked = i === selected;
-          const showCorrect = revealed && isCorrect;
-          const showWrong = revealed && isPicked && !isCorrect;
+        {question.options.map((option, optionIndex) => {
+          const isPicked = optionIndex === selected;
           return (
             <label
-              key={i}
+              key={optionIndex}
               className={cn(
                 "flex min-h-[58px] cursor-pointer items-center gap-3 rounded-2xl border bg-card p-3 text-sm transition-colors",
-                !revealed && isPicked && "border-[var(--subject)] bg-[var(--subject-tint)]",
-                showCorrect && "animate-pop border-2 border-success bg-success-bg",
-                showWrong && "border-2 border-destructive bg-destructive-bg",
-                revealed && !showCorrect && !showWrong && "cursor-default opacity-70",
+                isPicked && "border-[var(--subject)] bg-[var(--subject-tint)]",
               )}
             >
               <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-xs font-bold">
-                {String.fromCharCode(65 + i)}
+                {String.fromCharCode(65 + optionIndex)}
               </span>
-              <RadioGroupItem value={String(i)} disabled={revealed} className="sr-only" />
-              <span className="flex-1">{opt}</span>
-              {showCorrect && <CheckCircle2 className="size-4 text-accent" />}
-              {showWrong && <XCircle className="size-4 text-destructive" />}
+              <RadioGroupItem value={String(optionIndex)} className="sr-only" />
+              <span className="flex-1">{option}</span>
+              {isPicked && <CheckCircle2 className="size-4 text-[var(--subject)]" />}
             </label>
           );
         })}
       </RadioGroup>
 
-      {revealed && (
-        <div
-          className={cn("mt-4 rounded-2xl bg-[var(--subject-tint)] p-4 text-sm text-foreground")}
-        >
-          <p className="font-medium">
-            {answers[answers.length - 1]?.correct ? "Correct!" : "Not quite."}
-          </p>
-          {q.explanation && <p className="mt-1 text-muted-foreground">{q.explanation}</p>}
-        </div>
+      {saveError && (
+        <p className="mt-4 rounded-xl bg-destructive-bg px-4 py-3 text-sm text-destructive">
+          {saveError}
+        </p>
       )}
 
-      <div className="mt-5">
-        {!revealed ? (
-          <Button
-            onClick={handleReveal}
-            disabled={selected === null}
-            className="h-[52px] w-full rounded-2xl bg-[var(--subject)] text-white hover:bg-[var(--subject)]/90"
-          >
-            Check answer
-          </Button>
-        ) : (
-          <Button
-            onClick={handleNext}
-            disabled={saving}
-            className="h-[52px] w-full rounded-2xl bg-[var(--subject)] text-white hover:bg-[var(--subject)]/90"
-          >
-            {index + 1 < total ? "Next question" : saving ? "Saving…" : "See results"}
-          </Button>
-        )}
-      </div>
+      <Button
+        onClick={() => void continueQuiz()}
+        disabled={selected === null || saving}
+        className="mt-5 h-[52px] w-full rounded-2xl bg-[var(--subject)] text-white hover:bg-[var(--subject)]/90"
+      >
+        {saving ? "Submitting…" : index + 1 < total ? "Next question" : "Submit quiz"}
+      </Button>
+      <p className="mt-3 text-center text-xs text-muted-foreground">
+        Answers and explanations are shown after you submit.
+      </p>
     </div>
   );
 }

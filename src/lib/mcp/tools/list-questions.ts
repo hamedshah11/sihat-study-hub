@@ -1,6 +1,7 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
 import { supabaseForUser, unauthenticated } from "../supabase";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export default defineTool({
   name: "list_questions",
@@ -33,7 +34,7 @@ export default defineTool({
     }
 
     const effectiveStatus = status ?? "approved";
-    let query = sb
+    let query = supabaseAdmin
       .from("questions")
       .select("id, prompt, options, correct_index, explanation, difficulty, status")
       .eq("chapter_id", chapter_id)
