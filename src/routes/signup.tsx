@@ -1,9 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { cloneElement, isValidElement, useId, useState } from "react";
 import { z } from "zod";
-import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { applyInviteCode, markExternalStudent } from "@/lib/invite.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,8 +27,6 @@ const schema = z
 
 function SignUp() {
   const navigate = useNavigate();
-  const apply = useServerFn(applyInviteCode);
-  const markExternal = useServerFn(markExternalStudent);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -60,7 +56,13 @@ function SignUp() {
         password: parsed.data.password,
         options: {
           emailRedirectTo: `${window.location.origin}/home`,
-          data: { display_name: parsed.data.displayName },
+          data: {
+            display_name: parsed.data.displayName,
+            // User metadata survives email confirmation, including when the
+            // link is opened on another device. The authenticated app shell
+            // redeems this code against the signed-in user's own profile.
+            pending_invite_code: parsed.data.inviteCode || null,
+          },
         },
       });
       if (error) {
@@ -69,35 +71,6 @@ function SignUp() {
         return;
       }
       console.log("[signup] success", { userId: data.user?.id, hasSession: !!data.session });
-
-      if (data.user?.id) {
-        try {
-          if (parsed.data.inviteCode) {
-            const res = await apply({
-              data: { userId: data.user.id, code: parsed.data.inviteCode },
-            });
-            if (!res.ok) {
-              const message =
-                res.reason === "not_found"
-                  ? "That invite code doesn't exist. Check it and try again, or continue without one."
-                  : res.reason === "expired"
-                    ? "That invite code has expired. Ask your coordinator for a new one."
-                    : "That invite code has reached its maximum uses. Ask your coordinator for a new one.";
-              toast.error(message);
-              await markExternal({ data: { userId: data.user.id } }).catch((e) =>
-                console.warn("[signup] markExternal failed", e),
-              );
-            } else {
-              toast.success("Invite code applied — you're enrolled as an internal student.");
-            }
-          } else {
-            await markExternal({ data: { userId: data.user.id } });
-          }
-        } catch (e) {
-          // Don't block signup completion if invite/enrollment side-effects fail.
-          console.warn("[signup] post-signup enrollment step failed", e);
-        }
-      }
 
       if (data.session) {
         toast.success("Account created. Welcome!");
