@@ -25,7 +25,9 @@ function ProgressPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["student-progress"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return null;
       const uid = user.id;
 
@@ -44,12 +46,15 @@ function ProgressPage() {
         supabase.from("xp_events").select("amount").eq("user_id", uid),
         supabase.from("quiz_attempts").select("score, total_questions").eq("user_id", uid),
         supabase.from("flashcard_reviews").select("reps").eq("user_id", uid).gt("reps", 0),
-        supabase.from("chapter_progress").select("chapter_id, mastery_score, completed_at").eq("user_id", uid),
+        supabase
+          .from("chapter_progress")
+          .select("chapter_id, mastery_score, completed_at")
+          .eq("user_id", uid),
       ]);
 
       const xpTotal = (xpRows ?? []).reduce((acc, r: any) => acc + (r.amount ?? 0), 0);
       const quizzesCompleted = (quizAttempts ?? []).length;
-      const pctSum = (quizAttempts as any[] ?? []).reduce((acc, q) => {
+      const pctSum = ((quizAttempts as any[]) ?? []).reduce((acc, q) => {
         const total = Number(q.total_questions ?? 0);
         if (!total) return acc;
         return acc + (Number(q.score ?? 0) / total) * 100;
@@ -70,7 +75,10 @@ function ProgressPage() {
         chaptersData = chs ?? [];
         const subjectIds = [...new Set(chaptersData.map((c) => c.subject_id).filter(Boolean))];
         if (subjectIds.length > 0) {
-          const { data: subs } = await supabase.from("subjects").select("id, name").in("id", subjectIds);
+          const { data: subs } = await supabase
+            .from("subjects")
+            .select("id, name")
+            .in("id", subjectIds);
           subjectsData = subs ?? [];
         }
       }
@@ -146,17 +154,40 @@ function ProgressPage() {
 
   return (
     <div className="space-y-6">
-      <header className="animate-fade-up"><p className="text-sm text-muted-foreground">Your journey</p><h1 className="font-display text-[38px] font-normal leading-tight">Progress</h1></header>
+      <header className="animate-fade-up">
+        <p className="text-sm text-muted-foreground">Your journey</p>
+        <h1 className="font-display text-[38px] font-normal leading-tight">Progress</h1>
+      </header>
 
       <section className="animate-fade-up stagger-1 rounded-[24px] bg-primary p-5 text-primary-foreground shadow-lifted">
-        <div className="flex justify-between gap-3 text-sm font-bold"><span>Level {level.level} · {level.name}</span><span className="text-xs font-medium opacity-80">{level.xpIntoLevel} / {level.xpForLevel} XP</span></div>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20"><div className="animate-bar-fill h-full rounded-full bg-white" style={{ width: `${(level.xpIntoLevel / level.xpForLevel) * 100}%` }} /></div>
-        <p className="mt-3 text-xs opacity-80">{level.xpForLevel - level.xpIntoLevel} XP to level {level.level + 1}</p>
+        <div className="flex justify-between gap-3 text-sm font-bold">
+          <span>
+            Level {level.level} · {level.name}
+          </span>
+          <span className="text-xs font-medium opacity-80">
+            {level.xpIntoLevel} / {level.xpForLevel} XP
+          </span>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20">
+          <div
+            className="animate-bar-fill h-full rounded-full bg-white"
+            style={{ width: `${(level.xpIntoLevel / level.xpForLevel) * 100}%` }}
+          />
+        </div>
+        <p className="mt-3 text-xs opacity-80">
+          {level.xpForLevel - level.xpIntoLevel} XP to level {level.level + 1}
+        </p>
       </section>
 
       {/* Secondary 2x2 */}
       <section className="animate-fade-up stagger-2 grid grid-cols-2 gap-3">
-        <StatCard icon={<Flame className="size-5" />} label={`Streak${data?.freezes ? ` · ${data.freezes} freeze${data.freezes === 1 ? "" : "s"}` : ""}`} value={`${data?.streak ?? 0}`} suffix={`day${(data?.streak ?? 0) === 1 ? "" : "s"}`} tone="streak" />
+        <StatCard
+          icon={<Flame className="size-5" />}
+          label={`Streak${data?.freezes ? ` · ${data.freezes} freeze${data.freezes === 1 ? "" : "s"}` : ""}`}
+          value={`${data?.streak ?? 0}`}
+          suffix={`day${(data?.streak ?? 0) === 1 ? "" : "s"}`}
+          tone="streak"
+        />
         <StatCard
           icon={<ClipboardList className="size-5" />}
           label="Quizzes done"
@@ -173,7 +204,6 @@ function ProgressPage() {
           value={`${data?.cardsReviewed ?? 0}`}
         />
       </section>
-
 
       {/* Exam results (all subjects) */}
       <div className="animate-fade-up stagger-3">
@@ -200,7 +230,9 @@ function ProgressPage() {
                   <p className="text-xs text-muted-foreground">{w.subjectName}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className="text-sm font-semibold text-destructive">{w.masteryScore ?? 0}%</span>
+                  <span className="text-sm font-semibold text-destructive">
+                    {w.masteryScore ?? 0}%
+                  </span>
                   <Link
                     to="/chapters/$chapterId"
                     params={{ chapterId: w.chapterId }}
@@ -232,11 +264,15 @@ function ProgressPage() {
                       className="flex items-center justify-between gap-3 rounded-2xl border bg-card p-4 shadow-soft transition-shadow hover:shadow-lifted"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-foreground">{ch.chapterTitle}</p>
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {ch.chapterTitle}
+                        </p>
                         <div className="mt-1.5 h-1.5 w-full max-w-[180px] overflow-hidden rounded-full bg-muted">
                           <div
                             className="h-full rounded-full bg-primary transition-all duration-700"
-                            style={{ width: `${Math.max(0, Math.min(100, ch.masteryScore ?? 0))}%` }}
+                            style={{
+                              width: `${Math.max(0, Math.min(100, ch.masteryScore ?? 0))}%`,
+                            }}
                           />
                         </div>
                       </div>
@@ -289,20 +325,25 @@ function StatCard({
 }) {
   return (
     <div className="card-lift flex flex-col gap-3 rounded-[20px] border bg-card p-4 shadow-soft">
-      <div className={`inline-flex size-9 items-center justify-center rounded-xl ${tone === "streak" ? "bg-streak-bg text-streak-ink" : "bg-primary-tint text-primary-deep"}`}>
+      <div
+        className={`inline-flex size-9 items-center justify-center rounded-xl ${tone === "streak" ? "bg-streak-bg text-streak-ink" : "bg-primary-tint text-primary-deep"}`}
+      >
         {icon}
       </div>
       <div>
         <p className="text-[22px] font-bold text-foreground tabular-nums">
           {value}
-          {suffix && <span className="ml-1 font-sans text-xs font-medium text-muted-foreground">{suffix}</span>}
+          {suffix && (
+            <span className="ml-1 font-sans text-xs font-medium text-muted-foreground">
+              {suffix}
+            </span>
+          )}
         </p>
         <p className="text-xs text-muted-foreground">{label}</p>
       </div>
     </div>
   );
 }
-
 
 function MasteryBadge({ score }: { score: number | null }) {
   if (score === null || score === undefined) {

@@ -21,12 +21,21 @@ function ResetPassword() {
     const fd = new FormData(e.currentTarget);
     const password = String(fd.get("password") || "");
     const confirm = String(fd.get("confirm") || "");
-    if (password.length < 8) { toast.error("Password must be at least 8 characters."); return; }
-    if (password !== confirm) { toast.error("Passwords do not match."); return; }
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters.");
+      return;
+    }
+    if (password !== confirm) {
+      toast.error("Passwords do not match.");
+      return;
+    }
     setSubmitting(true);
     const { error } = await supabase.auth.updateUser({ password });
     setSubmitting(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Password updated.");
     navigate({ to: "/home" });
   };
@@ -35,12 +44,16 @@ function ResetPassword() {
     <AuthShell title="Set a new password">
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-1.5">
-          <Label className="text-sm">New password</Label>
-          <Input name="password" type="password" autoComplete="new-password" />
+          <Label htmlFor="reset-password" className="text-sm">
+            New password
+          </Label>
+          <Input id="reset-password" name="password" type="password" autoComplete="new-password" />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-sm">Confirm password</Label>
-          <Input name="confirm" type="password" autoComplete="new-password" />
+          <Label htmlFor="reset-confirm" className="text-sm">
+            Confirm password
+          </Label>
+          <Input id="reset-confirm" name="confirm" type="password" autoComplete="new-password" />
         </div>
         <Button type="submit" disabled={submitting} className="w-full h-12 rounded-lg text-base">
           {submitting ? "Updating…" : "Update password"}

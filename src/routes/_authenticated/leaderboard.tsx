@@ -15,7 +15,9 @@ function LeaderboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["leaderboard-weekly"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       const { data: rows, error } = await supabase.rpc("batch_weekly_leaderboard");
       if (error) throw error;
       return { rows: (rows ?? []) as Row[], me: user?.id ?? null };
@@ -27,7 +29,10 @@ function LeaderboardPage() {
   const rest = rows.slice(3);
   const myIndex = rows.findIndex((row) => row.user_id === data?.me);
   const nextStudent = myIndex > 0 ? rows[myIndex - 1] : null;
-  const xpGap = nextStudent && myIndex >= 0 ? Math.max(0, nextStudent.weekly_xp - rows[myIndex].weekly_xp + 1) : 0;
+  const xpGap =
+    nextStudent && myIndex >= 0
+      ? Math.max(0, nextStudent.weekly_xp - rows[myIndex].weekly_xp + 1)
+      : 0;
 
   return (
     <div>
@@ -49,7 +54,9 @@ function LeaderboardPage() {
 
       {isLoading ? (
         <div className="mt-6 space-y-3 rounded-2xl border bg-card p-4">
-          {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-10 rounded-md" />)}
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 rounded-md" />
+          ))}
         </div>
       ) : !rows.length ? (
         <div className="animate-fade-up stagger-1 mt-6 rounded-2xl border bg-card p-8 text-center shadow-soft">
@@ -77,9 +84,12 @@ function LeaderboardPage() {
                     {(r.first_name ?? "—").charAt(0).toUpperCase()}
                   </div>
                   <p className="mt-2 w-full truncate text-center text-xs font-semibold text-foreground">
-                    {r.first_name ?? "—"}{isMe ? " (you)" : ""}
+                    {r.first_name ?? "—"}
+                    {isMe ? " (you)" : ""}
                   </p>
-                  <p className="text-[11px] font-medium text-accent tabular-nums">{r.weekly_xp} XP</p>
+                  <p className="text-[11px] font-medium text-accent tabular-nums">
+                    {r.weekly_xp} XP
+                  </p>
                   <div
                     className={`mt-2 w-full rounded-t-xl border border-b-0 ${
                       rank === 1
@@ -96,7 +106,11 @@ function LeaderboardPage() {
             })}
           </div>
 
-          {nextStudent && <p className="animate-fade-up stagger-2 mt-3 rounded-xl bg-primary-tint px-4 py-2 text-center text-xs font-semibold text-primary-deep">{xpGap} XP more to pass {nextStudent.first_name ?? "the next student"}.</p>}
+          {nextStudent && (
+            <p className="animate-fade-up stagger-2 mt-3 rounded-xl bg-primary-tint px-4 py-2 text-center text-xs font-semibold text-primary-deep">
+              {xpGap} XP more to pass {nextStudent.first_name ?? "the next student"}.
+            </p>
+          )}
 
           {/* Rest of the list */}
           {rest.length > 0 && (
@@ -113,9 +127,12 @@ function LeaderboardPage() {
                         {i + 4}
                       </span>
                       <span className="flex-1 text-sm font-medium text-foreground">
-                        {r.first_name ?? "—"} {isMe && <span className="text-xs font-semibold text-accent">(you)</span>}
+                        {r.first_name ?? "—"}{" "}
+                        {isMe && <span className="text-xs font-semibold text-accent">(you)</span>}
                       </span>
-                      <span className="text-sm font-bold tabular-nums text-primary">{r.weekly_xp} XP</span>
+                      <span className="text-sm font-bold tabular-nums text-primary">
+                        {r.weekly_xp} XP
+                      </span>
                     </li>
                   );
                 })}

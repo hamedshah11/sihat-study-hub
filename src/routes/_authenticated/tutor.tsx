@@ -3,7 +3,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles, Send, AlertCircle, RefreshCw, CheckCircle2, CircleAlert, XCircle, BookOpen } from "lucide-react";
+import {
+  Sparkles,
+  Send,
+  AlertCircle,
+  RefreshCw,
+  CheckCircle2,
+  CircleAlert,
+  XCircle,
+  BookOpen,
+} from "lucide-react";
 import { awardBadgesIfNeeded } from "@/lib/award-badges";
 
 export const Route = createFileRoute("/_authenticated/tutor")({
@@ -53,7 +62,7 @@ function TutorPracticePage() {
 
   const currentChapter = useMemo(
     () => chapters?.find((c) => c.id === chapterId) ?? null,
-    [chapters, chapterId]
+    [chapters, chapterId],
   );
 
   async function fetchNext() {
@@ -134,7 +143,9 @@ function TutorPracticePage() {
           <span className="grid size-11 place-items-center rounded-[15px] bg-primary-tint text-primary">
             <Sparkles className="size-5" />
           </span>
-          <h1 className="font-display text-[38px] font-normal tracking-tight text-foreground">AI Tutor</h1>
+          <h1 className="font-display text-[38px] font-normal tracking-tight text-foreground">
+            AI Tutor
+          </h1>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           Practice viva-style. Pick a chapter, answer in your own words, get instant feedback.
@@ -143,7 +154,10 @@ function TutorPracticePage() {
 
       {/* Chapter picker */}
       <div className="animate-fade-up stagger-1 rounded-[22px] bg-card p-4 flex flex-col gap-2 shadow-soft">
-        <label htmlFor="chapter" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <label
+          htmlFor="chapter"
+          className="text-xs font-medium text-muted-foreground uppercase tracking-wide"
+        >
           Chapter
         </label>
         {chaptersLoading ? (
@@ -200,8 +214,14 @@ function TutorPracticePage() {
 
       {/* Answer form */}
       {question && (
-        <form onSubmit={gradeAnswer} className="animate-fade-up rounded-2xl bg-card border border-border p-4 flex flex-col gap-3 shadow-soft">
-          <label htmlFor="answer" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+        <form
+          onSubmit={gradeAnswer}
+          className="animate-fade-up rounded-2xl bg-card border border-border p-4 flex flex-col gap-3 shadow-soft"
+        >
+          <label
+            htmlFor="answer"
+            className="text-xs font-medium text-muted-foreground uppercase tracking-wide"
+          >
             Your answer
           </label>
           <textarea
@@ -263,7 +283,9 @@ function TutorPracticePage() {
               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Model answer
               </div>
-              <p className="text-sm leading-relaxed bg-surface rounded-lg p-3">{result.modelAnswer}</p>
+              <p className="text-sm leading-relaxed bg-surface rounded-lg p-3">
+                {result.modelAnswer}
+              </p>
             </div>
           )}
 
@@ -280,7 +302,8 @@ function TutorPracticePage() {
       )}
 
       <p className="text-xs text-muted-foreground text-center">
-        Answers are graded only from this chapter's notes. Verify clinical details with your instructor.
+        Answers are graded only from this chapter's notes. Verify clinical details with your
+        instructor.
       </p>
     </div>
   );
@@ -306,7 +329,9 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
   } as const;
   const v = map[verdict];
   return (
-    <div className={`inline-flex items-center gap-2 self-start rounded-full border px-3 py-1 text-sm font-medium ${v.cls}`}>
+    <div
+      className={`inline-flex items-center gap-2 self-start rounded-full border px-3 py-1 text-sm font-medium ${v.cls}`}
+    >
       {v.icon}
       {v.label}
     </div>

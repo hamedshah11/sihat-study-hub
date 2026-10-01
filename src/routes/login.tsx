@@ -40,11 +40,17 @@ function Login() {
     const fd = new FormData(e.currentTarget);
     const email = String(fd.get("email") || "").trim();
     const password = String(fd.get("password") || "");
-    if (!email || !password) { toast.error("Email and password are required."); return; }
+    if (!email || !password) {
+      toast.error("Email and password are required.");
+      return;
+    }
     setSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setSubmitting(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     if (next) {
       window.location.href = next;
       return;
@@ -53,8 +59,13 @@ function Login() {
   };
 
   const onForgot = async () => {
-    const email = (document.querySelector('input[name="email"]') as HTMLInputElement | null)?.value?.trim();
-    if (!email) { toast.error("Enter your email above first."); return; }
+    const email = (
+      document.querySelector('input[name="email"]') as HTMLInputElement | null
+    )?.value?.trim();
+    if (!email) {
+      toast.error("Enter your email above first.");
+      return;
+    }
     setResetting(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
@@ -68,12 +79,21 @@ function Login() {
     <AuthShell title="Welcome back" subtitle="Log in to continue your studies.">
       <form onSubmit={onSubmit} method="post" className="space-y-4">
         <div className="space-y-1.5">
-          <Label className="text-sm">Email</Label>
-          <Input name="email" type="email" autoComplete="email" />
+          <Label htmlFor="login-email" className="text-sm">
+            Email
+          </Label>
+          <Input id="login-email" name="email" type="email" autoComplete="email" />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-sm">Password</Label>
-          <Input name="password" type="password" autoComplete="current-password" />
+          <Label htmlFor="login-password" className="text-sm">
+            Password
+          </Label>
+          <Input
+            id="login-password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+          />
         </div>
         <button
           type="button"
@@ -88,7 +108,9 @@ function Login() {
         </Button>
         <p className="text-center text-sm text-muted-foreground">
           New here?{" "}
-          <Link to="/signup" className="text-accent font-medium">Create an account</Link>
+          <Link to="/signup" className="text-accent font-medium">
+            Create an account
+          </Link>
         </p>
       </form>
     </AuthShell>

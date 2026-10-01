@@ -125,28 +125,51 @@ export function ChapterTutor({ chapterId }: { chapterId: string }) {
           </div>
         ) : (
           messages.map((m) => (
-            <div key={m.id} className={`flex max-w-[88%] gap-2 ${m.role === "user" ? "self-end" : "self-start"}`}>
-              {m.role === "assistant" && <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-primary-tint text-primary"><Sparkles className="size-4" /></span>}
-              <div className={`rounded-[20px] px-4 py-3 text-sm leading-relaxed shadow-soft ${
-                m.role === "user"
-                  ? "rounded-br-md bg-primary text-primary-foreground"
-                  : "rounded-tl-md bg-card text-foreground"
-              }`}
+            <div
+              key={m.id}
+              className={`flex max-w-[88%] gap-2 ${m.role === "user" ? "self-end" : "self-start"}`}
             >
-              {m.role === "assistant" ? (
-                <div className="prose prose-sm max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
-                </div>
-              ) : (
-                <p className="whitespace-pre-wrap">{m.content}</p>
+              {m.role === "assistant" && (
+                <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-primary-tint text-primary">
+                  <Sparkles className="size-4" />
+                </span>
               )}
-              {m.role === "assistant" && m.source && <span className="mt-3 inline-flex rounded-full bg-primary-tint px-2.5 py-1 text-[11px] font-semibold text-primary-deep">From {m.source}</span>}
+              <div
+                className={`rounded-[20px] px-4 py-3 text-sm leading-relaxed shadow-soft ${
+                  m.role === "user"
+                    ? "rounded-br-md bg-primary text-primary-foreground"
+                    : "rounded-tl-md bg-card text-foreground"
+                }`}
+              >
+                {m.role === "assistant" ? (
+                  <div className="prose prose-sm max-w-none">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap">{m.content}</p>
+                )}
+                {m.role === "assistant" && m.source && (
+                  <span className="mt-3 inline-flex rounded-full bg-primary-tint px-2.5 py-1 text-[11px] font-semibold text-primary-deep">
+                    From {m.source}
+                  </span>
+                )}
               </div>
             </div>
           ))
         )}
         {sending && (
-          <div className="flex self-start items-center gap-2"><span className="grid size-8 place-items-center rounded-xl bg-primary-tint text-primary"><Sparkles className="size-4" /></span><div className="flex gap-1 rounded-[20px] rounded-tl-md bg-card px-4 py-3 shadow-soft" aria-label="Tutor is typing">{[0,1,2].map((dot) => <span key={dot} className="typing-dot size-1.5 rounded-full bg-primary" />)}</div>
+          <div className="flex self-start items-center gap-2">
+            <span className="grid size-8 place-items-center rounded-xl bg-primary-tint text-primary">
+              <Sparkles className="size-4" />
+            </span>
+            <div
+              className="flex gap-1 rounded-[20px] rounded-tl-md bg-card px-4 py-3 shadow-soft"
+              aria-label="Tutor is typing"
+            >
+              {[0, 1, 2].map((dot) => (
+                <span key={dot} className="typing-dot size-1.5 rounded-full bg-primary" />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -159,9 +182,22 @@ export function ChapterTutor({ chapterId }: { chapterId: string }) {
       )}
 
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {SUGGESTIONS.map((suggestion) => <button key={suggestion} type="button" disabled={sending || overLimit} onClick={() => void sendQuestion(suggestion)} className="shrink-0 rounded-full border bg-card px-3.5 py-2 text-xs font-semibold text-primary-deep disabled:opacity-50">{suggestion}</button>)}
+        {SUGGESTIONS.map((suggestion) => (
+          <button
+            key={suggestion}
+            type="button"
+            disabled={sending || overLimit}
+            onClick={() => void sendQuestion(suggestion)}
+            className="shrink-0 rounded-full border bg-card px-3.5 py-2 text-xs font-semibold text-primary-deep disabled:opacity-50"
+          >
+            {suggestion}
+          </button>
+        ))}
       </div>
-      <form onSubmit={handleSend} className="flex items-center gap-2 rounded-[18px] bg-card p-1.5 shadow-soft">
+      <form
+        onSubmit={handleSend}
+        className="flex items-center gap-2 rounded-[18px] bg-card p-1.5 shadow-soft"
+      >
         <input
           type="text"
           value={input}

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { cloneElement, isValidElement, useId, useState } from "react";
 import { z } from "zod";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,16 +14,18 @@ export const Route = createFileRoute("/signup")({
   component: SignUp,
 });
 
-const schema = z.object({
-  displayName: z.string().trim().min(1, "Required").max(80),
-  email: z.string().trim().email("Enter a valid email").max(255),
-  password: z.string().min(8, "At least 8 characters").max(128),
-  confirm: z.string(),
-  inviteCode: z.string().trim().max(64).optional(),
-}).refine((d) => d.password === d.confirm, {
-  message: "Passwords do not match",
-  path: ["confirm"],
-});
+const schema = z
+  .object({
+    displayName: z.string().trim().min(1, "Required").max(80),
+    email: z.string().trim().email("Enter a valid email").max(255),
+    password: z.string().min(8, "At least 8 characters").max(128),
+    confirm: z.string(),
+    inviteCode: z.string().trim().max(64).optional(),
+  })
+  .refine((d) => d.password === d.confirm, {
+    message: "Passwords do not match",
+    path: ["confirm"],
+  });
 
 function SignUp() {
   const navigate = useNavigate();
@@ -71,14 +73,20 @@ function SignUp() {
       if (data.user?.id) {
         try {
           if (parsed.data.inviteCode) {
-            const res = await apply({ data: { userId: data.user.id, code: parsed.data.inviteCode } });
+            const res = await apply({
+              data: { userId: data.user.id, code: parsed.data.inviteCode },
+            });
             if (!res.ok) {
               const message =
-                res.reason === "not_found" ? "That invite code doesn't exist. Check it and try again, or continue without one."
-                : res.reason === "expired" ? "That invite code has expired. Ask your coordinator for a new one."
-                : "That invite code has reached its maximum uses. Ask your coordinator for a new one.";
+                res.reason === "not_found"
+                  ? "That invite code doesn't exist. Check it and try again, or continue without one."
+                  : res.reason === "expired"
+                    ? "That invite code has expired. Ask your coordinator for a new one."
+                    : "That invite code has reached its maximum uses. Ask your coordinator for a new one.";
               toast.error(message);
-              await markExternal({ data: { userId: data.user.id } }).catch((e) => console.warn("[signup] markExternal failed", e));
+              await markExternal({ data: { userId: data.user.id } }).catch((e) =>
+                console.warn("[signup] markExternal failed", e),
+              );
             } else {
               toast.success("Invite code applied — you're enrolled as an internal student.");
             }
@@ -139,7 +147,9 @@ function SignUp() {
           </Button>
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link to="/login" className="text-accent font-medium">Log in</Link>
+            <Link to="/login" className="text-accent font-medium">
+              Log in
+            </Link>
           </p>
         </form>
       )}
@@ -147,18 +157,45 @@ function SignUp() {
   );
 }
 
-function Field({ label, error, hint, children }: { label: string; error?: string; hint?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  error,
+  hint,
+  children,
+}: {
+  label: string;
+  error?: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  // Link the label to its input so tapping the label focuses the field and
+  // screen readers announce it.
+  const id = useId();
+  const field = isValidElement<{ id?: string }>(children)
+    ? cloneElement(children, { id: children.props.id ?? id })
+    : children;
+  const fieldId = isValidElement<{ id?: string }>(field) ? field.props.id : undefined;
   return (
     <div className="space-y-1.5">
-      <Label className="text-sm">{label}</Label>
-      {children}
+      <Label htmlFor={fieldId} className="text-sm">
+        {label}
+      </Label>
+      {field}
       {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
 
-export function AuthShell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+export function AuthShell({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="relative isolate min-h-screen overflow-hidden bg-background">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
@@ -166,8 +203,11 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
         <div className="absolute -right-16 -top-10 size-[260px] rounded-full bg-primary-tint-2" />
         <div className="animate-float-slow absolute right-8 top-28 w-[150px] rotate-6 rounded-[18px] bg-card p-3.5 shadow-lifted">
           <p className="text-[10px] font-bold tracking-wider text-primary">FLASHCARD</p>
-          <p className="mt-1.5 font-display text-[17px] leading-tight text-foreground">Normal adult pulse?</p>
-          <div className="mt-2.5 h-1.5 rounded-full bg-primary-tint" /><div className="mt-1.5 h-1.5 w-3/5 rounded-full bg-primary-tint" />
+          <p className="mt-1.5 font-display text-[17px] leading-tight text-foreground">
+            Normal adult pulse?
+          </p>
+          <div className="mt-2.5 h-1.5 rounded-full bg-primary-tint" />
+          <div className="mt-1.5 h-1.5 w-3/5 rounded-full bg-primary-tint" />
         </div>
       </div>
       <div className="mx-auto w-full max-w-[480px] px-6 pb-12 pt-[60px]">
@@ -176,10 +216,16 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
             S
           </div>
         </Link>
-        <h1 className="animate-fade-up stagger-1 mt-[145px] font-display text-[44px] font-normal leading-[1.02] text-foreground">Study smarter<br />for every <em className="text-primary">shift.</em></h1>
+        <h1 className="animate-fade-up stagger-1 mt-[145px] font-display text-[44px] font-normal leading-[1.02] text-foreground">
+          Study smarter
+          <br />
+          for every <em className="text-primary">shift.</em>
+        </h1>
         <div className="animate-fade-up stagger-2 mt-3">
           <h2 className="text-base font-bold text-foreground">{title}</h2>
-          {subtitle && <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{subtitle}</p>}
+          {subtitle && (
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{subtitle}</p>
+          )}
         </div>
         <div className="animate-fade-up stagger-3 mt-6 [&_input]:h-[52px] [&_input]:rounded-2xl [&_input]:bg-card [&_button[type=submit]]:h-[54px] [&_button[type=submit]]:rounded-2xl">
           {children}
