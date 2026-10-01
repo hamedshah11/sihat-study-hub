@@ -69,6 +69,13 @@ Chapter mastery (`chapter_progress.mastery_score`) is the average of the
 last 3 quiz attempts (`MASTERY_WINDOW` in `study.functions.ts`), not the best
 score ever, so weak areas stay honest.
 
+Chapter quiz papers are selected by `getChapterQuiz` on the trusted server,
+bound to a one-use `quiz_sessions` row, and returned without `correct_index` or
+`explanation`. `submitQuiz` accepts only the complete issued paper, grades it,
+and only then returns answer review. Authenticated browser clients have
+column-level `SELECT` access to answer-free question fields; staff answer-key
+views go through trusted server/MCP paths.
+
 Quiz XP is capped per chapter per PKT day in `submitQuiz`: the first attempt
 earns quiz XP (or pass XP), and a later attempt earns pass XP only if it is
 the first pass that day. Exam XP is capped once per subject per day.
