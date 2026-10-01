@@ -2,13 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import {
-  XP_AMOUNTS,
-  insertXp,
-  bumpStreak,
-  startOfTodayPkt,
-  logAnswers,
-} from "@/lib/activity.server";
+import { logAnswers, pakistanDate, recordActivity } from "@/lib/activity.server";
 import {
   DIFFICULTY_MIX,
   EXAM_GRACE_SECONDS,
@@ -610,23 +604,15 @@ export const submitExam = createServerFn({ method: "POST" })
 
     // XP once per subject per PKT day, so exams can't be farmed. Only a
     // genuine attempt counts: at least half the paper answered.
-    let xpAwarded = 0;
     const answeredCount = graded.filter((g) => g.selectedIndex !== null).length;
-    if (total > 0 && answeredCount >= total / 2) {
-      const { count } = await supabaseAdmin
-        .from("exam_attempts")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("subject_id", attempt.subject_id)
-        .gte("submitted_at", startOfTodayPkt())
-        .neq("id", attempt.id);
-      if ((count ?? 0) === 0) {
-        const source = score / total >= EXAM_PASS_MARK ? "exam_pass" : "exam";
-        await insertXp(userId, source);
-        xpAwarded = XP_AMOUNTS[source];
-      }
-    }
-    await bumpStreak(userId);
+    const xpEligible = total > 0 && answeredCount >= total / 2;
+    const source = total > 0 && score / total >= EXAM_PASS_MARK ? "exam_pass" : "exam";
+    const xpAwarded = await recordActivity(
+      userId,
+      source,
+      xpEligible ? `exam:${attempt.subject_id}:${pakistanDate()}` : `exam-attempt:${attempt.id}`,
+      xpEligible,
+    );
 
     return buildResult(updated, xpAwarded);
   });

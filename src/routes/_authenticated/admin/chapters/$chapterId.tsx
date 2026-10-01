@@ -32,6 +32,8 @@ import remarkGfm from "remark-gfm";
 import { DiagramsManager } from "@/components/admin/DiagramsManager";
 import { VideosManager } from "@/components/admin/VideosManager";
 import { DiagramMarkdownImage, diagramUrlTransform } from "@/components/DiagramMarkdownImage";
+import { useServerFn } from "@tanstack/react-start";
+import { listStaffQuestions } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/chapters/$chapterId")({
   head: () => ({ meta: [{ title: "Chapter — Admin" }] }),
@@ -478,18 +480,13 @@ type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 function QuestionsTab({ chapterId }: { chapterId: string }) {
   const qc = useQueryClient();
+  const loadQuestions = useServerFn(listStaffQuestions);
   const [filter, setFilter] = useState<StatusFilter>("all");
 
   const { data: questions, isLoading } = useQuery({
     queryKey: ["admin-chapter-questions", chapterId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("questions")
-        .select("id, prompt, options, correct_index, explanation, status, difficulty")
-        .eq("chapter_id", chapterId)
-        .order("created_at", { ascending: true });
-      return (data ?? []) as Question[];
-    },
+    queryFn: async () =>
+      (await loadQuestions({ data: { chapterId } })) as Question[],
   });
 
   const invalidate = () => {

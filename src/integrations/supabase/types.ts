@@ -533,6 +533,41 @@ export type Database = {
         }
         Relationships: []
       }
+      quiz_sessions: {
+        Row: {
+          chapter_id: string
+          created_at: string
+          id: string
+          question_ids: string[]
+          submitted_at: string | null
+          user_id: string
+        }
+        Insert: {
+          chapter_id: string
+          created_at?: string
+          id?: string
+          question_ids: string[]
+          submitted_at?: string | null
+          user_id: string
+        }
+        Update: {
+          chapter_id?: string
+          created_at?: string
+          id?: string
+          question_ids?: string[]
+          submitted_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_sessions_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       questions: {
         Row: {
           chapter_id: string | null
@@ -822,6 +857,7 @@ export type Database = {
         Row: {
           amount: number
           id: string
+          idempotency_key: string | null
           occurred_at: string | null
           source: string | null
           user_id: string | null
@@ -829,6 +865,7 @@ export type Database = {
         Insert: {
           amount: number
           id?: string
+          idempotency_key?: string | null
           occurred_at?: string | null
           source?: string | null
           user_id?: string | null
@@ -836,6 +873,7 @@ export type Database = {
         Update: {
           amount?: number
           id?: string
+          idempotency_key?: string | null
           occurred_at?: string | null
           source?: string | null
           user_id?: string | null
@@ -854,6 +892,20 @@ export type Database = {
           user_id: string
           weekly_xp: number
         }[]
+      }
+      record_activity: {
+        Args: {
+          p_amount: number
+          p_award_xp?: boolean
+          p_idempotency_key: string
+          p_source: string
+          p_user_id: string
+        }
+        Returns: number
+      }
+      redeem_invite_code: {
+        Args: { p_code: string; p_user_id: string }
+        Returns: string
       }
       has_role_admin: { Args: { _user_id: string }; Returns: boolean }
       is_admin: { Args: { _user_id: string }; Returns: boolean }

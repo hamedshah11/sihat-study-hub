@@ -81,17 +81,22 @@ Respond with ONLY JSON: {"verdict":"strong|partial|weak","correct":["..."],"miss
       const missed = Array.isArray(p?.missed) ? p.missed.slice(0, 3).map(String) : [];
       const modelAnswer = String(p?.modelAnswer ?? "").trim();
 
+      let practiceMessageId: string | null = null;
       try {
-        await admin.from("tutor_messages").insert([
+        const { data: messages } = await admin.from("tutor_messages").insert([
           { user_id: userId, chapter_id: chapterId, role: "user", content: `[practice] Q: ${question}\nA: ${answer}` },
           { user_id: userId, chapter_id: chapterId, role: "assistant", content: `[practice ${verdict}] ${modelAnswer}` },
-        ]);
+        ]).select("id, role");
+        practiceMessageId = messages?.find((message: any) => message.role === "assistant")?.id ?? null;
       } catch (_) { /* logging is non-blocking */ }
 
-      // Award XP (+2) and streak server-side for a graded practice answer.
-      try {
-        await awardXpAndStreak(admin, userId, "tutor");
-      } catch (e) { console.error("xp award failed", e); }
+      // Award only persisted practice answers and deduplicate this persisted
+      // response if the award call itself is retried.
+      if (practiceMessageId) {
+        try {
+          await awardXpAndStreak(admin, userId, "tutor", `tutor-practice:${practiceMessageId}`);
+        } catch (e) { console.error("xp award failed", e); }
+      }
 
       return json({ verdict, correct, missed, modelAnswer });
     }

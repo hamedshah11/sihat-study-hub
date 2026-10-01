@@ -23,8 +23,6 @@ type ReviewQuestion = {
   id: string;
   prompt: string;
   options: string[];
-  correct_index: number;
-  explanation: string | null;
   chapterTitle: string | null;
   subjectColour: string | null;
   /** Already answered right once since the mistake: one more right clears it. */
@@ -48,9 +46,7 @@ function ReviewPage() {
     queryFn: async (): Promise<ReviewQuestion[]> => {
       const { data, error } = await supabase
         .from("questions")
-        .select(
-          "id, prompt, options, correct_index, explanation, chapters(title, subjects(colour))",
-        )
+        .select("id, prompt, options, chapters(title, subjects(colour))")
         .in("id", ids)
         .eq("status", "approved");
       if (error) throw error;
@@ -61,8 +57,6 @@ function ReviewPage() {
             id: q.id,
             prompt: q.prompt,
             options: Array.isArray(q.options) ? (q.options as string[]) : [],
-            correct_index: q.correct_index,
-            explanation: q.explanation,
             chapterTitle:
               (q as unknown as { chapters: { title: string } | null }).chapters?.title ?? null,
             subjectColour:
@@ -138,25 +132,40 @@ function ReviewRunner({
   const [results, setResults] = useState<boolean[]>([]);
   const [xp, setXp] = useState(0);
   const [saveError, setSaveError] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    correct: boolean;
+    correctIndex: number;
+    explanation: string | null;
+  } | null>(null);
   const done = index >= questions.length;
   const q = questions[index];
 
   async function choose(i: number) {
-    if (picked !== null) return;
+    if (picked !== null || busy) return;
     if (index === 0 && results.length === 0) onStart();
-    setPicked(i);
-    const correct = i === q.correct_index;
-    setResults((r) => [...r, correct]);
+    setBusy(true);
+    setSaveError(false);
     try {
       const res = await answerFn({ data: { questionId: q.id, selectedIndex: i } });
+      setPicked(i);
+      setFeedback({
+        correct: res.correct,
+        correctIndex: res.correctIndex,
+        explanation: res.explanation,
+      });
+      setResults((r) => [...r, res.correct]);
       if (res.awardedXp) setXp((x) => x + res.awardedXp);
     } catch {
       setSaveError(true);
+    } finally {
+      setBusy(false);
     }
   }
 
   function next() {
     setPicked(null);
+    setFeedback(null);
     setIndex((n) => n + 1);
     window.scrollTo({ top: 0 });
     if (index + 1 >= questions.length) {
@@ -203,7 +212,7 @@ function ReviewRunner({
   }
 
   const revealed = picked !== null;
-  const isRight = picked === q.correct_index;
+  const isRight = feedback?.correct ?? false;
 
   return (
     <div className="subject-colour mt-6 space-y-3" style={subjectColourVariables(q.subjectColour)}>
@@ -227,12 +236,12 @@ function ReviewRunner({
         <p className="mt-3 font-display text-[30px] leading-[1.15] text-foreground">{q.prompt}</p>
         <div className="mt-4 space-y-2">
           {q.options.map((opt, i) => {
-            const correct = i === q.correct_index;
+            const correct = i === feedback?.correctIndex;
             const mine = i === picked;
             return (
               <button
                 key={i}
-                disabled={revealed}
+                disabled={revealed || busy}
                 onClick={() => void choose(i)}
                 className={cn(
                   "flex min-h-[58px] w-full items-center gap-3 rounded-2xl border bg-card p-3 text-left text-sm transition-colors",
@@ -253,14 +262,16 @@ function ReviewRunner({
         {revealed && (
           <div className={cn("mt-4 rounded-xl p-3 text-sm", "bg-[var(--subject-tint)]")}>
             <p className="font-medium">{isRight ? "Correct!" : "Not quite."}</p>
-            {q.explanation && <p className="mt-1 text-muted-foreground">{q.explanation}</p>}
+            {feedback?.explanation && (
+              <p className="mt-1 text-muted-foreground">{feedback.explanation}</p>
+            )}
           </div>
         )}
       </div>
 
       {saveError && (
         <p className="rounded-xl bg-destructive/10 px-4 py-3 text-xs text-destructive">
-          Some answers couldn't be saved. Check your connection.
+          This answer couldn't be checked. Check your connection and try again.
         </p>
       )}
 

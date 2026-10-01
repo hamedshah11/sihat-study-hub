@@ -3,14 +3,8 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { schedule, type ReviewState, type Rating } from "@/lib/spacedRepetition";
-import {
-  XP_AMOUNTS,
-  pakistanDate,
-  insertXp,
-  bumpStreak,
-  startOfTodayPkt,
-  logAnswers,
-} from "@/lib/activity.server";
+import { buildHistory, pickQuizQuestions } from "@/lib/mistakes";
+import { pakistanDate, recordActivity, startOfTodayPkt, logAnswers } from "@/lib/activity.server";
 
 // Why these run server-side with the service-role client:
 // XP, streaks, quiz scores and chapter mastery feed the leaderboard, the
@@ -27,6 +21,72 @@ import {
 
 // Chapter mastery is the average of this many most recent quiz attempts.
 const MASTERY_WINDOW = 3;
+const CHAPTER_QUIZ_SIZE = 5;
+
+export type ChapterQuizQuestion = {
+  id: string;
+  prompt: string;
+  options: string[];
+  isDueMistake: boolean;
+};
+
+// Select the paper on the trusted server so answer keys and the student's
+// answer history never need to be downloaded to construct a quiz.
+export const getChapterQuiz = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ chapterId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const userId = context.userId;
+    if (!userId) throw new Error("Unauthorized");
+
+    const [{ data: questions, error: questionsError }, { data: answerRows, error: answersError }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("questions")
+          .select("id, prompt, options")
+          .eq("chapter_id", data.chapterId)
+          .eq("status", "approved"),
+        supabaseAdmin
+          .from("question_answers")
+          .select("question_id, chapter_id, correct, answered_at")
+          .eq("user_id", userId)
+          .eq("chapter_id", data.chapterId)
+          .order("answered_at", { ascending: false })
+          .limit(5000),
+      ]);
+    if (questionsError) throw new Error(questionsError.message);
+    if (answersError) throw new Error(answersError.message);
+
+    const history = buildHistory(answerRows ?? []);
+    const picked = pickQuizQuestions(questions ?? [], history, CHAPTER_QUIZ_SIZE);
+    let quizId: string | null = null;
+    if (picked.length === CHAPTER_QUIZ_SIZE) {
+      const { data: session, error: sessionError } = await supabaseAdmin
+        .from("quiz_sessions")
+        .insert({
+          user_id: userId,
+          chapter_id: data.chapterId,
+          question_ids: picked.map((question) => question.id),
+        })
+        .select("id")
+        .single();
+      if (sessionError) throw new Error(sessionError.message);
+      quizId = session.id;
+    }
+    return {
+      quizId,
+      available: questions?.length ?? 0,
+      questions: picked.map((question) => {
+        const dueAt = history.get(question.id)?.mistakeDueAt;
+        return {
+          id: question.id,
+          prompt: question.prompt,
+          options: Array.isArray(question.options) ? (question.options as string[]) : [],
+          isDueMistake: dueAt !== null && dueAt !== undefined && dueAt <= Date.now(),
+        } satisfies ChapterQuizQuestion;
+      }),
+    };
+  });
 
 // ---------------------------------------------------------------------------
 // submitQuiz — grades a quiz attempt server-side and records score, mastery,
@@ -34,7 +94,7 @@ const MASTERY_WINDOW = 3;
 // ---------------------------------------------------------------------------
 
 const SubmitQuizInput = z.object({
-  chapterId: z.string().uuid(),
+  quizId: z.string().uuid(),
   answers: z
     .array(
       z.object({
@@ -53,6 +113,20 @@ export const submitQuiz = createServerFn({ method: "POST" })
     const userId = context.userId;
     if (!userId) throw new Error("Unauthorized");
 
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from("quiz_sessions")
+      .select("id, chapter_id, question_ids, created_at, submitted_at")
+      .eq("id", data.quizId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (sessionError) throw new Error(sessionError.message);
+    if (!session || session.submitted_at) throw new Error("Quiz is no longer available");
+    if (Date.now() - Date.parse(session.created_at) > 24 * 60 * 60 * 1000) {
+      throw new Error("Quiz has expired. Start another quiz.");
+    }
+    const chapterId = session.chapter_id;
+    const issuedIds = session.question_ids;
+
     // Deduplicate by questionId (keep first selection).
     const seen = new Set<string>();
     const submitted = data.answers.filter((a) => {
@@ -61,28 +135,48 @@ export const submitQuiz = createServerFn({ method: "POST" })
       return true;
     });
     const questionIds = submitted.map((a) => a.questionId);
+    if (
+      submitted.length !== issuedIds.length ||
+      questionIds.some((questionId) => !issuedIds.includes(questionId))
+    ) {
+      throw new Error("Submit every question from the issued quiz");
+    }
 
-    // Authoritative answer key — only approved questions that truly belong to
-    // this chapter count. Anything else the client sent is ignored.
+    // Authoritative answer key. Status is not filtered: a question retired
+    // after the paper was issued is still graded as it was shown.
     const { data: rows, error: qErr } = await supabaseAdmin
       .from("questions")
-      .select("id, correct_index")
-      .eq("chapter_id", data.chapterId)
-      .eq("status", "approved")
+      .select("id, prompt, options, correct_index, explanation")
+      .eq("chapter_id", chapterId)
       .in("id", questionIds);
     if (qErr) throw new Error(qErr.message);
 
-    const keyById = new Map<string, number>(
-      (rows ?? []).map((r) => [r.id as string, r.correct_index as number]),
-    );
+    const rowById = new Map((rows ?? []).map((row) => [row.id as string, row]));
+    if (rowById.size !== issuedIds.length) throw new Error("Issued quiz is incomplete");
+    for (const answer of submitted) {
+      const options = rowById.get(answer.questionId)?.options;
+      if (!Array.isArray(options) || answer.selectedIndex >= options.length) {
+        throw new Error("Invalid answer selection");
+      }
+    }
 
-    const graded = submitted
-      .filter((a) => keyById.has(a.questionId))
-      .map((a) => ({
-        questionId: a.questionId,
-        selectedIndex: a.selectedIndex,
-        correct: a.selectedIndex === keyById.get(a.questionId),
-      }));
+    // Claim the one-time paper before revealing any answer key. The
+    // conditional update prevents two racing submissions from both grading.
+    const { data: claimed, error: claimError } = await supabaseAdmin
+      .from("quiz_sessions")
+      .update({ submitted_at: new Date().toISOString() })
+      .eq("id", session.id)
+      .is("submitted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (claimError) throw new Error(claimError.message);
+    if (!claimed) throw new Error("Quiz has already been submitted");
+
+    const graded = submitted.map((a) => ({
+      questionId: a.questionId,
+      selectedIndex: a.selectedIndex,
+      correct: a.selectedIndex === rowById.get(a.questionId)?.correct_index,
+    }));
 
     const total = graded.length;
     if (total === 0) {
@@ -100,12 +194,12 @@ export const submitQuiz = createServerFn({ method: "POST" })
       .from("quiz_attempts")
       .select("score, total_questions")
       .eq("user_id", userId)
-      .eq("chapter_id", data.chapterId)
+      .eq("chapter_id", chapterId)
       .gte("attempted_at", startOfTodayPkt());
 
     await supabaseAdmin.from("quiz_attempts").insert({
       user_id: userId,
-      chapter_id: data.chapterId,
+      chapter_id: chapterId,
       score,
       total_questions: total,
       answers: graded as never,
@@ -117,7 +211,7 @@ export const submitQuiz = createServerFn({ method: "POST" })
       "quiz",
       graded.map((g) => ({
         questionId: g.questionId,
-        chapterId: data.chapterId,
+        chapterId,
         correct: g.correct,
       })),
       now,
@@ -127,7 +221,7 @@ export const submitQuiz = createServerFn({ method: "POST" })
       .from("chapter_progress")
       .select("attempts, mastery_score, completed_at")
       .eq("user_id", userId)
-      .eq("chapter_id", data.chapterId)
+      .eq("chapter_id", chapterId)
       .maybeSingle();
 
     // Mastery = average of the last MASTERY_WINDOW quiz scores (this one
@@ -137,7 +231,7 @@ export const submitQuiz = createServerFn({ method: "POST" })
       .from("quiz_attempts")
       .select("score, total_questions")
       .eq("user_id", userId)
-      .eq("chapter_id", data.chapterId)
+      .eq("chapter_id", chapterId)
       .order("attempted_at", { ascending: false })
       .limit(MASTERY_WINDOW);
     const recentPcts = (recent ?? [])
@@ -151,7 +245,7 @@ export const submitQuiz = createServerFn({ method: "POST" })
     await supabaseAdmin.from("chapter_progress").upsert(
       {
         user_id: userId,
-        chapter_id: data.chapterId,
+        chapter_id: chapterId,
         attempts: (existing?.attempts ?? 0) + 1,
         last_attempt_at: now,
         mastery_score: rollingMastery,
@@ -171,8 +265,12 @@ export const submitQuiz = createServerFn({ method: "POST" })
     let xpSource: "quiz" | "quiz_pass" | null = null;
     if (priorToday.length === 0) xpSource = passed ? "quiz_pass" : "quiz";
     else if (passed && !passedEarlierToday) xpSource = "quiz_pass";
-    if (xpSource) await insertXp(userId, xpSource);
-    await bumpStreak(userId);
+    const awardedXp = await recordActivity(
+      userId,
+      xpSource ?? "quiz",
+      `quiz:${session.id}`,
+      xpSource !== null,
+    );
 
     return {
       score,
@@ -180,7 +278,19 @@ export const submitQuiz = createServerFn({ method: "POST" })
       passed,
       masteryScore: rollingMastery,
       attemptScore: masteryScore,
-      awardedXp: xpSource ? XP_AMOUNTS[xpSource] : 0,
+      awardedXp,
+      review: graded.map((answer) => {
+        const question = rowById.get(answer.questionId)!;
+        return {
+          questionId: answer.questionId,
+          prompt: question.prompt as string,
+          options: Array.isArray(question.options) ? (question.options as string[]) : [],
+          selectedIndex: answer.selectedIndex,
+          correct: answer.correct,
+          correctIndex: question.correct_index as number,
+          explanation: (question.explanation as string | null) ?? null,
+        };
+      }),
     };
   });
 
@@ -249,10 +359,14 @@ export const recordReview = createServerFn({ method: "POST" })
     const lastReviewDay = prev?.last_review ? pakistanDate(new Date(prev.last_review)) : null;
     const xpEligible = lastReviewDay === null || lastReviewDay < today;
 
-    await bumpStreak(userId);
-    if (xpEligible) await insertXp(userId, "flashcard");
+    const awardedXp = await recordActivity(
+      userId,
+      "flashcard",
+      `flashcard:${data.flashcardId}:${today}`,
+      xpEligible,
+    );
 
-    return { awardedXp: xpEligible ? XP_AMOUNTS.flashcard : 0 };
+    return { awardedXp };
   });
 
 // ---------------------------------------------------------------------------
@@ -274,34 +388,41 @@ export const answerMistake = createServerFn({ method: "POST" })
     const userId = context.userId;
     if (!userId) throw new Error("Unauthorized");
 
-    const { data: q } = await supabaseAdmin
-      .from("questions")
-      .select("id, chapter_id, correct_index")
-      .eq("id", data.questionId)
-      .eq("status", "approved")
-      .maybeSingle();
+    const [{ data: q, error: questionError }, { data: historyRows, error: historyError }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("questions")
+          .select("id, chapter_id, correct_index, explanation")
+          .eq("id", data.questionId)
+          .eq("status", "approved")
+          .maybeSingle(),
+        supabaseAdmin
+          .from("question_answers")
+          .select("question_id, chapter_id, correct, answered_at")
+          .eq("user_id", userId)
+          .eq("question_id", data.questionId)
+          .order("answered_at", { ascending: true }),
+      ]);
+    if (questionError) throw new Error(questionError.message);
     if (!q) throw new Error("Question not found");
+    if (historyError) throw new Error(historyError.message);
+    const dueAt = buildHistory(historyRows ?? []).get(data.questionId)?.mistakeDueAt;
+    if (dueAt === null || dueAt === undefined || dueAt > Date.now()) {
+      throw new Error("This mistake is not due for review");
+    }
 
     const correct = data.selectedIndex === q.correct_index;
-
-    // Was there already a review answer today? (read before logging this one)
-    const { count } = await supabaseAdmin
-      .from("question_answers")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("source", "review")
-      .gte("answered_at", startOfTodayPkt());
 
     await logAnswers(userId, "review", [
       { questionId: q.id as string, chapterId: (q.chapter_id as string | null) ?? null, correct },
     ]);
 
-    let awardedXp = 0;
-    if ((count ?? 0) === 0) {
-      await insertXp(userId, "review");
-      awardedXp = XP_AMOUNTS.review;
-    }
-    await bumpStreak(userId);
+    const awardedXp = await recordActivity(userId, "review", `review:${pakistanDate()}`);
 
-    return { correct, correctIndex: q.correct_index as number, awardedXp };
+    return {
+      correct,
+      correctIndex: q.correct_index as number,
+      explanation: (q.explanation as string | null) ?? null,
+      awardedXp,
+    };
   });

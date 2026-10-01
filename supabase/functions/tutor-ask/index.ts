@@ -139,10 +139,12 @@ ${notes || "(No notes available for this chapter.)"}
 
     // Award XP (+2) and streak server-side. The browser can no longer write
     // these tables, so this is the trusted path for tutor activity.
-    try {
-      await awardXpAndStreak(admin, userId, "tutor");
-    } catch (e) {
-      console.error("xp award failed", e);
+    if (assistantId) {
+      try {
+        await awardXpAndStreak(admin, userId, "tutor", `tutor-message:${assistantId}`);
+      } catch (e) {
+        console.error("xp award failed", e);
+      }
     }
 
     return json({ answer, messageId: assistantId });
