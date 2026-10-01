@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { BadgeShelf } from "@/components/BadgeShelf";
 import { Loader2, LogOut, Mail, Moon, User, Users } from "lucide-react";
 import { applyInviteCode } from "@/lib/invite.functions";
 import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
@@ -55,7 +56,7 @@ function ProfilePage() {
           id: b.id as string,
           name: b.name as string,
           description: b.description as string,
-          icon: (b.icon ?? "🏅") as string,
+          icon: (b.icon ?? "award") as string,
           earnedAt: earnedMap.get(b.id) ?? null,
         }))
         .sort((a, b) => Number(!!b.earnedAt) - Number(!!a.earnedAt));
@@ -153,46 +154,7 @@ function ProfilePage() {
 
       {(data?.role === "admin" || data?.role === "instructor") && <TestGenerateContent />}
 
-      <section className="animate-fade-up stagger-3 mt-8">
-        <h2 className="font-display text-lg font-semibold text-primary">Badges</h2>
-        <div className="mt-3 grid grid-cols-4 gap-3">
-          {(data?.badges ?? []).map((b) => {
-            const earned = !!b.earnedAt;
-            return (
-              <div
-                key={b.id}
-                title={
-                  earned
-                    ? `Earned ${new Date(b.earnedAt!).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
-                    : b.description
-                }
-                className={`flex flex-col items-center text-center rounded-2xl border p-3 transition-all ${
-                  earned
-                    ? "border-accent/30 bg-primary-tint shadow-soft hover:-translate-y-0.5 hover:shadow-glow"
-                    : "bg-muted/40 border-muted opacity-60"
-                }`}
-              >
-                <span className={`text-2xl ${earned ? "drop-shadow-sm" : "grayscale"}`}>
-                  {b.icon}
-                </span>
-                <p
-                  className={`mt-1 text-xs font-semibold leading-tight ${earned ? "text-foreground" : "text-muted-foreground"}`}
-                >
-                  {b.name}
-                </p>
-                <p className="mt-1 text-[10px] text-muted-foreground leading-tight line-clamp-2">
-                  {earned
-                    ? new Date(b.earnedAt!).toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "short",
-                      })
-                    : b.description}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      <BadgeShelf badges={data?.badges ?? []} />
 
       <Button
         onClick={handleLogout}
