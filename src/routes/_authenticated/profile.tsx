@@ -1,13 +1,14 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, LogOut, Mail, Moon, User, Users } from "lucide-react";
 import { applyInviteCode } from "@/lib/invite.functions";
+import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({ meta: [{ title: "Profile — Sihat" }] }),
@@ -18,30 +19,46 @@ function ProfilePage() {
   const navigate = useNavigate();
   const router = useRouter();
   const qc = useQueryClient();
+  const [theme, setTheme] = useState<ThemePreference>("system");
+  useEffect(() => setTheme(getThemePreference()), []);
 
   const { data } = useQuery({
     queryKey: ["profile-page"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return null;
       const [{ data: profile }, { data: allBadges }, { data: earned }] = await Promise.all([
-        supabase.from("profiles").select("display_name, email, batch_id, student_type, role").eq("id", user.id).maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("display_name, email, batch_id, student_type, role")
+          .eq("id", user.id)
+          .maybeSingle(),
         supabase.from("badges").select("id, name, description, icon"),
         supabase.from("user_badges").select("badge_id, earned_at").eq("user_id", user.id),
       ]);
       let batchName: string | null = null;
       if (profile?.batch_id) {
-        const { data: b } = await supabase.from("batches").select("name").eq("id", profile.batch_id).maybeSingle();
+        const { data: b } = await supabase
+          .from("batches")
+          .select("name")
+          .eq("id", profile.batch_id)
+          .maybeSingle();
         batchName = b?.name ?? null;
       }
-      const earnedMap = new Map((earned ?? []).map((e: any) => [e.badge_id as string, e.earned_at as string]));
-      const badges = (allBadges ?? []).map((b: any) => ({
-        id: b.id as string,
-        name: b.name as string,
-        description: b.description as string,
-        icon: (b.icon ?? "🏅") as string,
-        earnedAt: earnedMap.get(b.id) ?? null,
-      })).sort((a, b) => Number(!!b.earnedAt) - Number(!!a.earnedAt));
+      const earnedMap = new Map(
+        (earned ?? []).map((e: any) => [e.badge_id as string, e.earned_at as string]),
+      );
+      const badges = (allBadges ?? [])
+        .map((b: any) => ({
+          id: b.id as string,
+          name: b.name as string,
+          description: b.description as string,
+          icon: (b.icon ?? "🏅") as string,
+          earnedAt: earnedMap.get(b.id) ?? null,
+        }))
+        .sort((a, b) => Number(!!b.earnedAt) - Number(!!a.earnedAt));
       return {
         displayName: profile?.display_name || "—",
         email: profile?.email || user.email || "",
@@ -62,42 +79,79 @@ function ProfilePage() {
 
   const elevatedRole = data?.role === "admin" || data?.role === "instructor" ? data.role : null;
 
-  const initials = (data?.displayName ?? "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("") || "?";
+  const initials =
+    (data?.displayName ?? "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase())
+      .join("") || "?";
 
   return (
-    <div>
-      <h1 className="animate-fade-up font-display text-2xl font-bold text-primary">Profile</h1>
+    <div className="pb-4">
+      <h1 className="animate-fade-up font-display text-[34px] font-normal text-foreground">
+        Profile
+      </h1>
 
       {/* Identity card */}
-      <div className="bg-primary animate-fade-up stagger-1 mt-6 flex items-center gap-4 rounded-2xl p-5 text-primary-foreground shadow-lifted">
-        <span className="grid size-14 shrink-0 place-items-center rounded-full bg-white/15 font-display text-xl font-bold backdrop-blur-sm ring-2 ring-white/25">
+      <div className="animate-fade-up stagger-1 mt-5 flex items-center gap-4">
+        <span className="grid size-16 shrink-0 place-items-center rounded-[20px] bg-primary font-display text-2xl text-primary-foreground shadow-lifted">
           {initials}
         </span>
         <div className="min-w-0">
-          <p className="font-display truncate text-lg font-bold">{data?.displayName}</p>
-          <p className="truncate text-sm opacity-80">{data?.email}</p>
-          {elevatedRole && (
-            <Badge className="mt-1.5 bg-white/15 text-primary-foreground capitalize backdrop-blur-sm">{elevatedRole}</Badge>
-          )}
+          <p className="font-display truncate text-2xl text-foreground">{data?.displayName}</p>
+          <p className="truncate text-sm text-muted-foreground">{data?.batch ?? data?.email}</p>
+          {elevatedRole && <Badge className="mt-1.5 capitalize">{elevatedRole}</Badge>}
         </div>
       </div>
 
-      <div className="animate-fade-up stagger-2 mt-4 rounded-2xl border bg-card p-5 shadow-soft space-y-4">
-        <Row label="Display name" value={data?.displayName} />
-        <Row label="Email" value={data?.email} />
-        <Row label="Student type" value={data?.studentType ?? "—"} />
+      <h2 className="mt-8 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        Account
+      </h2>
+      <div className="animate-fade-up stagger-2 mt-3 overflow-hidden rounded-[22px] bg-card shadow-soft divide-y">
+        <Row icon={<User className="size-4" />} label="Display name" value={data?.displayName} />
+        <Row icon={<Mail className="size-4" />} label="Email" value={data?.email} />
+        <Row
+          icon={<Users className="size-4" />}
+          label="Student type"
+          value={data?.studentType ?? "—"}
+        />
       </div>
 
       <BatchSection batch={data?.batch ?? null} />
 
-      {(data?.role === "admin" || data?.role === "instructor") && (
-        <TestGenerateContent />
-      )}
+      <section className="mt-4 rounded-[22px] bg-card p-4 shadow-soft">
+        <div className="flex items-center gap-3">
+          <span className="grid size-9 place-items-center rounded-xl bg-primary-tint text-primary">
+            <Moon className="size-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">Appearance</p>
+            <p className="text-xs text-muted-foreground">Choose how Sihat looks</p>
+          </div>
+        </div>
+        <div
+          className="mt-4 grid grid-cols-3 rounded-xl bg-muted p-1"
+          aria-label="Theme preference"
+        >
+          {(["system", "light", "dark"] as ThemePreference[]).map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={theme === option}
+              onClick={() => {
+                setTheme(option);
+                setThemePreference(option);
+              }}
+              className={`rounded-lg px-2 py-2 text-xs font-semibold capitalize ${theme === option ? "bg-card text-primary shadow-soft" : "text-muted-foreground"}`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {(data?.role === "admin" || data?.role === "instructor") && <TestGenerateContent />}
 
       <section className="animate-fade-up stagger-3 mt-8">
         <h2 className="font-display text-lg font-semibold text-primary">Badges</h2>
@@ -107,20 +161,31 @@ function ProfilePage() {
             return (
               <div
                 key={b.id}
-                title={earned ? `Earned ${new Date(b.earnedAt!).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : b.description}
+                title={
+                  earned
+                    ? `Earned ${new Date(b.earnedAt!).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`
+                    : b.description
+                }
                 className={`flex flex-col items-center text-center rounded-2xl border p-3 transition-all ${
                   earned
                     ? "border-accent/30 bg-primary-tint shadow-soft hover:-translate-y-0.5 hover:shadow-glow"
                     : "bg-muted/40 border-muted opacity-60"
                 }`}
               >
-                <span className={`text-2xl ${earned ? "drop-shadow-sm" : "grayscale"}`}>{b.icon}</span>
-                <p className={`mt-1 text-xs font-semibold leading-tight ${earned ? "text-foreground" : "text-muted-foreground"}`}>
+                <span className={`text-2xl ${earned ? "drop-shadow-sm" : "grayscale"}`}>
+                  {b.icon}
+                </span>
+                <p
+                  className={`mt-1 text-xs font-semibold leading-tight ${earned ? "text-foreground" : "text-muted-foreground"}`}
+                >
                   {b.name}
                 </p>
                 <p className="mt-1 text-[10px] text-muted-foreground leading-tight line-clamp-2">
                   {earned
-                    ? new Date(b.earnedAt!).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+                    ? new Date(b.earnedAt!).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                      })
                     : b.description}
                 </p>
               </div>
@@ -132,19 +197,30 @@ function ProfilePage() {
       <Button
         onClick={handleLogout}
         variant="outline"
-        className="mt-8 w-full h-12 rounded-lg border-destructive text-destructive hover:bg-destructive/5 hover:text-destructive"
+        className="mt-8 w-full h-14 rounded-[18px] border-0 bg-card text-destructive shadow-soft hover:bg-destructive-bg hover:text-destructive"
       >
-        Log out
+        <LogOut className="size-4" /> Log out
       </Button>
     </div>
   );
 }
 
-function Row({ label, value }: { label: string; value?: string | null }) {
+function Row({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value?: string | null;
+}) {
   return (
-    <div>
-      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-0.5 text-foreground">{value || "—"}</p>
+    <div className="flex min-h-14 items-center gap-3 px-4 py-3">
+      <span className="grid size-8 place-items-center rounded-lg bg-primary-tint text-primary">
+        {icon}
+      </span>
+      <p className="flex-1 text-sm font-medium">{label}</p>
+      <p className="max-w-[45%] truncate text-sm text-muted-foreground">{value || "—"}</p>
     </div>
   );
 }
@@ -179,14 +255,17 @@ function BatchSection({ batch }: { batch: string | null }) {
         setMessage({ kind: "error", text: reasonMap[res.reason] ?? "Could not apply code." });
       }
     } catch (err) {
-      setMessage({ kind: "error", text: err instanceof Error ? err.message : "Something went wrong." });
+      setMessage({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Something went wrong.",
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <section className="mt-4 rounded-2xl border bg-card p-5 shadow-soft">
+    <section className="mt-4 rounded-[22px] bg-card p-5 shadow-soft">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Batch</p>
@@ -195,7 +274,10 @@ function BatchSection({ batch }: { batch: string | null }) {
         {batch && !showInput && (
           <button
             type="button"
-            onClick={() => { setShowInput(true); setMessage(null); }}
+            onClick={() => {
+              setShowInput(true);
+              setMessage(null);
+            }}
             className="text-xs text-accent hover:underline"
           >
             Change batch
@@ -218,7 +300,9 @@ function BatchSection({ batch }: { batch: string | null }) {
       )}
 
       {message && (
-        <p className={`mt-2 text-sm ${message.kind === "success" ? "text-accent" : "text-destructive"}`}>
+        <p
+          className={`mt-2 text-sm ${message.kind === "success" ? "text-accent" : "text-destructive"}`}
+        >
           {message.text}
         </p>
       )}
