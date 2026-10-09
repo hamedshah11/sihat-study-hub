@@ -4,13 +4,21 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+  Florence design tokens (master brand book v2, October 2026).
+  Night ward and Lamplight amber carry the brand, Linen is the paper, and
+  petal colours are used only to identify subjects, never for status.
+  The older token names (primary, streak, success…) are kept so admin and
+  exam screens pick up the new palette without a rewrite.
+*/
 @theme inline {
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --radius-sm: 12px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -28,14 +36,18 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-ink: var(--accent-ink);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive-bg: var(--destructive-bg);
   --color-destructive-ink: var(--destructive-ink);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-surface: var(--surface);
+  --color-chip: var(--chip);
+  --color-chip-foreground: var(--chip-foreground);
   --color-streak: var(--streak);
   --color-streak-bg: var(--streak-bg);
   --color-streak-ink: var(--streak-ink);
@@ -50,172 +62,424 @@
   --color-subject-tint: var(--subject-tint);
   --color-subject-tint-2: var(--subject-tint-2);
   --color-subject-ink: var(--subject-ink);
-  --shadow-soft: 0 10px 30px rgba(11, 31, 63, 0.08);
-  --shadow-lifted: 0 10px 30px rgba(11, 31, 63, 0.08);
-  --shadow-glow: 0 10px 30px rgba(11, 31, 63, 0.08);
+  /* Fixed brand colours: the same in both themes. */
+  --color-night: #141b2d;
+  --color-night-panel: #1e2740;
+  --color-lamp: #f4b23e;
+  --color-linen: #fbf6ec;
+  --color-deep-amber: #9c5a08;
+  --color-mist: #9aa3ba;
+  --shadow-soft: var(--shadow-soft-value);
+  --shadow-lifted: var(--shadow-lifted-value);
+  --shadow-glow: var(--shadow-lifted-value);
 }
 
 :root {
   color-scheme: light;
-  --radius: 1rem;
-  --background: #eef3fb;
-  --foreground: #0b1f3f;
+  --radius: 18px;
+
+  /* Light: Linen paper */
+  --background: #fbf6ec;
+  --foreground: #141b2d;
   --surface: #ffffff;
   --card: #ffffff;
-  --card-foreground: #0b1f3f;
+  --card-foreground: #141b2d;
   --popover: #ffffff;
-  --popover-foreground: #0b1f3f;
-  --primary: #1f4fd8;
-  --primary-deep: #163c9e;
-  --primary-tint: #dce7fb;
-  --primary-tint-2: #c5d6f6;
-  --primary-foreground: #ffffff;
-  --secondary: #dce7fb;
-  --secondary-foreground: #163c9e;
-  --muted: #e7edf7;
-  --muted-foreground: #5a6b88;
-  --accent: #1f4fd8;
-  --accent-foreground: #ffffff;
-  --streak: #f97316;
-  --streak-bg: #fff1e6;
-  --streak-ink: #b84708;
-  --streak-foreground: #ffffff;
-  --success: #16a06a;
-  --success-bg: #e2f5ec;
-  --success-ink: #0e6b47;
-  --destructive: #e0533f;
-  --destructive-bg: #fdecea;
-  --destructive-ink: #b42318;
+  --popover-foreground: #141b2d;
+  --primary: #141b2d;
+  --primary-deep: #141b2d;
+  --primary-tint: #f1ece2;
+  --primary-tint-2: #e7dfd0;
+  --primary-foreground: #fbf6ec;
+  --secondary: #f1ece2;
+  --secondary-foreground: #141b2d;
+  --muted: #f1ece2;
+  --muted-foreground: #5d6680;
+  --accent: #f4b23e;
+  --accent-foreground: #141b2d;
+  --accent-ink: #9c5a08;
+  --chip: #f1ece2;
+  --chip-foreground: #3b4256;
+  --streak: #f4b23e;
+  --streak-bg: #fbebcb;
+  --streak-ink: #8a4f06;
+  --streak-foreground: #141b2d;
+  --success: #2f6b45;
+  --success-bg: #e5f0e8;
+  --success-ink: #2f6b45;
+  --destructive: #a23a4b;
+  --destructive-bg: #f8e6e8;
+  --destructive-ink: #a23a4b;
   --destructive-foreground: #ffffff;
-  --warning-bg: #fff4e0;
-  --warning-ink: #8a4b00;
-  --border: #dce4f2;
-  --input: #dce4f2;
-  --ring: #1f4fd8;
+  --warning-bg: #fbebcb;
+  --warning-ink: #7a4606;
+  /* Decorative divider vs essential boundary (3:1 or better) */
+  --border: #e8dfcf;
+  --border-strong: #8f8271;
+  --input: #8f8271;
+  --ring: #9c5a08;
+  --rose-ring: #ede5d5;
+  --shadow-soft-value: 0 1px 2px rgba(20, 27, 45, 0.04), 0 6px 18px rgba(20, 27, 45, 0.05);
+  --shadow-lifted-value: 0 2px 4px rgba(20, 27, 45, 0.05), 0 14px 32px rgba(20, 27, 45, 0.09);
 }
 
 .dark {
   color-scheme: dark;
-  --background: #07111f;
-  --foreground: #eaf1ff;
-  --surface: #0e1c33;
-  --card: #0e1c33;
-  --card-foreground: #eaf1ff;
-  --popover: #0e1c33;
-  --popover-foreground: #eaf1ff;
-  --primary: #2e66ea;
-  --primary-deep: #a9c4ff;
-  --primary-tint: #13284a;
-  --primary-tint-2: #1c3862;
-  --primary-foreground: #ffffff;
-  --secondary: #13284a;
-  --secondary-foreground: #d7e4ff;
-  --muted: #14243d;
-  --muted-foreground: #93a6c6;
-  --accent: #2e66ea;
-  --accent-foreground: #ffffff;
-  --streak: #f97316;
-  --streak-bg: #2a1a0e;
-  --streak-ink: #fdba74;
-  --success: #25b981;
-  --success-bg: #0c3025;
-  --success-ink: #76e7b5;
-  --destructive: #ef6b5a;
-  --destructive-bg: #3b1615;
-  --destructive-ink: #ffb4aa;
-  --warning-bg: #34230c;
-  --warning-ink: #ffd18a;
-  --border: #1c3154;
-  --input: #1c3154;
-  --ring: #2e66ea;
+
+  /* Lamplight mode: Night ward */
+  --background: #141b2d;
+  --foreground: #fbf6ec;
+  --surface: #1e2740;
+  --card: #1e2740;
+  --card-foreground: #fbf6ec;
+  --popover: #1e2740;
+  --popover-foreground: #fbf6ec;
+  --primary: #f4b23e;
+  --primary-deep: #f4b23e;
+  --primary-tint: #283150;
+  --primary-tint-2: #323c5c;
+  --primary-foreground: #141b2d;
+  --secondary: #283150;
+  --secondary-foreground: #fbf6ec;
+  --muted: #232c46;
+  --muted-foreground: #9aa3ba;
+  --accent: #f4b23e;
+  --accent-foreground: #141b2d;
+  --accent-ink: #f4b23e;
+  --chip: rgba(255, 255, 255, 0.07);
+  --chip-foreground: #d7dbe6;
+  --streak: #f4b23e;
+  --streak-bg: #3a301d;
+  --streak-ink: #f4b23e;
+  --streak-foreground: #141b2d;
+  --success: #8cc5a2;
+  --success-bg: #1f3634;
+  --success-ink: #8cc5a2;
+  --destructive: #e2737f;
+  --destructive-bg: #3a2333;
+  --destructive-ink: #e2737f;
+  --destructive-foreground: #141b2d;
+  --warning-bg: #3a301d;
+  --warning-ink: #f4c873;
+  --border: #2c3756;
+  --border-strong: #68759c;
+  --input: #68759c;
+  --ring: #f4b23e;
+  --rose-ring: #29324d;
+  --shadow-soft-value: 0 1px 0 rgba(255, 255, 255, 0.02);
+  --shadow-lifted-value: 0 16px 40px rgba(0, 0, 0, 0.35);
 }
 
-/* Light values are set inline per subject; the class picks light or dark
-   here so the .dark override isn't beaten by the inline style. */
+/*
+  Petal colour per subject. The petal (fill) is set inline; light mode never
+  uses it as text (several petals fail contrast on Linen), Lamplight mode can.
+*/
 .subject-colour {
-  --subject-deep: var(--subject-light-deep);
-  --subject-tint: var(--subject-light-tint);
-  --subject-tint-2: var(--subject-light-tint-2);
-  --subject-ink: var(--subject-light-ink);
+  --subject-tint: color-mix(in srgb, var(--subject) 16%, var(--card));
+  --subject-tint-2: color-mix(in srgb, var(--subject) 30%, var(--card));
+  --subject-deep: color-mix(in srgb, var(--subject) 45%, #141b2d);
+  --subject-ink: var(--foreground);
 }
-
-.subject-colour .prose h1,
-.subject-colour .prose h2 { color: var(--subject-ink); }
 
 .dark .subject-colour {
-  --subject-deep: var(--subject-dark-ink);
-  --subject-tint: var(--subject-dark-tint);
-  --subject-tint-2: var(--subject-dark-tint-2);
-  --subject-ink: var(--subject-dark-ink);
+  --subject-tint: color-mix(in srgb, var(--subject) 14%, var(--card));
+  --subject-tint-2: color-mix(in srgb, var(--subject) 26%, var(--card));
+  --subject-deep: var(--subject);
+  --subject-ink: var(--subject);
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
-  html, body { height: 100%; }
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
+    height: 100%;
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     font-synthesis: none;
     -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
   }
-  h1, h2 { letter-spacing: -0.02em; }
-  :focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
-  button, a, [role="button"] { transition: transform 120ms ease-out; }
-  button:active, a:active, [role="button"]:active { transform: scale(0.98); }
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+  button,
+  a,
+  [role="button"] {
+    transition: transform 120ms ease-out;
+  }
+  button:active,
+  a:active,
+  [role="button"]:active {
+    transform: scale(0.985);
+  }
+}
+
+@layer utilities {
+  /* Fraunces as the brand uses it: SemiBold, Soft, no wonky letters. */
+  .font-display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-variation-settings:
+      "SOFT" 100,
+      "WONK" 0;
+    font-optical-sizing: auto;
+    letter-spacing: -0.015em;
+  }
+  /* The wordmark only: optical size 144, ligatures off so f never joins l. */
+  .fl-wordmark {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-variation-settings:
+      "SOFT" 100,
+      "WONK" 0,
+      "opsz" 144;
+    font-variant-ligatures: none;
+    letter-spacing: -0.02em;
+  }
+  /* Every clinical question and answer: Instrument Sans 600 at 21/30. */
+  .fl-question {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 21px;
+    line-height: 30px;
+    letter-spacing: -0.005em;
+  }
+  /* Decorative labels only, never meaningful ones. */
+  .fl-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 14px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .fl-number {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  /* The lamplight glow behind the mark on Night ward surfaces. */
+  .lamp-glow {
+    background-image: radial-gradient(
+      circle at 50% 38%,
+      rgba(244, 178, 62, 0.16) 0%,
+      rgba(244, 178, 62, 0.06) 32%,
+      transparent 62%
+    );
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @layer components {
-  .prose h1 { @apply mt-6 mb-3 text-2xl font-bold text-primary; }
-  .prose h2 { @apply mt-5 mb-2 text-xl font-bold text-primary; }
-  .prose h3 { @apply mt-4 mb-2 text-lg font-semibold; }
-  .prose p { @apply mb-4 leading-7 text-foreground; }
-  .prose ul { @apply mb-4 list-disc space-y-1.5 pl-6 leading-7; }
-  .prose ol { @apply mb-4 list-decimal space-y-1.5 pl-6 leading-7; }
-  .prose strong { @apply font-semibold; }
-  .prose code { @apply rounded bg-muted px-1.5 py-0.5 font-mono text-sm; }
-  .card-lift { @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lifted active:translate-y-0 active:scale-[.98]; }
-  .caption { @apply text-xs font-medium tracking-wide text-muted-foreground uppercase; }
+  .prose h1 {
+    @apply mt-6 mb-3 font-display text-2xl text-foreground;
+  }
+  .prose h2 {
+    @apply mt-6 mb-2 text-lg font-semibold text-foreground;
+  }
+  .prose h3 {
+    @apply mt-4 mb-2 text-base font-semibold;
+  }
+  .prose p {
+    @apply mb-4 leading-7 text-foreground;
+  }
+  .prose ul {
+    @apply mb-4 list-disc space-y-1.5 pl-6 leading-7;
+  }
+  .prose ol {
+    @apply mb-4 list-decimal space-y-1.5 pl-6 leading-7;
+  }
+  .prose li::marker {
+    color: var(--color-muted-foreground);
+  }
+  .prose strong {
+    @apply font-semibold;
+  }
+  .prose a {
+    @apply font-medium text-accent-ink underline underline-offset-2;
+  }
+  .prose code {
+    @apply rounded bg-muted px-1.5 py-0.5 font-mono text-sm;
+  }
+  .card-lift {
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lifted active:translate-y-0 active:scale-[.99];
+  }
+  .caption {
+    @apply text-[12.5px] font-semibold text-muted-foreground;
+  }
 }
 
-@keyframes fade-up { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-.animate-fade-up { animation: fade-up 550ms cubic-bezier(.22, 1, .36, 1) both; }
-.stagger-1 { animation-delay: 60ms; }
-.stagger-2 { animation-delay: 120ms; }
-.stagger-3 { animation-delay: 180ms; }
-.stagger-4 { animation-delay: 240ms; }
-.stagger-5 { animation-delay: 300ms; }
-.stagger-6 { animation-delay: 360ms; }
+@keyframes fade-up {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-fade-up {
+  animation: fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger-1 {
+  animation-delay: 50ms;
+}
+.stagger-2 {
+  animation-delay: 100ms;
+}
+.stagger-3 {
+  animation-delay: 150ms;
+}
+.stagger-4 {
+  animation-delay: 200ms;
+}
+.stagger-5 {
+  animation-delay: 250ms;
+}
+.stagger-6 {
+  animation-delay: 300ms;
+}
 
-@keyframes scale-in { 0% { transform: scale(.92); opacity: 0; } 60% { transform: scale(1.03); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
-.animate-scale-in { animation: scale-in 400ms ease-out both; }
-@keyframes ring-draw { from { stroke-dashoffset: var(--ring-length, 283); } }
-.animate-ring-draw { animation: ring-draw 1.4s cubic-bezier(.22, 1, .36, 1) both; }
-@keyframes bar-fill { from { transform: scaleX(0); } }
-.animate-bar-fill { animation: bar-fill 1.1s cubic-bezier(.22, 1, .36, 1) both; transform-origin: left; }
-@keyframes column-grow { from { transform: scaleY(0); } }
-.animate-column-grow { animation: column-grow 700ms cubic-bezier(.22, 1, .36, 1) both; transform-origin: bottom; }
-@keyframes flame-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
-.animate-flame { animation: flame-pulse 1.6s ease-in-out infinite; transform-origin: 50% 80%; }
-@keyframes float-slow { 0%, 100% { transform: translate(0); } 50% { transform: translate(12px, -16px); } }
-.animate-float-slow { animation: float-slow 9s ease-in-out infinite; }
-@keyframes pop { 0% { transform: scale(.94); } 55% { transform: scale(1.04); } 100% { transform: scale(1); } }
-.animate-pop { animation: pop 500ms cubic-bezier(.22, 1, .36, 1) both; }
-@keyframes typing-dot { 0%, 60%, 100% { opacity: .25; } 30% { opacity: 1; } }
-.typing-dot { animation: typing-dot 1.2s ease-in-out infinite; }
-.typing-dot:nth-child(2) { animation-delay: 150ms; }
-.typing-dot:nth-child(3) { animation-delay: 300ms; }
-.flashcard-flip { transform-style: preserve-3d; transition: transform 450ms cubic-bezier(.22, 1, .36, 1); }
-.flashcard-flip[data-flipped="true"] { transform: rotateY(180deg); }
-.flashcard-face { backface-visibility: hidden; }
-.flashcard-back { transform: rotateY(180deg); }
-.nav-pill { transition: width 225ms ease-out, background-color 225ms ease-out, color 225ms ease-out; }
+@keyframes scale-in {
+  0% {
+    transform: scale(0.94);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.animate-scale-in {
+  animation: scale-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes ring-draw {
+  from {
+    stroke-dashoffset: var(--ring-length, 283);
+  }
+}
+.animate-ring-draw {
+  animation: ring-draw 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes bar-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+.animate-bar-fill {
+  animation: bar-fill 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: left;
+}
+@keyframes column-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+.animate-column-grow {
+  animation: column-grow 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: bottom;
+}
+/* A petal grows outward from the centre of the rose. */
+@keyframes petal-grow {
+  from {
+    transform: scale(var(--petal-from, 0.4));
+    opacity: 0.6;
+  }
+}
+.animate-petal {
+  animation: petal-grow 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}
+@keyframes lamp-breathe {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.animate-lamp {
+  animation: lamp-breathe 3.2s ease-in-out infinite;
+}
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translate(0);
+  }
+  50% {
+    transform: translate(10px, -12px);
+  }
+}
+.animate-float-slow {
+  animation: float-slow 9s ease-in-out infinite;
+}
+@keyframes pop {
+  0% {
+    transform: scale(0.96);
+  }
+  55% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.animate-pop {
+  animation: pop 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+.typing-dot {
+  animation: typing-dot 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: 150ms;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 300ms;
+}
+.flashcard-flip {
+  transform-style: preserve-3d;
+  transition: transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.flashcard-flip[data-flipped="true"] {
+  transform: rotateY(180deg);
+}
+.flashcard-face {
+  backface-visibility: hidden;
+}
+.flashcard-back {
+  transform: rotateY(180deg);
+}
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     scroll-behavior: auto !important;
-    animation-duration: .01ms !important;
+    animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: .01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

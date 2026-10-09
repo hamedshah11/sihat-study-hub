@@ -16,11 +16,14 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedTutorRouteImport } from './routes/_authenticated/tutor'
+import { Route as AuthenticatedSessionRouteImport } from './routes/_authenticated/session'
 import { Route as AuthenticatedReviewRouteImport } from './routes/_authenticated/review'
 import { Route as AuthenticatedProgressRouteImport } from './routes/_authenticated/progress'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedLeaderboardRouteImport } from './routes/_authenticated/leaderboard'
+import { Route as AuthenticatedIntroRouteImport } from './routes/_authenticated/intro'
 import { Route as AuthenticatedHomeRouteImport } from './routes/_authenticated/home'
+import { Route as AuthenticatedBatchRouteImport } from './routes/_authenticated/batch'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -70,6 +73,11 @@ const AuthenticatedTutorRoute = AuthenticatedTutorRouteImport.update({
   path: '/tutor',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedSessionRoute = AuthenticatedSessionRouteImport.update({
+  id: '/session',
+  path: '/session',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedReviewRoute = AuthenticatedReviewRouteImport.update({
   id: '/review',
   path: '/review',
@@ -91,9 +99,19 @@ const AuthenticatedLeaderboardRoute =
     path: '/leaderboard',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedIntroRoute = AuthenticatedIntroRouteImport.update({
+  id: '/intro',
+  path: '/intro',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedHomeRoute = AuthenticatedHomeRouteImport.update({
   id: '/home',
   path: '/home',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedBatchRoute = AuthenticatedBatchRouteImport.update({
+  id: '/batch',
+  path: '/batch',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -187,12 +205,15 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/batch': typeof AuthenticatedBatchRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/intro': typeof AuthenticatedIntroRoute
   '/leaderboard': typeof AuthenticatedLeaderboardRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/progress': typeof AuthenticatedProgressRoute
-  '/tutor': typeof AuthenticatedTutorRoute
   '/review': typeof AuthenticatedReviewRoute
+  '/session': typeof AuthenticatedSessionRoute
+  '/tutor': typeof AuthenticatedTutorRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/bulk-generate': typeof AuthenticatedAdminBulkGenerateRoute
@@ -213,12 +234,15 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/batch': typeof AuthenticatedBatchRoute
   '/home': typeof AuthenticatedHomeRoute
+  '/intro': typeof AuthenticatedIntroRoute
   '/leaderboard': typeof AuthenticatedLeaderboardRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/progress': typeof AuthenticatedProgressRoute
-  '/tutor': typeof AuthenticatedTutorRoute
   '/review': typeof AuthenticatedReviewRoute
+  '/session': typeof AuthenticatedSessionRoute
+  '/tutor': typeof AuthenticatedTutorRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/bulk-generate': typeof AuthenticatedAdminBulkGenerateRoute
@@ -242,12 +266,15 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/batch': typeof AuthenticatedBatchRoute
   '/_authenticated/home': typeof AuthenticatedHomeRoute
+  '/_authenticated/intro': typeof AuthenticatedIntroRoute
   '/_authenticated/leaderboard': typeof AuthenticatedLeaderboardRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/progress': typeof AuthenticatedProgressRoute
-  '/_authenticated/tutor': typeof AuthenticatedTutorRoute
   '/_authenticated/review': typeof AuthenticatedReviewRoute
+  '/_authenticated/session': typeof AuthenticatedSessionRoute
+  '/_authenticated/tutor': typeof AuthenticatedTutorRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/admin/bulk-generate': typeof AuthenticatedAdminBulkGenerateRoute
@@ -271,12 +298,15 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/admin'
+    | '/batch'
     | '/home'
+    | '/intro'
     | '/leaderboard'
     | '/profile'
     | '/progress'
-    | '/tutor'
     | '/review'
+    | '/session'
+    | '/tutor'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/bulk-generate'
@@ -297,12 +327,15 @@ export interface FileRouteTypes {
     | '/signup'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/batch'
     | '/home'
+    | '/intro'
     | '/leaderboard'
     | '/profile'
     | '/progress'
-    | '/tutor'
     | '/review'
+    | '/session'
+    | '/tutor'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/bulk-generate'
@@ -325,12 +358,15 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/admin'
+    | '/_authenticated/batch'
     | '/_authenticated/home'
+    | '/_authenticated/intro'
     | '/_authenticated/leaderboard'
     | '/_authenticated/profile'
     | '/_authenticated/progress'
-    | '/_authenticated/tutor'
     | '/_authenticated/review'
+    | '/_authenticated/session'
+    | '/_authenticated/tutor'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/admin/bulk-generate'
@@ -408,6 +444,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTutorRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/session': {
+      id: '/_authenticated/session'
+      path: '/session'
+      fullPath: '/session'
+      preLoaderRoute: typeof AuthenticatedSessionRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/review': {
       id: '/_authenticated/review'
       path: '/review'
@@ -436,11 +479,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeaderboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/intro': {
+      id: '/_authenticated/intro'
+      path: '/intro'
+      fullPath: '/intro'
+      preLoaderRoute: typeof AuthenticatedIntroRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/home': {
       id: '/_authenticated/home'
       path: '/home'
       fullPath: '/home'
       preLoaderRoute: typeof AuthenticatedHomeRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/batch': {
+      id: '/_authenticated/batch'
+      path: '/batch'
+      fullPath: '/batch'
+      preLoaderRoute: typeof AuthenticatedBatchRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/admin': {
@@ -566,12 +623,15 @@ const AuthenticatedAdminRouteWithChildren =
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedBatchRoute: typeof AuthenticatedBatchRoute
   AuthenticatedHomeRoute: typeof AuthenticatedHomeRoute
+  AuthenticatedIntroRoute: typeof AuthenticatedIntroRoute
   AuthenticatedLeaderboardRoute: typeof AuthenticatedLeaderboardRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedProgressRoute: typeof AuthenticatedProgressRoute
-  AuthenticatedTutorRoute: typeof AuthenticatedTutorRoute
   AuthenticatedReviewRoute: typeof AuthenticatedReviewRoute
+  AuthenticatedSessionRoute: typeof AuthenticatedSessionRoute
+  AuthenticatedTutorRoute: typeof AuthenticatedTutorRoute
   AuthenticatedChaptersChapterIdRoute: typeof AuthenticatedChaptersChapterIdRoute
   AuthenticatedSubjectsSubjectIdRoute: typeof AuthenticatedSubjectsSubjectIdRoute
   AuthenticatedSubjectsIndexRoute: typeof AuthenticatedSubjectsIndexRoute
@@ -580,12 +640,15 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedBatchRoute: AuthenticatedBatchRoute,
   AuthenticatedHomeRoute: AuthenticatedHomeRoute,
+  AuthenticatedIntroRoute: AuthenticatedIntroRoute,
   AuthenticatedLeaderboardRoute: AuthenticatedLeaderboardRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedProgressRoute: AuthenticatedProgressRoute,
-  AuthenticatedTutorRoute: AuthenticatedTutorRoute,
   AuthenticatedReviewRoute: AuthenticatedReviewRoute,
+  AuthenticatedSessionRoute: AuthenticatedSessionRoute,
+  AuthenticatedTutorRoute: AuthenticatedTutorRoute,
   AuthenticatedChaptersChapterIdRoute: AuthenticatedChaptersChapterIdRoute,
   AuthenticatedSubjectsSubjectIdRoute: AuthenticatedSubjectsSubjectIdRoute,
   AuthenticatedSubjectsIndexRoute: AuthenticatedSubjectsIndexRoute,

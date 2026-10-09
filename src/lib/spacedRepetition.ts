@@ -67,33 +67,31 @@ function mapStateToString(s: FsrsState): ReviewState["state"] {
   }
 }
 
+function toFsrsCard(prev: Partial<ReviewState>, now: Date): FsrsCard {
+  return {
+    // Legacy rows predate due_at: next_review_at was a bare date meaning
+    // "due that day in Pakistan", so pin it to PKT midnight, not UTC.
+    due: prev.due_at
+      ? new Date(prev.due_at)
+      : prev.next_review_at
+        ? new Date(`${prev.next_review_at}T00:00:00+05:00`)
+        : now,
+    stability: prev.stability ?? 0,
+    difficulty: prev.difficulty ?? 0,
+    elapsed_days: prev.elapsed_days ?? 0,
+    scheduled_days: prev.scheduled_days ?? 0,
+    reps: prev.reps ?? 0,
+    lapses: prev.lapses ?? 0,
+    state: mapStringToState(prev.state),
+    last_review: prev.last_review ? new Date(prev.last_review) : undefined,
+    learning_steps: prev.learning_steps ?? 0,
+  } as FsrsCard;
+}
+
 export function schedule(prev: Partial<ReviewState> | null, rating: Rating): ReviewState {
   const now = new Date();
   const grade = RATING_TO_GRADE[rating];
-
-  let card: FsrsCard;
-  if (!prev) {
-    card = createEmptyCard(now);
-  } else {
-    card = {
-      // Legacy rows predate due_at: next_review_at was a bare date meaning
-      // "due that day in Pakistan", so pin it to PKT midnight, not UTC.
-      due: prev.due_at
-        ? new Date(prev.due_at)
-        : prev.next_review_at
-          ? new Date(`${prev.next_review_at}T00:00:00+05:00`)
-          : now,
-      stability: prev.stability ?? 0,
-      difficulty: prev.difficulty ?? 0,
-      elapsed_days: prev.elapsed_days ?? 0,
-      scheduled_days: prev.scheduled_days ?? 0,
-      reps: prev.reps ?? 0,
-      lapses: prev.lapses ?? 0,
-      state: mapStringToState(prev.state),
-      last_review: prev.last_review ? new Date(prev.last_review) : undefined,
-      learning_steps: prev.learning_steps ?? 0,
-    } as FsrsCard;
-  }
+  const card: FsrsCard = prev ? toFsrsCard(prev, now) : createEmptyCard(now);
 
   const { card: next } = f.next(card, now, grade);
 
@@ -115,4 +113,17 @@ export function schedule(prev: Partial<ReviewState> | null, rating: Rating): Rev
 // Pakistan Standard Time is UTC+5, no DST.
 function pktDateOf(d: Date): string {
   return new Date(d.getTime() + 5 * 3600_000).toISOString().slice(0, 10);
+}
+
+/**
+ * FSRS's estimated chance (0–1) that the student would recall this card right
+ * now. A card that has never been reviewed counts as 0.
+ */
+export function retrievability(
+  prev: Partial<ReviewState> | null | undefined,
+  now: Date = new Date(),
+): number {
+  if (!prev || !prev.last_review || !prev.stability || prev.state === "new") return 0;
+  const r = f.get_retrievability(toFsrsCard(prev, now), now, false);
+  return Number.isFinite(r) ? Math.max(0, Math.min(1, r)) : 0;
 }

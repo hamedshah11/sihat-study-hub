@@ -1,97 +1,72 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
-import { Sparkles, BookOpen, Flame } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Lockup } from "@/components/brand/Lockup";
+import { BRAND } from "@/lib/brand";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sihat — Study smarter, not harder" },
-      { name: "description", content: "A mobile-first study app for BSN nursing students. Pre-built study material, an AI tutor for every chapter, and progress tracking." },
-      { property: "og:title", content: "Sihat — Study smarter, not harder" },
-      { property: "og:description", content: "A mobile-first study app for BSN nursing students." },
+      { title: BRAND.storeName },
+      {
+        name: "description",
+        content:
+          "Short daily reviews for BSN nursing students: flashcards, MCQs and summaries checked by your college's teachers. Powered by SIHAT.",
+      },
+      { property: "og:title", content: BRAND.storeName },
+      { property: "og:description", content: BRAND.tagline },
     ],
   }),
-  component: Landing,
+  component: Welcome,
 });
 
-function Landing() {
-  return (
-    <div className="relative isolate min-h-screen overflow-hidden bg-background flex flex-col">
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="animate-float-slow absolute -top-32 -right-24 size-[440px] rounded-full bg-accent/15 blur-3xl" />
-        <div className="absolute top-1/2 -left-36 size-[400px] rounded-full bg-primary/[0.08] blur-3xl" />
-        <div className="animate-float-slow absolute -bottom-40 right-1/4 size-[360px] rounded-full bg-streak/[0.08] blur-3xl [animation-delay:-4s]" />
-      </div>
-      <div className="mx-auto w-full max-w-[480px] md:max-w-[640px] flex-1 flex flex-col px-6 pt-12 pb-8">
-        <header className="animate-fade-up flex items-center gap-2.5">
-          <div className="size-10 rounded-xl bg-primary text-primary-foreground grid place-items-center font-bold shadow-glow">
-            S
-          </div>
-          <span className="font-display text-2xl font-bold text-primary tracking-tight">Sihat</span>
-        </header>
+/**
+ * Splash and welcome in one: the stacked lockup on Night ward with a
+ * lamplight glow, then the batch code first. Students who've already joined
+ * sign in with their email, so no college email is needed.
+ */
+function Welcome() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) navigate({ to: "/home", replace: true });
+    });
+  }, [navigate]);
 
-        <main className="flex-1 flex flex-col justify-center py-16">
-          <h1 className="animate-fade-up stagger-1 font-display text-4xl md:text-5xl font-bold leading-tight text-primary">
-            Study smarter,<br />
-            <span className="text-primary">not harder.</span>
-          </h1>
-          <p className="animate-fade-up stagger-2 mt-4 text-muted-foreground">
-            Built for nursing students at every stage of the BSN curriculum.
+  return (
+    <div className="flex min-h-dvh flex-col bg-background">
+      <section className="dark relative flex min-h-[52dvh] flex-col items-center justify-center overflow-hidden bg-night px-6 pb-10 pt-[max(2.5rem,env(safe-area-inset-top))] text-linen">
+        <div aria-hidden className="lamp-glow absolute inset-0" />
+        <Lockup layout="stacked" height={30} variant="night" className="animate-scale-in relative" />
+        <p className="relative mt-6 text-[13.5px] text-mist">{BRAND.tagline}</p>
+      </section>
+
+      <section className="mx-auto flex w-full max-w-[440px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-8">
+        <h1 className="animate-fade-up font-display text-[32px] leading-[1.08]">Welcome to Florence.</h1>
+        <p className="animate-fade-up stagger-1 mt-2 text-[15px] leading-relaxed text-muted-foreground">
+          Short daily reviews for your BSN subjects, checked by your college's teachers.
+        </p>
+        <div className="animate-fade-up stagger-2 mt-auto pt-8">
+          <Link
+            to="/signup"
+            className="flex h-[52px] w-full items-center justify-center rounded-full bg-primary text-[15px] font-semibold text-primary-foreground"
+          >
+            I have a batch code
+          </Link>
+          <p className="mt-2.5 text-center text-[13px] text-muted-foreground">
+            Your class coordinator gives you this code. No college email needed.
           </p>
-
-          <ul className="mt-10 space-y-4">
-            <Feature stagger="stagger-3" tone="cobalt" icon={<BookOpen className="size-5" />}>
-              Pre-built study material for your BSN curriculum
-            </Feature>
-            <Feature stagger="stagger-4" tone="navy" icon={<Sparkles className="size-5" />}>
-              AI tutor for every chapter
-            </Feature>
-            <Feature stagger="stagger-5" tone="flame" icon={<Flame className="size-5" />}>
-              Track your progress, build your streak
-            </Feature>
-          </ul>
-
-          <div className="animate-fade-up stagger-6 mt-12 flex flex-col gap-3">
-            <Button asChild size="lg" className="rounded-xl h-12 text-base shadow-lifted transition-transform hover:scale-[1.01] active:scale-[0.99]">
-              <Link to="/signup">Sign up</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="rounded-xl h-12 text-base border-primary text-primary hover:bg-primary/5">
-              <Link to="/login">Log in</Link>
-            </Button>
+          <div className="my-5 flex items-center gap-3 text-[12.5px] text-muted-foreground">
+            <span className="h-px flex-1 bg-border" /> Already joined? <span className="h-px flex-1 bg-border" />
           </div>
-        </main>
-
-        <footer className="text-center text-sm text-muted-foreground">
-          Made for Sindh Institute
-        </footer>
-      </div>
+          <Link
+            to="/login"
+            className="flex h-[50px] w-full items-center justify-center rounded-full border border-border-strong text-[15px] font-semibold"
+          >
+            Sign in
+          </Link>
+        </div>
+      </section>
     </div>
-  );
-}
-
-const FEATURE_TONES = {
-  cobalt: "bg-accent/10 text-accent",
-  navy: "bg-primary/10 text-primary",
-  flame: "bg-streak/10 text-streak",
-} as const;
-
-function Feature({
-  icon,
-  tone,
-  stagger,
-  children,
-}: {
-  icon: React.ReactNode;
-  tone: keyof typeof FEATURE_TONES;
-  stagger: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <li className={`animate-fade-up ${stagger} flex items-start gap-3 rounded-2xl border bg-card p-4 shadow-soft`}>
-      <span className={`mt-0.5 inline-grid place-items-center size-10 rounded-xl ${FEATURE_TONES[tone]}`}>
-        {icon}
-      </span>
-      <span className="text-foreground leading-snug pt-1.5">{children}</span>
-    </li>
   );
 }

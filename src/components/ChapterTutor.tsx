@@ -1,29 +1,48 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles, Send, AlertCircle } from "lucide-react";
+import { ArrowUp, ChevronLeft, ChevronRight, WifiOff } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
+import { FlorenceMark } from "@/components/brand/FlorenceMark";
+import { useOnline } from "@/components/OfflineBanner";
 import { awardBadgesIfNeeded } from "@/lib/award-badges";
 
-type Msg = {
-  id: string;
-  role: string;
-  content: string;
-  created_at: string;
-  source?: string | null;
-};
+type Msg = { id: string; role: string; content: string; created_at: string };
 
 const DAILY_LIMIT = 50;
-const SUGGESTIONS = ["Quiz me on this", "Give me a mnemonic", "Explain simply"];
+const SUGGESTIONS = ["Explain this chapter simply", "Quiz me on one idea", "Give me a way to remember it"];
 
-export function ChapterTutor({ chapterId }: { chapterId: string }) {
+/** Answers end with "Source: <section>"; split it off to show as a chip. */
+export function splitSource(content: string): { body: string; source: string | null } {
+  const lines = content.trimEnd().split("\n");
+  const match = lines.at(-1)?.trim().match(/^source:\s*(.+)$/i);
+  if (!match) return { body: content, source: null };
+  return { body: lines.slice(0, -1).join("\n").trimEnd(), source: match[1].trim() };
+}
+
+/**
+ * Ask Florence: the AI tutor, scoped to one chapter. Labelled as AI, answers
+ * only from the chapter's approved notes, and shows the source section under
+ * every answer. Offline, it says so plainly instead of spinning.
+ */
+export function ChapterTutor({
+  chapterId,
+  chapterTitle,
+  onBack,
+  onOpenSource,
+}: {
+  chapterId: string;
+  chapterTitle?: string;
+  onBack?: () => void;
+  onOpenSource?: (heading: string) => void;
+}) {
   const qc = useQueryClient();
+  const online = useOnline();
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [limitMsg, setLimitMsg] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const { data: messages, isLoading } = useQuery({
@@ -43,12 +62,12 @@ export function ChapterTutor({ chapterId }: { chapterId: string }) {
   });
 
   const { data: todayCount } = useQuery({
-    queryKey: ["tutor-today-count", chapterId],
+    queryKey: ["tutor-today-count"],
     queryFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return 0;
       const since = new Date();
-      since.setHours(0, 0, 0, 0);
+      since.setUTCHours(0, 0, 0, 0);
       const { count } = await supabase
         .from("tutor_messages")
         .select("id", { count: "exact", head: true })
@@ -60,168 +79,181 @@ export function ChapterTutor({ chapterId }: { chapterId: string }) {
   });
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    scrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages?.length, sending]);
 
-  const remaining = Math.max(0, DAILY_LIMIT - (todayCount ?? 0));
   const overLimit = (todayCount ?? 0) >= DAILY_LIMIT;
+  const remaining = Math.max(0, DAILY_LIMIT - (todayCount ?? 0));
 
   async function sendQuestion(question: string) {
-    if (!question || sending || overLimit) return;
+    if (!question || sending || overLimit || !online) return;
     setError(null);
-    setLimitMsg(null);
     setSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke("tutor-ask", {
-        body: { chapterId, question },
-      });
+      const { error } = await supabase.functions.invoke("tutor-ask", { body: { chapterId, question } });
       if (error) {
-        // FunctionsHttpError includes context with the response
-        const ctx = (error as any).context;
+        const ctx = (error as { context?: Response }).context;
         if (ctx?.status === 429) {
-          let msg = `You've reached your daily limit of ${DAILY_LIMIT} tutor questions. Try again tomorrow.`;
-          try {
-            const body = await ctx.json();
-            if (body?.message) msg = body.message;
-          } catch {}
-          setLimitMsg(msg);
+          setError(`You've asked ${DAILY_LIMIT} questions today, the daily limit. Ask Florence is back tomorrow.`);
         } else {
-          setError(error.message || "Something went wrong. Please try again.");
+          setError("Ask Florence isn't available right now. Try again in a minute.");
         }
         return;
       }
       setInput("");
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["tutor-messages", chapterId] }),
-        qc.invalidateQueries({ queryKey: ["tutor-today-count", chapterId] }),
+        qc.invalidateQueries({ queryKey: ["tutor-today-count"] }),
       ]);
-      await awardBadgesIfNeeded();
-    } catch (err: any) {
-      setError(err?.message || "Network error. Please try again.");
+      void awardBadgesIfNeeded();
+    } catch {
+      setError("That didn't send. Check your connection and try again.");
     } finally {
       setSending(false);
     }
   }
 
-  function handleSend(e: React.FormEvent) {
-    e.preventDefault();
-    void sendQuestion(input.trim());
-  }
-
-  if (isLoading) return <Skeleton className="h-64 rounded-xl mt-4" />;
-
   return (
-    <div className="mt-5 flex flex-col gap-3">
-      <div
-        ref={scrollRef}
-        className="min-h-[320px] max-h-[60vh] overflow-y-auto rounded-[28px] bg-primary-tint/40 p-4 flex flex-col gap-4"
-      >
-        {!messages?.length ? (
-          <div className="m-auto text-center text-sm text-muted-foreground">
-            <div className="mx-auto inline-flex items-center justify-center rounded-2xl bg-primary-tint p-3 text-primary">
-              <Sparkles className="size-6" />
-            </div>
-            <p className="mt-2">Ask anything about this chapter.</p>
+    <div className="flex min-h-[calc(100dvh-2rem)] flex-col">
+      <div className="sticky top-0 z-10 -mx-4 bg-background/95 px-4 pb-2 pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur">
+        <div className="flex items-center gap-1">
+          {onBack && (
+            <button
+              onClick={onBack}
+              aria-label="Back to the chapter"
+              className="-ml-2 grid size-11 place-items-center rounded-full text-muted-foreground hover:text-foreground"
+            >
+              <ChevronLeft className="size-6" />
+            </button>
+          )}
+          <div className="min-w-0">
+            <h1 className="text-[16px] font-semibold">Ask Florence</h1>
+            {chapterTitle && <p className="truncate text-[12.5px] text-muted-foreground">{chapterTitle}</p>}
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-2 rounded-2xl bg-muted px-4 py-3 text-[13px] leading-snug text-muted-foreground">
+        <span className="font-semibold text-foreground">AI tutor.</span> Answers only from this chapter's
+        notes, which your teachers approved. Check anything important with your teacher.
+      </p>
+
+      <div className="mt-4 flex flex-1 flex-col gap-4 pb-4">
+        {isLoading ? (
+          <Skeleton className="h-24 rounded-2xl" />
+        ) : !messages?.length ? (
+          <div className="my-auto py-8 text-center">
+            <FlorenceMark size={40} className="mx-auto" />
+            <p className="mt-3 text-[15px] font-semibold">Ask anything about this chapter.</p>
+            <p className="mt-1 text-[13.5px] text-muted-foreground">
+              For example, "Why does the autoclave work better than boiling?"
+            </p>
           </div>
         ) : (
-          messages.map((m) => (
-            <div
-              key={m.id}
-              className={`flex max-w-[88%] gap-2 ${m.role === "user" ? "self-end" : "self-start"}`}
-            >
-              {m.role === "assistant" && (
-                <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-primary-tint text-primary">
-                  <Sparkles className="size-4" />
-                </span>
-              )}
-              <div
-                className={`rounded-[20px] px-4 py-3 text-sm leading-relaxed shadow-soft ${
-                  m.role === "user"
-                    ? "rounded-br-md bg-primary text-primary-foreground"
-                    : "rounded-tl-md bg-card text-foreground"
-                }`}
-              >
-                {m.role === "assistant" ? (
-                  <div className="prose prose-sm max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
-                  </div>
-                ) : (
+          messages.map((m) => {
+            if (m.role !== "assistant") {
+              return (
+                <div key={m.id} className="max-w-[85%] self-end rounded-[20px] rounded-br-md bg-primary px-4 py-2.5 text-[15px] leading-snug text-primary-foreground">
                   <p className="whitespace-pre-wrap">{m.content}</p>
-                )}
-                {m.role === "assistant" && m.source && (
-                  <span className="mt-3 inline-flex rounded-full bg-primary-tint px-2.5 py-1 text-[11px] font-semibold text-primary-deep">
-                    From {m.source}
-                  </span>
-                )}
+                </div>
+              );
+            }
+            const { body, source } = splitSource(m.content);
+            return (
+              <div key={m.id} className="flex max-w-[92%] items-end gap-2 self-start">
+                <FlorenceMark size={22} className="mb-1 shrink-0" title="Ask Florence" />
+                <div className="rounded-[20px] rounded-bl-md border bg-card px-4 py-3 text-[15px] leading-relaxed">
+                  <div className="prose max-w-none prose-p:mb-2 prose-p:text-[15px] prose-p:leading-relaxed [&>*:last-child]:mb-0">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
+                  </div>
+                  {source && (
+                    <button
+                      type="button"
+                      disabled={!onOpenSource}
+                      onClick={() => onOpenSource?.(source)}
+                      className="mt-2.5 inline-flex min-h-8 items-center gap-1 rounded-full bg-chip px-2.5 text-[12.5px] font-semibold text-chip-foreground"
+                    >
+                      Source: {source}
+                      {onOpenSource && <ChevronRight className="size-3.5" aria-hidden />}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
         {sending && (
-          <div className="flex self-start items-center gap-2">
-            <span className="grid size-8 place-items-center rounded-xl bg-primary-tint text-primary">
-              <Sparkles className="size-4" />
-            </span>
-            <div
-              className="flex gap-1 rounded-[20px] rounded-tl-md bg-card px-4 py-3 shadow-soft"
-              aria-label="Tutor is typing"
-            >
+          <div className="flex items-end gap-2 self-start">
+            <FlorenceMark size={22} className="mb-1 shrink-0" />
+            <div className="flex gap-1 rounded-[20px] rounded-bl-md border bg-card px-4 py-3.5" aria-label="Florence is writing">
               {[0, 1, 2].map((dot) => (
-                <span key={dot} className="typing-dot size-1.5 rounded-full bg-primary" />
+                <span key={dot} className="typing-dot size-1.5 rounded-full bg-muted-foreground" />
               ))}
             </div>
           </div>
         )}
+        <div ref={scrollRef} />
       </div>
 
-      {(error || limitMsg) && (
-        <div className="flex items-start gap-2 rounded-lg bg-destructive/10 text-destructive px-3 py-2 text-sm">
-          <AlertCircle className="size-4 mt-0.5 shrink-0" />
-          <span>{limitMsg || error}</span>
-        </div>
-      )}
-
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {SUGGESTIONS.map((suggestion) => (
-          <button
-            key={suggestion}
-            type="button"
-            disabled={sending || overLimit}
-            onClick={() => void sendQuestion(suggestion)}
-            className="shrink-0 rounded-full border bg-card px-3.5 py-2 text-xs font-semibold text-primary-deep disabled:opacity-50"
-          >
-            {suggestion}
-          </button>
-        ))}
-      </div>
-      <form
-        onSubmit={handleSend}
-        className="flex items-center gap-2 rounded-[18px] bg-card p-1.5 shadow-soft"
-      >
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={overLimit ? "Daily limit reached" : "Ask something about this chapter..."}
-          disabled={sending || overLimit}
-          maxLength={1000}
-          className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none disabled:opacity-60"
-        />
-        <button
-          type="submit"
-          disabled={sending || overLimit || !input.trim()}
-          className="inline-flex size-11 items-center justify-center rounded-[14px] bg-primary text-primary-foreground disabled:opacity-50"
-          aria-label="Send"
+      <div className="sticky bottom-0 -mx-4 space-y-2 bg-background/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
+        {!online ? (
+          <p className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2.5 text-[13.5px]">
+            <WifiOff className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            Ask Florence needs internet. Your notes are still here.
+          </p>
+        ) : error ? (
+          <p role="alert" className="rounded-xl bg-destructive-bg px-3 py-2.5 text-[13.5px] text-destructive-ink">
+            {error}
+          </p>
+        ) : null}
+        {!messages?.length && online && (
+          <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
+            {SUGGESTIONS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                disabled={sending || overLimit}
+                onClick={() => void sendQuestion(s)}
+                className="min-h-10 shrink-0 rounded-full border border-border-strong/70 bg-card px-3.5 text-[13px] font-semibold disabled:opacity-50"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void sendQuestion(input.trim());
+          }}
+          className="flex items-center gap-2 rounded-full border border-border-strong/70 bg-card p-1.5 pl-4"
         >
-          <Send className="size-4" />
-        </button>
-      </form>
-
-      <p className="text-xs text-muted-foreground text-center">
-        {overLimit
-          ? "You've used all 50 tutor questions for today."
-          : `${remaining} of ${DAILY_LIMIT} questions left today`}
-      </p>
+          <label htmlFor="ask-florence" className="sr-only">
+            Ask about this chapter
+          </label>
+          <input
+            id="ask-florence"
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={overLimit ? "Back tomorrow" : "Ask about this chapter"}
+            disabled={sending || overLimit || !online}
+            maxLength={1000}
+            className="h-10 min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            disabled={sending || overLimit || !online || !input.trim()}
+            className="grid size-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+            aria-label="Send"
+          >
+            <ArrowUp className="size-5" />
+          </button>
+        </form>
+        <p className="text-center text-[12px] text-muted-foreground">
+          {overLimit ? "You've used today's questions." : `${remaining} questions left today`}
+        </p>
+      </div>
     </div>
   );
 }

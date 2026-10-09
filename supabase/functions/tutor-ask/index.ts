@@ -76,21 +76,29 @@ Deno.serve(async (req) => {
     }
 
     const notes = (chapter.summary_md ?? "").trim();
-    const systemPrompt = `You are Sihat Tutor, an AI study helper for nursing students in Pakistan.
+    // Section headings the answer may cite as its source.
+    const headings = notes
+      .split("\n")
+      .map((line) => line.match(/^#{1,4}\s+(.+?)\s*#*$/)?.[1]?.trim())
+      .filter((h): h is string => Boolean(h));
+    const systemPrompt = `You are Ask Florence, the AI study helper in Florence, a study app for BSN nursing students in Pakistan. Students know you are an AI.
 
 STRICT RULES:
 - Answer ONLY using the chapter notes provided below. Do not use outside knowledge.
 - If the answer is not clearly available in the chapter notes, reply EXACTLY:
-  "I don't have enough information in this chapter to answer that confidently."
-- Use simple English suitable for nursing students.
-- Keep answers SHORT: maximum 3 short paragraphs.
+  "${NOT_IN_NOTES}"
+- Use plain, simple English: most students read English as a second language. Keep clinical terms exact.
+- Use British spelling.
+- Keep answers SHORT: at most 3 short paragraphs. Be warm and calm, like a senior nurse on the night shift.
 - Never invent drug doses, clinical guidelines, lab values, or emergency advice.
-- Always end your reply with this exact line on its own:
-  "Please verify clinical details with your instructor."
+- If the answer describes a clinical procedure, add the sentence "Follow your hospital's protocol."
+- End every answer that uses the notes with one final line naming the section of the notes it came from, copied exactly from the headings list below, in this form:
+  Source: <heading>
 
 CHAPTER CONTEXT:
 Subject: ${subjectName ?? "(unknown)"}
 Chapter: ${chapter.title}
+Headings: ${headings.length ? headings.map((h) => `"${h}"`).join(", ") : "(none)"}
 
 CHAPTER NOTES:
 """
@@ -120,9 +128,9 @@ ${notes || "(No notes available for this chapter.)"}
     }
 
     const anthropicJson = await anthropicRes.json();
-    const answer: string =
-      anthropicJson?.content?.map((c: any) => c?.text ?? "").join("\n").trim() ||
-      "I don't have enough information in this chapter to answer that confidently.\n\nPlease verify clinical details with your instructor.";
+    const raw: string =
+      anthropicJson?.content?.map((c: any) => c?.text ?? "").join("\n").trim() || NOT_IN_NOTES;
+    const answer = withCheckedSource(raw, headings);
 
     // Persist both messages
     const nowIso = new Date().toISOString();
@@ -151,6 +159,24 @@ ${notes || "(No notes available for this chapter.)"}
     return json({ error: "Something went wrong." }, 500);
   }
 });
+
+const NOT_IN_NOTES = "I don't have enough information in this chapter to answer that confidently.";
+
+/**
+ * Keep the "Source: <heading>" line only when it names a real section of the
+ * notes; otherwise point to the chapter notes in general. Answers that say
+ * the notes don't cover it get no source line.
+ */
+function withCheckedSource(answer: string, headings: string[]): string {
+  const lines = answer.trimEnd().split("\n");
+  const last = lines.at(-1)?.trim() ?? "";
+  const match = last.match(/^source:\s*(.+)$/i);
+  const body = (match ? lines.slice(0, -1) : lines).join("\n").trimEnd();
+  if (body.startsWith(NOT_IN_NOTES)) return body;
+  const cited = match?.[1]?.replace(/^["“]|["”]$/g, "").trim() ?? "";
+  const found = headings.find((h) => h.toLowerCase() === cited.toLowerCase());
+  return `${body}\n\nSource: ${found ?? "Chapter notes"}`;
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

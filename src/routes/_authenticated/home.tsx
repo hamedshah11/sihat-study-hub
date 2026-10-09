@@ -1,528 +1,236 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { ChevronRight, RotateCcw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import * as Icons from "lucide-react";
-import {
-  ArrowRight,
-  BookOpen,
-  ChevronRight,
-  Flame,
-  RotateCcw,
-  Sparkles,
-  Trophy,
-} from "lucide-react";
-import { levelFromXp } from "@/lib/levels";
-import { displayStreak } from "@/lib/streak";
-import { useMistakes } from "@/lib/mistakes-data";
-import { checkLevelUp } from "@/lib/celebrate";
+import { TopBar } from "@/components/TopBar";
+import { ProgressRose } from "@/components/brand/ProgressRose";
 import { InstallPrompt } from "@/components/InstallPrompt";
-import { subjectColourVariables } from "@/lib/subject-colours";
-
-function toPascal(value: string) {
-  return value
-    .split(/[-_\s]/)
-    .filter(Boolean)
-    .map((word) => word[0].toUpperCase() + word.slice(1))
-    .join("");
-}
-
-function SubjectIcon({ name }: { name?: string | null }) {
-  const key = name ? toPascal(name) : "";
-  const Icon =
-    (Icons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[key] ||
-    BookOpen;
-  return <Icon className="size-5" />;
-}
+import { DaysInRow } from "@/components/DaysInRow";
+import { useProgress } from "@/lib/progress-data";
+import { useMistakes } from "@/lib/mistakes-data";
+import { isLamplightHour } from "@/lib/theme";
+import { pageTitle } from "@/lib/brand";
+import type { ProgressPayload } from "@/lib/progress.functions";
+import { INTRO_SEEN_KEY } from "./intro";
 
 export const Route = createFileRoute("/_authenticated/home")({
-  head: () => ({ meta: [{ title: "Home — Sihat" }] }),
-  component: HomePage,
+  head: () => ({ meta: [{ title: pageTitle("Today") }] }),
+  component: TodayPage,
 });
 
-type Recommendation =
-  | {
-      kind: "flashcards";
-      chapterId: string;
-      chapterTitle: string;
-      dueCount: number;
-      quizPending?: { chapterId: string; chapterTitle: string };
-    }
-  | { kind: "quiz"; chapterId: string; chapterTitle: string }
-  | { kind: "chapter"; chapterId: string; chapterTitle: string; subjectName: string | null }
-  | { kind: "empty" };
-
-function estimateMinutes(rec: Recommendation): number {
-  if (rec.kind === "flashcards")
-    return Math.max(3, Math.ceil(rec.dueCount * 0.5)) + (rec.quizPending ? 5 : 0);
-  if (rec.kind === "quiz") return 5;
-  if (rec.kind === "chapter") return 8;
-  return 0;
+function greeting(firstDay: boolean, name: string) {
+  if (firstDay) return `Welcome, ${name}.`;
+  const hour = new Date().getHours();
+  if (hour >= 4 && hour < 12) return `Good morning, ${name}.`;
+  if (hour >= 12 && hour < 17) return `Good afternoon, ${name}.`;
+  return `Good evening, ${name}.`;
 }
 
-function HomePage() {
-  const navigate = useNavigate();
+function joinNames(names: string[]) {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+
+/** Shorter subject names for one-line summaries ("Microbiology and Anatomy"). */
+function shortSubject(name: string) {
+  return name
+    .replace(/\s+I{1,3}$/u, "")
+    .replace(/^Anatomy and Physiology$/i, "Anatomy")
+    .replace(/^Fundamentals of Nursing$/i, "Fundamentals");
+}
+
+export function SessionCard({ data }: { data: ProgressPayload }) {
+  const { plan, firstDay } = data;
+  const evening = isLamplightHour();
+  const label = firstDay ? "Your first review" : evening ? "Tonight's lamp" : "Today's review";
+  const hasReview = plan.cardsDue > 0;
+  const hasNew = !hasReview && plan.newCards !== null;
+  const hasQuiz = plan.quizChapterId !== null;
+
+  if (!hasReview && !hasNew && !hasQuiz) {
+    const noContent = data.subjects.every((s) => s.chaptersTotal === 0);
+    return (
+      <section className="animate-fade-up stagger-1 rounded-[24px] border bg-card p-5">
+        <p className="text-[12.5px] font-semibold text-muted-foreground">{label}</p>
+        {noContent ? (
+          <>
+            <h2 className="mt-2 font-display text-[24px] leading-tight">No chapters yet.</h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Your teachers are reviewing the first chapters. They'll appear here as soon as
+              they're approved.
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 className="mt-2 font-display text-[24px] leading-tight">Done for today.</h2>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Tomorrow's cards will be ready in the morning.
+            </p>
+            <Link
+              to="/subjects"
+              className="mt-4 inline-flex h-11 items-center gap-1 rounded-full border border-border-strong px-5 text-sm font-semibold"
+            >
+              Browse subjects <ChevronRight className="size-4" />
+            </Link>
+          </>
+        )}
+      </section>
+    );
+  }
+
+  let headline: string;
+  let detail: string;
+  if (hasReview) {
+    headline = `${plan.cardsDue} card${plan.cardsDue === 1 ? "" : "s"}${hasQuiz ? " · 1 quiz" : ""}`;
+    const subjects = joinNames(plan.dueSubjects.slice(0, 2).map((s) => shortSubject(s.name)));
+    const tonight = evening && plan.dueSubjects.length === 1 ? " These cards are due today, so tonight is the best time to review them." : "";
+    detail = `About ${plan.minutes} minutes. ${subjects}.${tonight}`;
+  } else if (hasNew) {
+    const n = plan.newCards!;
+    headline = `${n.count} card${n.count === 1 ? "" : "s"} · ${n.subjectName}`;
+    detail = `About ${plan.minutes} minutes. Chapter ${n.order}, ${n.title}.`;
+  } else {
+    headline = "1 quiz";
+    detail = `About ${plan.minutes} minutes. Five questions, each with a short explanation.`;
+  }
+
+  return (
+    <section className="animate-fade-up stagger-1 rounded-[24px] bg-lamp p-5 text-night">
+      <p className="text-[12.5px] font-bold uppercase tracking-[0.06em]">{label}</p>
+      <h2 className="mt-2 font-display text-[26px] leading-[1.1]">{headline}</h2>
+      <p className="mt-1.5 text-[14px] leading-snug text-night/80">{detail}</p>
+      <Link
+        to="/session"
+        className="mt-4 flex h-[52px] w-full items-center justify-center rounded-full bg-night text-[15px] font-semibold text-linen"
+      >
+        Start review
+      </Link>
+    </section>
+  );
+}
+
+function ProgressSummary({ data }: { data: ProgressPayload }) {
+  const counts = { in_bloom: 0, growing: 0, needs_light: 0 };
+  for (const s of data.subjects) {
+    if (s.state in counts) counts[s.state as keyof typeof counts] += 1;
+  }
+  const parts = [
+    counts.in_bloom && `${counts.in_bloom} in bloom`,
+    counts.growing && `${counts.growing} growing`,
+    counts.needs_light && `${counts.needs_light} needs light`,
+  ].filter(Boolean);
+  return (
+    <Link
+      to="/progress"
+      className="animate-fade-up stagger-2 flex items-center gap-4 rounded-[22px] border bg-card p-4"
+    >
+      <ProgressRose petals={data.subjects} size={64} title="Your progress rose" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-semibold">Progress</span>
+        <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">
+          {data.chaptersStarted === 0
+            ? "Not started yet. Your first review starts your first petal."
+            : parts.join(" · ") || "Started. Keep going to grow your petals."}
+        </span>
+      </span>
+      <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
+    </Link>
+  );
+}
+
+function TodayPage() {
+  const { data, isLoading, error, refetch } = useProgress();
   const { data: mistakes } = useMistakes();
+  const dueMistakes = mistakes?.due.length ?? 0;
+  const navigate = useNavigate();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["home-today"],
-    queryFn: async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return null;
-      const uid = user.id;
-      const nowIso = new Date().toISOString();
-
-      const [
-        { data: profile },
-        { data: streak },
-        { data: xpRows },
-        { data: dueReviews },
-        { data: progressRows },
-        { data: leaderboard },
-      ] = await Promise.all([
-        supabase.from("profiles").select("display_name, batch_id").eq("id", uid).maybeSingle(),
-        supabase
-          .from("streaks")
-          .select("current_streak, last_active_date, freezes_available")
-          .eq("user_id", uid)
-          .maybeSingle(),
-        supabase.from("xp_events").select("amount").eq("user_id", uid),
-        supabase
-          .from("flashcard_reviews")
-          .select("flashcard_id, due_at")
-          .eq("user_id", uid)
-          .lte("due_at", nowIso),
-        supabase
-          .from("chapter_progress")
-          .select("chapter_id, mastery_score, completed_at, last_attempt_at")
-          .eq("user_id", uid),
-        supabase.rpc("batch_weekly_leaderboard"),
-      ]);
-
-      const xpTotal = (xpRows ?? []).reduce((acc, r: any) => acc + (r.amount ?? 0), 0);
-
-      // 1) Due flashcards — group by chapter, pick chapter with most due
-      let dueChapter: { chapterId: string; chapterTitle: string; dueCount: number } | null = null;
-      if (dueReviews && dueReviews.length > 0) {
-        const ids = dueReviews.map((r: any) => r.flashcard_id);
-        const { data: cards } = await supabase
-          .from("flashcards")
-          .select("id, chapter_id")
-          .in("id", ids)
-          .eq("status", "approved");
-        const counts = new Map<string, number>();
-        for (const c of cards ?? []) {
-          if (!c.chapter_id) continue;
-          counts.set(c.chapter_id, (counts.get(c.chapter_id) ?? 0) + 1);
-        }
-        if (counts.size > 0) {
-          const [topChapterId, dueCount] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-          const { data: ch } = await supabase
-            .from("chapters")
-            .select("id, title")
-            .eq("id", topChapterId)
-            .maybeSingle();
-          if (ch) dueChapter = { chapterId: ch.id, chapterTitle: ch.title, dueCount };
-        }
-      }
-
-      // 2) Unfinished quiz — chapter_progress with attempts? We don't have attempts column reliably; use mastery_score < 80 and not completed
-      const unfinishedProgress = (progressRows ?? []).find(
-        (p: any) => !p.completed_at && (p.mastery_score ?? 0) > 0,
-      );
-      let unfinishedQuiz: { chapterId: string; chapterTitle: string } | null = null;
-      if (unfinishedProgress) {
-        const { data: ch } = await supabase
-          .from("chapters")
-          .select("id, title, status")
-          .eq("id", unfinishedProgress.chapter_id)
-          .maybeSingle();
-        if (ch && ch.status === "published") {
-          unfinishedQuiz = { chapterId: ch.id, chapterTitle: ch.title };
-        }
-      }
-
-      // 3) Next published chapter from student's current semester (batch -> semester -> subjects -> chapters)
-      let nextChapter: {
-        chapterId: string;
-        chapterTitle: string;
-        subjectName: string | null;
-      } | null = null;
-      let continueSubjects: Array<{
-        id: string;
-        name: string;
-        icon: string | null;
-        colour: string | null;
-        nextChapter: { id: string; title: string; displayOrder: number | null } | null;
-        completed: number;
-        chapterCount: number;
-        lastActivity: string | null;
-      }> = [];
-      const completedIds = new Set(
-        (progressRows ?? []).filter((p: any) => p.completed_at).map((p: any) => p.chapter_id),
-      );
-      let subjectIds: string[] = [];
-      if (profile?.batch_id) {
-        const { data: batch } = await supabase
-          .from("batches")
-          .select("current_semester_id")
-          .eq("id", profile.batch_id)
-          .maybeSingle();
-        if (batch?.current_semester_id) {
-          const { data: subjects } = await supabase
-            .from("subjects")
-            .select("id, name, icon, colour, display_order")
-            .eq("semester_id", batch.current_semester_id);
-          subjectIds = (subjects ?? []).map((s: any) => s.id);
-          if (subjectIds.length) {
-            const { data: chapters } = await supabase
-              .from("chapters")
-              .select("id, title, subject_id, display_order")
-              .in("subject_id", subjectIds)
-              .eq("status", "published")
-              .order("display_order", { ascending: true });
-            const next = (chapters ?? []).find((c: any) => !completedIds.has(c.id));
-            if (next) {
-              const subj = (subjects ?? []).find((s: any) => s.id === next.subject_id);
-              nextChapter = {
-                chapterId: next.id,
-                chapterTitle: next.title,
-                subjectName: subj?.name ?? null,
-              };
-            }
-            continueSubjects = (subjects ?? [])
-              .map((subject: any) => {
-                const subjectChapters = (chapters ?? []).filter(
-                  (chapter: any) => chapter.subject_id === subject.id,
-                );
-                const subjectChapterIds = new Set(
-                  subjectChapters.map((chapter: any) => chapter.id),
-                );
-                const subjectProgress = (progressRows ?? []).filter((progress: any) =>
-                  subjectChapterIds.has(progress.chapter_id),
-                );
-                const unfinished = subjectChapters.find(
-                  (chapter: any) => !completedIds.has(chapter.id),
-                );
-                const lastActivity =
-                  subjectProgress
-                    .map((progress: any) => progress.last_attempt_at ?? progress.completed_at)
-                    .filter(Boolean)
-                    .sort()
-                    .at(-1) ?? null;
-                return {
-                  id: subject.id,
-                  name: subject.name,
-                  icon: subject.icon,
-                  colour: subject.colour,
-                  nextChapter: unfinished
-                    ? {
-                        id: unfinished.id,
-                        title: unfinished.title,
-                        displayOrder: unfinished.display_order,
-                      }
-                    : null,
-                  completed: subjectChapters.filter((chapter: any) => completedIds.has(chapter.id))
-                    .length,
-                  chapterCount: subjectChapters.length,
-                  lastActivity,
-                  displayOrder: subject.display_order ?? 0,
-                };
-              })
-              .sort(
-                (a, b) =>
-                  (b.lastActivity ?? "").localeCompare(a.lastActivity ?? "") ||
-                  a.displayOrder - b.displayOrder,
-              );
-          }
-        }
-      }
-      // Fallback: any published chapter
-      if (!nextChapter) {
-        const { data: chapters } = await supabase
-          .from("chapters")
-          .select("id, title, subject_id")
-          .eq("status", "published")
-          .order("display_order", { ascending: true })
-          .limit(20);
-        const next = (chapters ?? []).find((c: any) => !completedIds.has(c.id));
-        if (next) {
-          const { data: subj } = next.subject_id
-            ? await supabase.from("subjects").select("name").eq("id", next.subject_id).maybeSingle()
-            : { data: null };
-          nextChapter = {
-            chapterId: next.id,
-            chapterTitle: next.title,
-            subjectName: subj?.name ?? null,
-          };
-        }
-      }
-
-      let recommendation: Recommendation;
-      if (dueChapter) {
-        recommendation = {
-          kind: "flashcards",
-          ...dueChapter,
-          quizPending: unfinishedQuiz ?? undefined,
-        };
-      } else if (unfinishedQuiz) {
-        recommendation = { kind: "quiz", ...unfinishedQuiz };
-      } else if (nextChapter) {
-        recommendation = { kind: "chapter", ...nextChapter };
-      } else {
-        recommendation = { kind: "empty" };
-      }
-
-      // Leaderboard peek: find my rank and gap to next spot
-      const rows = (leaderboard ?? []) as Array<{
-        user_id: string;
-        first_name: string | null;
-        weekly_xp: number;
-      }>;
-      let peek: {
-        rank: number;
-        gap: number;
-        total: number;
-        batchName: string | null;
-        nextName: string | null;
-      } | null = null;
-      if (rows.length) {
-        const idx = rows.findIndex((r) => r.user_id === uid);
-        if (idx >= 0) {
-          let batchName: string | null = null;
-          if (profile?.batch_id) {
-            const { data: b } = await supabase
-              .from("batches")
-              .select("name")
-              .eq("id", profile.batch_id)
-              .maybeSingle();
-            batchName = b?.name ?? null;
-          }
-          const gap = idx === 0 ? 0 : rows[idx - 1].weekly_xp - rows[idx].weekly_xp;
-          peek = {
-            rank: idx + 1,
-            gap,
-            total: rows.length,
-            batchName,
-            nextName: idx === 0 ? null : rows[idx - 1].first_name,
-          };
-        }
-      }
-
-      return {
-        name: profile?.display_name || "there",
-        streak: displayStreak(streak),
-        xpTotal,
-        recommendation,
-        continueSubjects,
-        peek,
-      };
-    },
-  });
-
-  const rec = data?.recommendation;
-
-  // Celebrate level-ups (fires once per detected increase, throttled inside celebrate).
+  // A brand-new student meets the rose once, before their first review.
   useEffect(() => {
-    if (typeof data?.xpTotal !== "number") return;
-    const lvl = levelFromXp(data.xpTotal).level;
-    checkLevelUp(lvl);
-  }, [data?.xpTotal]);
-
-  function recHeadline(): string {
-    if (!rec) return "";
-    if (rec.kind === "flashcards") {
-      return `${rec.dueCount} card${rec.dueCount === 1 ? "" : "s"} to review`;
+    if (!data?.firstDay) return;
+    try {
+      if (!localStorage.getItem(INTRO_SEEN_KEY)) navigate({ to: "/intro" });
+    } catch {
+      // No storage: skip the introduction rather than loop.
     }
-    if (rec.kind === "quiz") return `Finish your quiz on ${rec.chapterTitle}`;
-    if (rec.kind === "chapter") return `Start ${rec.chapterTitle}`;
-    return "You're all caught up";
-  }
-
-  function startStudying() {
-    if (!rec || rec.kind === "empty") return;
-    if (rec.kind === "flashcards" || rec.kind === "quiz" || rec.kind === "chapter") {
-      const tab =
-        rec.kind === "flashcards" ? "flashcards" : rec.kind === "quiz" ? "quiz" : undefined;
-      navigate({
-        to: "/chapters/$chapterId",
-        params: { chapterId: rec.chapterId },
-        search: { tab },
-      });
-    }
-  }
+  }, [data?.firstDay, navigate]);
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-16 rounded-xl" />
-        <Skeleton className="h-[250px] rounded-[30px]" />
-        <Skeleton className="h-[170px] rounded-3xl" />
+      <div className="space-y-4">
+        <Skeleton className="h-12 rounded-xl" />
+        <Skeleton className="h-10 w-2/3 rounded-xl" />
+        <Skeleton className="h-[200px] rounded-[24px]" />
+        <Skeleton className="h-[96px] rounded-[22px]" />
       </div>
     );
   }
 
-  const minutes = rec ? estimateMinutes(rec) : 0;
-
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-
-  const firstName = data?.name.trim().split(/\s+/)[0] || "there";
+  if (error || !data) {
+    return (
+      <div className="space-y-4">
+        <TopBar />
+        <div className="rounded-[22px] border bg-card p-5">
+          <h1 className="font-display text-[24px]">Today didn't load.</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Check your connection and try again. Your progress is safe.
+          </p>
+          <button
+            onClick={() => void refetch()}
+            className="mt-4 h-11 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-[22px] pb-4">
-      {/* Header */}
-      <header className="animate-fade-up flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm text-muted-foreground">{greeting},</p>
-          <h1 className="font-display text-[40px] leading-[1.05] text-foreground">{firstName}</h1>
-        </div>
-        <div className="flex h-[38px] items-center gap-1.5 rounded-full bg-streak/10 px-3.5 text-streak">
-          <Flame
-            className={`size-4 ${(data?.streak ?? 0) > 0 ? "animate-flame fill-streak/30" : ""}`}
-          />
-          <span className="text-sm font-bold tabular-nums">{data?.streak ?? 0}</span>
-        </div>
-      </header>
+    <div className="mx-auto max-w-2xl space-y-4 pb-4">
+      <TopBar initial={data.student.initial} />
+      <h1 className="animate-fade-up pt-1 font-display text-[30px] leading-[1.1] text-foreground md:text-[36px]">
+        {greeting(data.firstDay, data.student.firstName)}
+      </h1>
 
-      <InstallPrompt />
+      <SessionCard data={data} />
 
-      <section className="animate-fade-up stagger-1 relative flex h-[250px] flex-col overflow-hidden rounded-[30px] bg-primary p-[22px] text-primary-foreground">
-        <span
-          aria-hidden
-          className="absolute -right-14 -top-16 size-[190px] rounded-full bg-sky-400/90"
-        />
-        <span
-          aria-hidden
-          className="animate-float-slow absolute right-[30px] top-10 size-[110px] rounded-full bg-violet-500/95"
-        />
-        <span
-          aria-hidden
-          className="absolute -right-5 top-[92px] size-20 rounded-full bg-sky-400/90"
-        />
-        <p className="relative flex items-center gap-1.5 text-xs font-semibold text-blue-100">
-          <Sparkles className="size-3.5" /> Today
-        </p>
-        <h2
-          className={`relative mt-4 max-w-[75%] font-bold leading-[1.05] ${rec?.kind === "flashcards" ? "text-[42px]" : "font-display text-[30px]"}`}
-        >
-          {recHeadline()}
-        </h2>
-        <p className="relative mt-1 text-sm text-blue-100">
-          {rec?.kind === "empty"
-            ? "No reviews or unfinished chapters right now"
-            : `About ${minutes} minute${minutes === 1 ? "" : "s"}`}
-        </p>
-        {rec?.kind === "empty" ? (
-          <Link
-            to="/subjects"
-            className="relative mt-auto flex h-[52px] items-center justify-center gap-2 rounded-2xl bg-white text-sm font-bold text-primary"
-          >
-            Browse subjects <ArrowRight className="size-4" />
-          </Link>
-        ) : (
-          <button
-            onClick={startStudying}
-            className="relative mt-auto flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-white text-sm font-bold text-primary"
-          >
-            Start studying <ArrowRight className="size-4" />
-          </button>
-        )}
-      </section>
-
-      {/* Mistakes due for review (only shown when there are some). */}
-      {(mistakes?.due.length ?? 0) > 0 && (
+      {dueMistakes > 0 && (
         <Link
           to="/review"
-          className="animate-fade-up stagger-2 group flex items-center gap-3 rounded-[20px] border bg-card px-3.5 py-3"
+          className="animate-fade-up stagger-2 flex items-center gap-3 rounded-[20px] border bg-card px-4 py-3"
         >
-          <span className="grid size-[38px] shrink-0 place-items-center rounded-xl bg-streak/10 text-streak">
-            <RotateCcw className="size-[18px]" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-foreground">
-              Fix {mistakes!.due.length} mistake{mistakes!.due.length === 1 ? "" : "s"}
+          <RotateCcw className="size-[18px] shrink-0 text-muted-foreground" aria-hidden />
+          <span className="min-w-0 flex-1 text-[14px]">
+            <span className="font-semibold">
+              {dueMistakes} question{dueMistakes === 1 ? "" : "s"} to revisit
             </span>
+            <span className="text-muted-foreground"> · about {Math.max(2, dueMistakes)} min</span>
           </span>
-          <ChevronRight className="size-[18px] shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
         </Link>
       )}
 
-      <section className="space-y-3">
-        <div className="animate-fade-up stagger-2 flex items-baseline justify-between">
-          <h2 className="text-[17px] font-bold">Continue learning</h2>
-          <Link to="/subjects" className="text-[13px] font-semibold text-primary">
-            All subjects
-          </Link>
-        </div>
-        <div className="-mr-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 pr-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {(data?.continueSubjects ?? []).map((subject, index) => {
-            const percentage = subject.chapterCount
-              ? (subject.completed / subject.chapterCount) * 100
-              : 0;
-            const linkProps = subject.nextChapter
-              ? ({
-                  to: "/chapters/$chapterId",
-                  params: { chapterId: subject.nextChapter.id },
-                } as const)
-              : ({ to: "/subjects/$subjectId", params: { subjectId: subject.id } } as const);
-            return (
-              <Link
-                {...linkProps}
-                key={subject.id}
-                style={subjectColourVariables(subject.colour)}
-                className={`subject-colour animate-fade-up stagger-${Math.min(index + 3, 6)} relative flex h-[170px] w-[150px] shrink-0 snap-start flex-col overflow-hidden rounded-3xl bg-[var(--subject)] p-3.5 text-white`}
-              >
-                <span
-                  aria-hidden
-                  className="absolute -right-[30px] -top-[30px] size-24 rounded-full bg-white/10"
-                />
-                <span className="relative grid size-[38px] place-items-center rounded-xl bg-white/20">
-                  <SubjectIcon name={subject.icon} />
-                </span>
-                <span className="relative mt-auto text-[15px] font-bold leading-tight line-clamp-2">
-                  {subject.name}
-                </span>
-                <span className="relative my-2 truncate text-xs text-white/85">
-                  {subject.nextChapter
-                    ? `${subject.nextChapter.displayOrder ? `Ch ${subject.nextChapter.displayOrder} · ` : ""}${subject.nextChapter.title}`
-                    : "All chapters complete"}
-                </span>
-                <span className="relative h-[5px] overflow-hidden rounded-full bg-white/25">
-                  <span
-                    className="block h-full rounded-full bg-white transition-all"
-                    style={{ width: `${percentage}%` }}
-                  />
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
+      <ProgressSummary data={data} />
 
-      {data?.peek && (
+      {!data.firstDay && <DaysInRow week={data.week} count={data.daysInRow} />}
+
+      {!data.student.batchId && (
         <Link
-          to="/leaderboard"
-          className="animate-fade-up stagger-6 group flex items-center gap-3 rounded-[20px] border bg-card px-3.5 py-3 text-foreground"
+          to="/profile"
+          className="animate-fade-up stagger-3 flex items-center gap-3 rounded-[20px] border border-dashed border-border-strong px-4 py-3 text-[14px]"
         >
-          <span className="grid size-[38px] shrink-0 place-items-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
-            <Trophy className="size-[19px]" />
-          </span>
-          <span className="min-w-0 flex-1 text-sm">
-            <strong>#{data.peek.rank} this week</strong>{" "}
-            <span className="text-muted-foreground">
-              ·{" "}
-              {data.peek.rank === 1
-                ? "Leading the leaderboard"
-                : `${data.peek.gap} XP to pass ${data.peek.nextName ?? "the next student"}`}
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">Join your batch</span>
+            <span className="block text-[13px] text-muted-foreground">
+              Enter the batch code from your class coordinator to see your own course.
             </span>
           </span>
-          <ChevronRight className="size-[18px] shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+          <ChevronRight className="size-5 shrink-0 text-muted-foreground" />
         </Link>
       )}
+
+      {/* Offer installing only after the first useful session. */}
+      {!data.firstDay && <InstallPrompt />}
     </div>
   );
 }
