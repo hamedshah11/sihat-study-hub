@@ -9,9 +9,17 @@ import {
   pakistanDate,
   insertXp,
   bumpStreak,
+  readStreak,
+  writeStreak,
   startOfTodayPkt,
   logAnswers,
 } from "@/lib/activity.server";
+import {
+  collectAnswers,
+  coversIssuedPaper,
+  quizXpSource,
+  rollingMastery,
+} from "@/lib/quiz-grading";
 
 // Why these run server-side with the service-role client:
 // XP, streaks, quiz scores and chapter mastery feed the batch totals, the
@@ -131,12 +139,24 @@ export const checkQuizAnswer = createServerFn({ method: "POST" })
     const userId = context.userId;
     if (!userId) throw new Error("Unauthorized");
 
-    const { data: session, error: sessionError } = await supabaseAdmin
-      .from("quiz_sessions")
-      .select("id, chapter_id, question_ids, created_at, submitted_at")
-      .eq("id", data.quizId)
-      .eq("user_id", userId)
-      .maybeSingle();
+    // The paper, its locked answers and the question are read together; the
+    // checks below run in the same order as before, so nothing about the
+    // question leaves the server unless the paper passes all of them.
+    const [{ data: session, error: sessionError }, locked, { data: question, error: qErr }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("quiz_sessions")
+          .select("id, chapter_id, question_ids, created_at, submitted_at")
+          .eq("id", data.quizId)
+          .eq("user_id", userId)
+          .maybeSingle(),
+        readLockedAnswers(data.quizId),
+        supabaseAdmin
+          .from("questions")
+          .select("id, chapter_id, options, correct_index, explanation")
+          .eq("id", data.questionId)
+          .maybeSingle(),
+      ]);
     if (sessionError) throw new Error(sessionError.message);
     if (!session || session.submitted_at) throw new Error("Quiz is no longer available");
     if (Date.now() - Date.parse(session.created_at) > 24 * 60 * 60 * 1000) {
@@ -146,17 +166,12 @@ export const checkQuizAnswer = createServerFn({ method: "POST" })
       throw new Error("That question isn't part of this quiz");
     }
 
-    const locked = await readLockedAnswers(session.id);
     if (locked === null) return { available: false as const };
 
-    const { data: question, error: qErr } = await supabaseAdmin
-      .from("questions")
-      .select("id, options, correct_index, explanation")
-      .eq("id", data.questionId)
-      .eq("chapter_id", session.chapter_id)
-      .maybeSingle();
     if (qErr) throw new Error(qErr.message);
-    if (!question) throw new Error("Question not found");
+    if (!question || question.chapter_id !== session.chapter_id) {
+      throw new Error("Question not found");
+    }
 
     const already = locked[data.questionId];
     const selectedIndex = typeof already === "number" ? already : data.selectedIndex;
@@ -206,12 +221,26 @@ export const submitQuiz = createServerFn({ method: "POST" })
     const userId = context.userId;
     if (!userId) throw new Error("Unauthorized");
 
-    const { data: session, error: sessionError } = await supabaseAdmin
-      .from("quiz_sessions")
-      .select("id, chapter_id, question_ids, created_at, submitted_at")
-      .eq("id", data.quizId)
-      .eq("user_id", userId)
-      .maybeSingle();
+    // The paper, its locked answers and the answer key for the submitted
+    // questions are read together. Every check below still runs, in the same
+    // order, before anything is written or revealed.
+    const submittedIds = [...new Set(data.answers.map((a) => a.questionId))];
+    const [{ data: session, error: sessionError }, lockedAnswers, { data: rows, error: qErr }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("quiz_sessions")
+          .select("id, chapter_id, question_ids, created_at, submitted_at")
+          .eq("id", data.quizId)
+          .eq("user_id", userId)
+          .maybeSingle(),
+        readLockedAnswers(data.quizId),
+        // Authoritative answer key. Status is not filtered: a question retired
+        // after the paper was issued is still graded as it was shown.
+        supabaseAdmin
+          .from("questions")
+          .select("id, chapter_id, prompt, options, correct_index, explanation")
+          .in("id", submittedIds),
+      ]);
     if (sessionError) throw new Error(sessionError.message);
     if (!session || session.submitted_at) throw new Error("Quiz is no longer available");
     if (Date.now() - Date.parse(session.created_at) > 24 * 60 * 60 * 1000) {
@@ -220,40 +249,16 @@ export const submitQuiz = createServerFn({ method: "POST" })
     const chapterId = session.chapter_id;
     const issuedIds = session.question_ids;
 
-    // Deduplicate by questionId (keep first selection). An answer already
-    // locked by checkQuizAnswer wins over whatever the client sends now, so
-    // seeing the correct option can't be used to change an answer.
-    const locked = (await readLockedAnswers(session.id)) ?? {};
-    const seen = new Set<string>();
-    const submitted = data.answers
-      .filter((a) => {
-        if (seen.has(a.questionId)) return false;
-        seen.add(a.questionId);
-        return true;
-      })
-      .map((a) =>
-        typeof locked[a.questionId] === "number"
-          ? { ...a, selectedIndex: locked[a.questionId] }
-          : a,
-      );
+    const submitted = collectAnswers(data.answers, lockedAnswers ?? {});
     const questionIds = submitted.map((a) => a.questionId);
-    if (
-      submitted.length !== issuedIds.length ||
-      questionIds.some((questionId) => !issuedIds.includes(questionId))
-    ) {
+    if (!coversIssuedPaper(questionIds, issuedIds)) {
       throw new Error("Submit every question from the issued quiz");
     }
 
-    // Authoritative answer key. Status is not filtered: a question retired
-    // after the paper was issued is still graded as it was shown.
-    const { data: rows, error: qErr } = await supabaseAdmin
-      .from("questions")
-      .select("id, prompt, options, correct_index, explanation")
-      .eq("chapter_id", chapterId)
-      .in("id", questionIds);
     if (qErr) throw new Error(qErr.message);
-
-    const rowById = new Map((rows ?? []).map((row) => [row.id as string, row]));
+    const rowById = new Map(
+      (rows ?? []).filter((row) => row.chapter_id === chapterId).map((row) => [row.id, row]),
+    );
     if (rowById.size !== issuedIds.length) throw new Error("Issued quiz is incomplete");
     for (const answer of submitted) {
       const options = rowById.get(answer.questionId)?.options;
@@ -264,13 +269,45 @@ export const submitQuiz = createServerFn({ method: "POST" })
 
     // Claim the one-time paper before revealing any answer key. The
     // conditional update prevents two racing submissions from both grading.
-    const { data: claimed, error: claimError } = await supabaseAdmin
-      .from("quiz_sessions")
-      .update({ submitted_at: new Date().toISOString() })
-      .eq("id", session.id)
-      .is("submitted_at", null)
-      .select("id")
-      .maybeSingle();
+    // The reads beside it don't depend on it: the chapter's attempts today
+    // (read BEFORE this one is saved, to cap XP so a quiz can't be retaken
+    // for endless XP), its newest attempts (for mastery), its progress row
+    // and the streak.
+    const [
+      { data: claimed, error: claimError },
+      { data: todaysAttempts },
+      { data: priorAttempts },
+      { data: existing },
+      streak,
+    ] = await Promise.all([
+      supabaseAdmin
+        .from("quiz_sessions")
+        .update({ submitted_at: new Date().toISOString() })
+        .eq("id", session.id)
+        .is("submitted_at", null)
+        .select("id")
+        .maybeSingle(),
+      supabaseAdmin
+        .from("quiz_attempts")
+        .select("score, total_questions")
+        .eq("user_id", userId)
+        .eq("chapter_id", chapterId)
+        .gte("attempted_at", startOfTodayPkt()),
+      supabaseAdmin
+        .from("quiz_attempts")
+        .select("score, total_questions, attempted_at")
+        .eq("user_id", userId)
+        .eq("chapter_id", chapterId)
+        .order("attempted_at", { ascending: false })
+        .limit(MASTERY_WINDOW),
+      supabaseAdmin
+        .from("chapter_progress")
+        .select("attempts, mastery_score, completed_at")
+        .eq("user_id", userId)
+        .eq("chapter_id", chapterId)
+        .maybeSingle(),
+      readStreak(userId),
+    ]);
     if (claimError) throw new Error(claimError.message);
     if (!claimed) throw new Error("Quiz has already been submitted");
 
@@ -290,91 +327,66 @@ export const submitQuiz = createServerFn({ method: "POST" })
     const passed = pct >= 0.8;
     const now = new Date().toISOString();
 
-    // Earlier attempts on this chapter today (PKT), read BEFORE inserting
-    // this one. Used to cap XP so a quiz can't be retaken for endless XP.
-    const { data: todaysAttempts } = await supabaseAdmin
-      .from("quiz_attempts")
-      .select("score, total_questions")
-      .eq("user_id", userId)
-      .eq("chapter_id", chapterId)
-      .gte("attempted_at", startOfTodayPkt());
-
-    await supabaseAdmin.from("quiz_attempts").insert({
-      user_id: userId,
-      chapter_id: chapterId,
-      score,
-      total_questions: total,
-      answers: graded as never,
-      attempted_at: now,
-    });
-
-    await logAnswers(
-      userId,
-      "quiz",
-      graded.map((g) => ({
-        questionId: g.questionId,
-        chapterId,
-        correct: g.correct,
-      })),
-      now,
-    );
-
-    const { data: existing } = await supabaseAdmin
-      .from("chapter_progress")
-      .select("attempts, mastery_score, completed_at")
-      .eq("user_id", userId)
-      .eq("chapter_id", chapterId)
-      .maybeSingle();
-
-    // Mastery = average of the last MASTERY_WINDOW quiz scores (this one
-    // included), so one lucky 5/5 doesn't mark a chapter mastered forever
+    // Everything below writes different tables, so it is written together.
+    // Only the progress row waits, for the attempt to be saved: mastery is
+    // the average of the last MASTERY_WINDOW quiz scores (this one included,
+    // once saved), so one lucky 5/5 doesn't mark a chapter mastered forever
     // and a chapter the student is now getting wrong shows up as weak again.
-    const { data: recent } = await supabaseAdmin
+    const saveAttemptAndProgress = supabaseAdmin
       .from("quiz_attempts")
-      .select("score, total_questions")
-      .eq("user_id", userId)
-      .eq("chapter_id", chapterId)
-      .order("attempted_at", { ascending: false })
-      .limit(MASTERY_WINDOW);
-    const recentPcts = (recent ?? [])
-      .filter((a) => a.total_questions > 0)
-      .map((a) => a.score / a.total_questions);
-    if (recentPcts.length === 0) recentPcts.push(pct);
-    const rollingMastery = Math.round(
-      (recentPcts.reduce((a, b) => a + b, 0) / recentPcts.length) * 100,
-    );
-
-    await supabaseAdmin.from("chapter_progress").upsert(
-      {
+      .insert({
         user_id: userId,
         chapter_id: chapterId,
-        attempts: (existing?.attempts ?? 0) + 1,
-        last_attempt_at: now,
-        mastery_score: rollingMastery,
-        completed_at: existing?.completed_at ?? (passed ? now : null),
-      },
-      { onConflict: "user_id,chapter_id" },
-    );
+        score,
+        total_questions: total,
+        answers: graded as never,
+        attempted_at: now,
+      })
+      .then(async ({ error: attemptError }) => {
+        const mastery = rollingMastery(
+          priorAttempts ?? [],
+          attemptError ? null : { score, total_questions: total, attempted_at: now },
+          pct,
+          MASTERY_WINDOW,
+        );
+        await supabaseAdmin.from("chapter_progress").upsert(
+          {
+            user_id: userId,
+            chapter_id: chapterId,
+            attempts: (existing?.attempts ?? 0) + 1,
+            last_attempt_at: now,
+            mastery_score: mastery,
+            completed_at: existing?.completed_at ?? (passed ? now : null),
+          },
+          { onConflict: "user_id,chapter_id" },
+        );
+        return mastery;
+      });
 
-    // XP per chapter per PKT day: the first attempt earns quiz XP (or pass XP
-    // if it passes); a later attempt earns pass XP only if it is the first
-    // pass of the day. Everything else still counts for mastery and the
-    // streak, just without XP.
-    const priorToday = todaysAttempts ?? [];
-    const passedEarlierToday = priorToday.some(
-      (a) => a.total_questions > 0 && a.score / a.total_questions >= 0.8,
-    );
-    let xpSource: "quiz" | "quiz_pass" | null = null;
-    if (priorToday.length === 0) xpSource = passed ? "quiz_pass" : "quiz";
-    else if (passed && !passedEarlierToday) xpSource = "quiz_pass";
-    if (xpSource) await insertXp(userId, xpSource);
-    await bumpStreak(userId);
+    // XP per chapter per PKT day (see quizXpSource). Everything else still
+    // counts for mastery and the days in a row, just without XP.
+    const xpSource = quizXpSource(todaysAttempts ?? [], passed);
+    const [rollingMasteryScore] = await Promise.all([
+      saveAttemptAndProgress,
+      logAnswers(
+        userId,
+        "quiz",
+        graded.map((g) => ({
+          questionId: g.questionId,
+          chapterId,
+          correct: g.correct,
+        })),
+        now,
+      ),
+      xpSource ? insertXp(userId, xpSource) : null,
+      writeStreak(userId, streak),
+    ]);
 
     return {
       score,
       total,
       passed,
-      masteryScore: rollingMastery,
+      masteryScore: rollingMasteryScore,
       attemptScore: masteryScore,
       awardedXp: xpSource ? XP_AMOUNTS[xpSource] : 0,
       review: graded.map((answer) => {
@@ -410,9 +422,10 @@ export const recordReview = createServerFn({ method: "POST" })
     const userId = context.userId;
     if (!userId) throw new Error("Unauthorized");
 
-    // The card must exist and be approved — no XP for phantom cards. Both
-    // reads are independent, so they run together to keep each rating quick.
-    const [{ data: card }, { data: prev }] = await Promise.all([
+    // The card must exist and be approved — no XP for phantom cards. The
+    // reads are independent, so they run together to keep each rating quick;
+    // the streak row is read here so it can be written with the review.
+    const [{ data: card }, { data: prev }, streak] = await Promise.all([
       supabaseAdmin
         .from("flashcards")
         .select("id")
@@ -427,6 +440,7 @@ export const recordReview = createServerFn({ method: "POST" })
         .eq("user_id", userId)
         .eq("flashcard_id", data.flashcardId)
         .maybeSingle(),
+      readStreak(userId),
     ]);
     if (!card) throw new Error("Flashcard not found");
 
@@ -463,7 +477,7 @@ export const recordReview = createServerFn({ method: "POST" })
     // written together rather than one after another.
     const [{ error: saveError }] = await Promise.all([
       saveReview,
-      bumpStreak(userId),
+      writeStreak(userId, streak),
       xpEligible ? insertXp(userId, "flashcard") : null,
     ]);
     if (saveError) throw new Error(saveError.message);

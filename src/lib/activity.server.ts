@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { nextStreak, studyDay } from "@/lib/streak";
+import { nextStreak, studyDay, type StreakRow } from "@/lib/streak";
 
 // Shared XP + streak helpers for server functions (study.functions.ts,
 // exam.functions.ts). Server-only: uses the service-role client.
@@ -40,12 +40,26 @@ export async function insertXp(userId: string, source: XpSource): Promise<void> 
 // src/lib/streak.ts. XP caps still use PKT midnight (startOfTodayPkt).
 export async function bumpStreak(userId: string): Promise<void> {
   const today = studyDay();
+  await writeStreak(userId, await readStreak(userId), today);
+}
+
+// bumpStreak in two halves, so a server function can read the streak row
+// alongside its other reads and write it alongside its other writes instead
+// of waiting for two more round trips at the end. Same rules, same result.
+export async function readStreak(userId: string): Promise<StreakRow | null> {
   const { data: streak } = await supabaseAdmin
     .from("streaks")
     .select("current_streak, longest_streak, last_active_date, freezes_available")
     .eq("user_id", userId)
     .maybeSingle();
+  return streak;
+}
 
+export async function writeStreak(
+  userId: string,
+  streak: StreakRow | null,
+  today: string = studyDay(),
+): Promise<void> {
   if (!streak) {
     await supabaseAdmin.from("streaks").insert({
       user_id: userId,
