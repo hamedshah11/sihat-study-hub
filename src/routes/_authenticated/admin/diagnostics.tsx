@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Shield, CheckCircle2, XCircle, Loader2, Shuffle } from "lucide-react";
+import { ServerSpeed } from "@/components/admin/ServerSpeed";
+import { SpeedOnThisPhone } from "@/components/SpeedOnThisPhone";
 
 export const Route = createFileRoute("/_authenticated/admin/diagnostics")({
   head: () => ({ meta: [{ title: "Diagnostics · Florence" }] }),
@@ -165,8 +167,13 @@ function DiagnosticsPage() {
         <h1 className="text-2xl font-bold text-primary">Diagnostics</h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Admin-only system health checks.
+        Speed and system health checks.
       </p>
+
+      <div className="mt-6 space-y-4">
+        <ServerSpeed />
+        <SpeedOnThisPhone />
+      </div>
 
       <div className="mt-6 rounded-xl bg-surface p-4">
         <div className="flex items-center justify-between gap-3">
