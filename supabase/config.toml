@@ -19,3 +19,63 @@ verify_jwt = true
 
 [functions.curate-videos]
 verify_jwt = true
+
+# ---------------------------------------------------------------------------
+# LOCAL DEVELOPMENT AND END-TO-END TESTS ONLY (`npx supabase start`, e2e/).
+#
+# Everything below configures the local Auth server so the Playwright suite can
+# sign in without an SMS provider or a real inbox. Never run
+# `supabase config push` against the production project: it would copy the
+# local site URL, the raised rate limits, the dummy Twilio settings and the
+# test phone code below into production. Production auth settings live in the
+# Supabase dashboard.
+# ---------------------------------------------------------------------------
+
+[auth]
+site_url = "http://127.0.0.1:8788"
+additional_redirect_urls = ["http://127.0.0.1:8788/**", "http://localhost:8080/**"]
+enable_signup = true
+
+# The suite signs in many times a run; the local defaults (2 emails an hour)
+# would throttle it.
+[auth.rate_limit]
+email_sent = 1000
+sms_sent = 1000
+sign_in_sign_ups = 1000
+token_verifications = 1000
+token_refresh = 1000
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+max_frequency = "1s"
+otp_length = 6
+
+# The 6-digit code ({{ .Token }}) must be in the emails, as in production.
+# Local emails land in Mailpit (http://127.0.0.1:54324), where the tests read them.
+[auth.email.template.magic_link]
+subject = "Your Florence sign-in code"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.confirmation]
+subject = "Your Florence sign-in code"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.sms]
+enable_signup = true
+enable_confirmations = false
+template = "Your Florence code is {{ .Code }}"
+max_frequency = "1s"
+
+# One fake test number with a fixed code, so the phone sign-in flow can be
+# tested without an SMS provider: 0300 0000001 (+92 300 0000001), code 123456.
+[auth.sms.test_otp]
+923000000001 = "123456"
+
+# Auth needs an SMS provider switched on before it accepts phone sign-ins.
+# These are dummy values: the test number above never sends a real SMS.
+[auth.sms.twilio]
+enabled = true
+account_sid = "local-e2e-dummy"
+message_service_sid = "local-e2e-dummy"
+auth_token = "local-e2e-dummy"

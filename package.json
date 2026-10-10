@@ -10,6 +10,11 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:update": "playwright test e2e/tests/screenshots.e2e.ts --update-snapshots",
+    "e2e:supabase": "node e2e/scripts/supabase.mjs",
+    "e2e:seed": "node e2e/seed.ts",
+    "e2e:build": "node e2e/scripts/serve.mjs --build-only",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -77,6 +82,7 @@
   "devDependencies": {
     "@eslint/js": "^9.32.0",
     "@lovable.dev/vite-tanstack-config": "2.23.1",
+    "@playwright/test": "1.56.1",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",

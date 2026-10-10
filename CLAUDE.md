@@ -172,6 +172,10 @@ env-var split (`VITE_`-prefixed = public/bundled, unprefixed = server-only).
   phone number or email, then a 6-digit code (`CodeStep.tsx`, helpers in
   `src/lib/auth-otp.ts`). `/login` takes a phone number (SMS code) or an
   email (password, or a code if left empty).
+- The batch code is redeemed after the first sign-in (`PendingInviteRedemption`
+  in `AppShell.tsx` → `applyInviteCode` → the `redeem_invite_code` database
+  function). `invite_codes` is keyed by `code`; it has no `id` column
+  (fixed in `20261010130000_fix_invite_redemption.sql`).
 - Phone codes need a Supabase SMS provider; until one is set up, phone
   attempts show a plain "use your email" message. Email codes need
   `{{ .Token }}` in the Supabase email templates; the link in the email
@@ -257,6 +261,37 @@ review XP once per PKT day. Browser reads go through
 - `bun run lint` — ESLint (flat config, TypeScript + react-hooks +
   react-refresh + Prettier).
 - `bun run build` — production build (Vite + Cloudflare plugin).
+- `bun run test` — Vitest unit tests.
+- `bun run test:e2e` — Playwright end-to-end tests against a local Supabase
+  stack (start it first with `npm run e2e:supabase`; needs Docker).
+  `npm run test:e2e:update` rewrites the screenshot baselines on purpose.
+  How to run and what's covered: `e2e/README.md`.
+
+## End-to-end tests
+
+- Playwright (`playwright.config.ts`, `e2e/`) runs the production build,
+  served locally by `wrangler dev`, against the **local** Supabase stack from
+  `supabase start` with every migration applied. Never point them at the live
+  project: keys come from `supabase status`, every script refuses a non-local
+  Supabase URL, and the browser can only reach this machine.
+- `e2e/seed.ts` is an idempotent TS seed (local service-role key, Node side
+  only): batch code `SIHAT-E2E-26`, two Semester 1 subjects with published
+  chapters (one meets the publish checklist), a Semester 2 draft chapter for
+  the faculty tests, a student per journey and an instructor. Each test resets
+  its own student first (`e2e/support/scenarios.ts`); one worker, one database.
+- Journeys run on a 390 × 844 phone viewport; the faculty tests on 1280 × 900.
+  Security tests use the anon key plus a student's session, like devtools
+  would. Screenshot baselines (Light and Dark) live in
+  `e2e/tests/__screenshots__/`; review every changed image.
+- The `[auth]` block in `supabase/config.toml` is for local runs only (test
+  phone code, dummy Twilio, raised rate limits, local site URL). Never run
+  `supabase config push` against production.
+- `tutor-ask` reads an optional `ANTHROPIC_BASE_URL` (unset in production);
+  `npm run e2e:supabase` points it at `e2e/scripts/anthropic-stub.mjs` through
+  the git-ignored `supabase/functions/.env`.
+- CI: `.github/workflows/e2e.yml` runs the suite on every pull request and
+  uploads the report and screenshot diffs when it fails.
+- Test files end in `.e2e.ts` so Vitest doesn't pick them up.
 
 ## Content conventions
 
@@ -283,8 +318,11 @@ review XP once per PKT day. Browser reads go through
 - No payment/subscription layer — access is invite-code gated
   (`invite_codes` table, `internal` vs `external` `student_type`), not
   billed.
-- Automated coverage is currently limited to focused Vitest unit/regression
-  tests; continue to run `bun run test`, `bun run lint`, and `bun run build`.
+- Automated coverage: Vitest unit/regression tests plus the Playwright
+  end-to-end suite (`e2e/`); continue to run `bun run test`, `bun run lint`,
+  `bun run build` and `bun run test:e2e`. `bun run lint` already reports
+  about a thousand problems on main, mostly Prettier formatting in generated
+  Supabase files (`src/integrations/supabase/`).
 - `tutor-practice` and `award-badges`/`backfill-question-options` edge
   functions exist but are thinner/ops-oriented; not documented in depth
   here — read them directly before modifying.
