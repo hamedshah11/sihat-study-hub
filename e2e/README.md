@@ -8,7 +8,9 @@ in Light and Dark.
 
 They run against the **production build**, served on this machine by the
 Cloudflare Workers runtime (`wrangler dev`), and a **local Supabase stack** in
-Docker with every migration in `supabase/migrations` applied. They never touch
+Docker with every migration in `supabase/migrations` applied. Playwright itself
+runs inside its official Docker image (`mcr.microsoft.com/playwright:v1.56.1-noble`),
+so screenshots are drawn the same way on every machine and in CI. They never touch
 the live Supabase project: the URL and keys come from `supabase status`, every
 script refuses a Supabase URL that isn't on this machine, and the browser is
 cut off from the internet (a request to a hosted Supabase project fails the
@@ -16,26 +18,32 @@ test).
 
 ## Run them
 
-You need Docker and Node 22.18 or newer.
+You need Docker and Node 22.18 or newer. The first run also pulls the Playwright image (about 1 GB).
 
 ```sh
 npm install --no-package-lock --legacy-peer-deps
-npx playwright install chromium   # once; skip if Chromium is already installed
 npm run e2e:supabase              # start local Supabase (first run pulls the images)
 bun run test:e2e                  # or: npm run test:e2e
 ```
 
-`test:e2e` seeds the local database, builds the app against it, serves it on
-http://127.0.0.1:8788 and runs every test. Useful variations:
+`test:e2e` builds the app against the local stack, then runs Playwright in its
+Docker image (sharing this machine's network): it seeds the database, serves
+the build on http://127.0.0.1:8788 and runs every test. Arguments after `--`
+go to `playwright test`:
 
 ```sh
-npx playwright test e2e/tests/study.e2e.ts       # one file
-npx playwright test -g "chapter quiz"            # tests whose name matches
+npm run test:e2e -- e2e/tests/study.e2e.ts       # one file
+npm run test:e2e -- -g "chapter quiz"            # tests whose name matches
 E2E_SKIP_BUILD=1 npm run test:e2e                # reuse the last build
 E2E_SERVER_LOGS=1 npm run test:e2e               # show the Worker's request log
+E2E_NO_DOCKER=1 npm run test:e2e                 # run Playwright on this machine instead
 npx playwright show-report                       # the HTML report of the last run
 npm run e2e:supabase -- stop                     # stop local Supabase
 ```
+
+With `E2E_NO_DOCKER=1` you need Chromium (`npx playwright install chromium`),
+and the screenshot tests will fail because text is drawn slightly differently
+outside the image; everything else behaves the same.
 
 `npm run e2e:seed` and `npm run e2e:build` run those two steps on their own (CI
 runs them as separate steps).
@@ -50,8 +58,8 @@ npm run test:e2e:update
 
 This re-runs the screenshot tests and overwrites the images in
 `e2e/tests/__screenshots__/`. Look at every changed image before committing
-it: the diff in the pull request is the review. Make baselines on Linux
-(Ubuntu 24.04, like CI); other systems draw text slightly differently.
+it: the diff in the pull request is the review. The baselines are made in the
+Playwright image, like CI, so this works the same on any machine with Docker.
 
 When CI fails on a screenshot, the `playwright-report` artifact on the run has
 the expected image, the actual one and a diff for each failure.
@@ -73,6 +81,7 @@ flames on Today, the batch totals) are masked.
 | `e2e/support/scenarios.ts`       | Puts each test's student into a known state before it starts                                                                                             |
 | `e2e/tests/*.e2e.ts`             | The tests (`.e2e.ts` so Vitest leaves them alone)                                                                                                        |
 | `e2e/scripts/supabase.mjs`       | `npm run e2e:supabase`: starts local Supabase, pointing tutor-ask at the Anthropic stub                                                                  |
+| `e2e/scripts/run.mjs`            | `npm run test:e2e`: builds, then runs Playwright in its Docker image                                                                                     |
 | `e2e/scripts/serve.mjs`          | Builds against local Supabase and serves with `wrangler dev`                                                                                             |
 | `e2e/scripts/anthropic-stub.mjs` | Fixed replies in place of the Anthropic API                                                                                                              |
 

@@ -109,16 +109,21 @@ test("fix your mistakes: a wrong quiz answer comes back the next day", async ({ 
 
 test("Ask Florence answers from the chapter notes", async ({ page }) => {
   // tutor-ask runs in the local edge runtime, which downloads its imports from
-  // esm.sh when it boots. Without internet inside Docker it can't, so skip
-  // locally; CI always runs it.
+  // esm.sh when it boots. Without internet inside Docker it can't (and if the
+  // container isn't running, the gateway can't find it), so skip locally;
+  // CI always runs it.
   const { url, anonKey } = localSupabase();
   const probe = await fetch(`${url}/functions/v1/tutor-ask`, {
     method: "POST",
     headers: { authorization: `Bearer ${anonKey}`, "content-type": "application/json" },
     body: "{}",
   });
-  const bootError = probe.status >= 500 && (await probe.text()).includes("BOOT_ERROR");
-  test.skip(bootError && !process.env.CI, "the local edge runtime can't download its imports");
+  const probeBody = probe.status >= 500 ? await probe.text() : "";
+  const unavailable = /BOOT_ERROR|name resolution failed/.test(probeBody);
+  test.skip(
+    unavailable && !process.env.CI,
+    `the local edge runtime can't run tutor-ask: ${probeBody}`,
+  );
 
   await startAs(page, "tutor");
   await page.goto(`/chapters/${MICRO_CH1.id}`);
@@ -132,7 +137,7 @@ test("Ask Florence answers from the chapter notes", async ({ page }) => {
   await expect(page.getByText("When should I clean my hands?")).toBeVisible();
   await expect(page.getByText(/^Clean your hands at the five moments/)).toBeVisible();
   await page.getByRole("button", { name: "Source: Hand hygiene" }).click();
-  await expect(page.getByRole("heading", { name: "Hand hygiene" })).toBeInViewport();
+  await expect(page.getByRole("heading", { name: "Hand hygiene", exact: true })).toBeInViewport();
 
   const { data: messages } = await adminClient()
     .from("tutor_messages")

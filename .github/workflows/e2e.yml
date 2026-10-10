@@ -17,7 +17,6 @@ permissions:
 
 jobs:
   e2e:
-    # Same OS as the machine the screenshot baselines were made on.
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -30,8 +29,10 @@ jobs:
       - name: Install dependencies
         run: npm install --no-package-lock --legacy-peer-deps
 
-      - name: Install Chromium for Playwright
-        run: npx playwright install --with-deps chromium
+      # Playwright runs inside its official image (see e2e/scripts/run.mjs),
+      # the same one used to make the screenshot baselines.
+      - name: Pull the Playwright image
+        run: docker pull mcr.microsoft.com/playwright:v1.56.1-noble
 
       - name: Start local Supabase (applies every migration)
         # Studio, Realtime and the logging services aren't used by the tests.

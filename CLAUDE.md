@@ -271,7 +271,10 @@ review XP once per PKT day. Browser reads go through
 
 - Playwright (`playwright.config.ts`, `e2e/`) runs the production build,
   served locally by `wrangler dev`, against the **local** Supabase stack from
-  `supabase start` with every migration applied. Never point them at the live
+  `supabase start` with every migration applied. `npm run test:e2e`
+  (`e2e/scripts/run.mjs`) runs Playwright inside
+  `mcr.microsoft.com/playwright:v1.56.1-noble` so screenshots match CI; keep
+  that tag in step with `@playwright/test`. Never point them at the live
   project: keys come from `supabase status`, every script refuses a non-local
   Supabase URL, and the browser can only reach this machine.
 - `e2e/seed.ts` is an idempotent TS seed (local service-role key, Node side
