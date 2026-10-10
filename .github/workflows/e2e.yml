@@ -1,0 +1,64 @@
+name: End-to-end tests
+
+# Journeys, security checks and screenshot comparisons (Playwright) against a
+# local Supabase stack started in the runner. No secrets are needed: the stack
+# uses the Supabase CLI's local keys, and nothing talks to production.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-package-lock --legacy-peer-deps
+
+      # Playwright runs inside its official image (see e2e/scripts/run.mjs),
+      # the same one used to make the screenshot baselines.
+      - name: Pull the Playwright image
+        run: docker pull mcr.microsoft.com/playwright:v1.56.1-noble
+
+      - name: Start local Supabase (applies every migration)
+        # Studio, Realtime and the logging services aren't used by the tests.
+        run: npm run e2e:supabase -- start -x studio,realtime,imgproxy,postgres-meta,logflare,vector,supavisor
+
+      - name: Seed test data
+        run: npm run e2e:seed
+
+      - name: Build the app against local Supabase
+        run: npm run e2e:build
+
+      - name: Run Playwright
+        run: npm run test:e2e
+        env:
+          E2E_SKIP_BUILD: "1"
+
+      - name: Upload report and screenshot diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+      - name: Stop Supabase
+        if: always()
+        run: npm run e2e:supabase -- stop --no-backup
