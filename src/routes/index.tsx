@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Lockup } from "@/components/brand/Lockup";
+import { Endorsement, Lockup, Wordmark } from "@/components/brand/Lockup";
+import { FlorenceMark } from "@/components/brand/FlorenceMark";
 import { BRAND } from "@/lib/brand";
 
 export const Route = createFileRoute("/")({
@@ -20,61 +21,82 @@ export const Route = createFileRoute("/")({
   component: Welcome,
 });
 
+const SPLASH_SEEN = "florence:splash-seen";
+
+/** The splash: the stacked lockup on Night ward with a lamplight glow. */
+function Splash() {
+  return (
+    <div className="dark fixed inset-0 z-50 flex flex-col items-center bg-night text-linen">
+      <div aria-hidden className="lamp-glow absolute inset-0" />
+      <div className="relative flex flex-1 items-center">
+        <Lockup layout="stacked" height={32} variant="night" className="animate-scale-in" />
+      </div>
+      <p className="relative pb-[max(2.5rem,env(safe-area-inset-bottom))] text-[15px] text-linen/85">
+        BSN study for Semester 1
+      </p>
+    </div>
+  );
+}
+
 /**
- * Splash and welcome in one: the stacked lockup on Night ward with a
- * lamplight glow, then the batch code first. Students who've already joined
- * sign in with their email, so no college email is needed.
+ * Welcome, all on Night ward: the batch code comes first. Students who have already joined sign
+ * in with a phone number or email, so no college email is needed.
  */
 function Welcome() {
   const navigate = useNavigate();
+  const [splash, setSplash] = useState(true);
+
   useEffect(() => {
+    let seen = false;
+    try {
+      seen = sessionStorage.getItem(SPLASH_SEEN) === "1";
+      sessionStorage.setItem(SPLASH_SEEN, "1");
+    } catch {
+      // No storage: show the splash briefly anyway.
+    }
+    const timer = window.setTimeout(() => setSplash(false), seen ? 0 : 1300);
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) navigate({ to: "/home", replace: true });
     });
+    return () => window.clearTimeout(timer);
   }, [navigate]);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background">
-      <section className="dark relative flex min-h-[52dvh] flex-col items-center justify-center overflow-hidden bg-night px-6 pb-10 pt-[max(2.5rem,env(safe-area-inset-top))] text-linen">
-        <div aria-hidden className="lamp-glow absolute inset-0" />
-        <Lockup
-          layout="stacked"
-          height={30}
-          variant="night"
-          className="animate-scale-in relative"
-        />
-        <p className="relative mt-6 text-[13.5px] text-mist">{BRAND.tagline}</p>
-      </section>
-
-      <section className="mx-auto flex w-full max-w-[440px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-8">
-        <h1 className="animate-fade-up font-display text-[32px] leading-[1.08]">
-          Welcome to Florence.
-        </h1>
-        <p className="animate-fade-up stagger-1 mt-2 text-[15px] leading-relaxed text-muted-foreground">
+    <div className="dark relative min-h-dvh bg-night text-linen">
+      {splash && <Splash />}
+      <div aria-hidden className="lamp-glow pointer-events-none absolute inset-0" />
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
+        <div className="flex h-12 items-center gap-2" aria-label="Florence">
+          <FlorenceMark size={24} />
+          <Wordmark className="text-[22px]" />
+        </div>
+        <h1 className="mt-14 font-display text-[34px] leading-[1.08]">Welcome to Florence.</h1>
+        <p className="mt-3 text-[16px] leading-relaxed text-muted-foreground">
           Short daily reviews for your BSN subjects, checked by your college's teachers.
         </p>
-        <div className="animate-fade-up stagger-2 mt-auto pt-8">
-          <Link
-            to="/signup"
-            className="flex h-[52px] w-full items-center justify-center rounded-full bg-primary text-[15px] font-semibold text-primary-foreground"
-          >
-            I have a batch code
-          </Link>
-          <p className="mt-2.5 text-center text-[13px] text-muted-foreground">
-            Your class coordinator gives you this code. No college email needed.
-          </p>
-          <div className="my-5 flex items-center gap-3 text-[12.5px] text-muted-foreground">
-            <span className="h-px flex-1 bg-border" /> Already joined?{" "}
-            <span className="h-px flex-1 bg-border" />
-          </div>
-          <Link
-            to="/login"
-            className="flex h-[50px] w-full items-center justify-center rounded-full border border-border-strong text-[15px] font-semibold"
-          >
-            Sign in
-          </Link>
+        <Link
+          to="/signup"
+          className="mt-8 flex h-[54px] w-full items-center justify-center rounded-full bg-primary text-[16px] font-semibold text-primary-foreground"
+        >
+          I have a batch code
+        </Link>
+        <p className="mt-3 text-center text-[14px] leading-snug text-muted-foreground">
+          Your class coordinator gives you this code. No college email needed.
+        </p>
+        <div className="my-5 flex items-center gap-3 text-[14px] text-muted-foreground">
+          <span className="h-px flex-1 bg-border-strong/25" /> Already joined?
+          <span className="h-px flex-1 bg-border-strong/25" />
         </div>
-      </section>
+        <Link
+          to="/login"
+          className="flex h-[54px] w-full items-center justify-center rounded-full border border-border-strong/70 text-[16px] font-semibold"
+        >
+          Sign in with phone or email
+        </Link>
+        <div className="mt-auto flex justify-center pt-10">
+          <Endorsement tone="night" className="!text-[11px]" />
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ImageIcon, Lightbulb, MessageCircleQuestion } from "lucide-react";
+import { ChevronLeft, ImageIcon } from "lucide-react";
+import { FlorenceMark } from "@/components/brand/FlorenceMark";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +40,6 @@ function ChapterDetail() {
   const { tab } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const activeTab: ChapterTab = tab ?? "notes";
-  const [readingProgress, setReadingProgress] = useState(0);
   const setTab = (value: ChapterTab) =>
     navigate({
       search: { tab: value === "notes" ? undefined : value },
@@ -76,17 +75,6 @@ function ChapterDetail() {
       return { chapter, subject, diagrams: count ?? 0 };
     },
   });
-
-  useEffect(() => {
-    if (activeTab !== "notes") return;
-    const update = () => {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      setReadingProgress(max > 0 ? Math.min(100, (window.scrollY / max) * 100) : 100);
-    };
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    return () => window.removeEventListener("scroll", update);
-  }, [activeTab, data?.chapter]);
 
   if (isLoading) {
     return (
@@ -185,12 +173,6 @@ function ChapterDetail() {
 
   return (
     <div className="mx-auto max-w-2xl pb-[136px] pt-2 md:pb-10">
-      <div aria-hidden className="fixed inset-x-0 top-0 z-30 h-[3px]">
-        <div
-          className="h-full bg-accent transition-[width]"
-          style={{ width: `${readingProgress}%` }}
-        />
-      </div>
       {subject ? (
         <Link
           to="/subjects/$subjectId"
@@ -246,7 +228,7 @@ function ChapterDetail() {
         </div>
       ) : (
         <>
-          <article className="mt-4 rounded-[22px] border bg-card p-5 md:p-7">
+          <article className="mt-5">
             <div className="prose max-w-none prose-p:text-[15.5px] prose-p:leading-[1.7]">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
@@ -255,9 +237,8 @@ function ChapterDetail() {
                   img: DiagramMarkdownImage,
                   table: ChapterNotesTable,
                   blockquote: ({ children }) => (
-                    <blockquote className="not-prose my-5 flex gap-3 rounded-2xl bg-muted p-4 text-[14.5px] leading-relaxed text-foreground">
-                      <Lightbulb className="mt-0.5 size-5 shrink-0 text-accent-ink" aria-hidden />
-                      <div>{children}</div>
+                    <blockquote className="not-prose my-4 text-[13.5px] leading-relaxed text-muted-foreground [&_p]:mb-1.5 [&_p]:text-[13.5px] [&_p]:leading-relaxed [&_p]:text-muted-foreground [&_strong]:text-foreground">
+                      {children}
                     </blockquote>
                   ),
                 }}
@@ -296,8 +277,7 @@ function ChapterDetail() {
                 onClick={() => setTab("tutor")}
                 className="flex h-[46px] w-full items-center justify-center gap-2 rounded-full border border-border-strong text-[14.5px] font-semibold"
               >
-                <MessageCircleQuestion className="size-4" aria-hidden /> Ask Florence about this
-                chapter
+                <FlorenceMark size={20} /> Ask Florence about this chapter
               </button>
             </div>
           </div>

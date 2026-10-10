@@ -57,6 +57,10 @@
   --color-success-ink: var(--success-ink);
   --color-warning-bg: var(--warning-bg);
   --color-warning-ink: var(--warning-ink);
+  --color-rate-again: var(--rate-again);
+  --color-rate-hard: var(--rate-hard);
+  --color-rate-good: var(--rate-good);
+  --color-rate-easy: var(--rate-easy);
   --color-subject: var(--subject);
   --color-subject-deep: var(--subject-deep);
   --color-subject-tint: var(--subject-tint);
@@ -114,12 +118,18 @@
   --warning-bg: #fbebcb;
   --warning-ink: #7a4606;
   /* Decorative divider vs essential boundary (3:1 or better) */
-  --border: #e8dfcf;
+  --border: #efe8dc;
   --border-strong: #8f8271;
+  /* Answer and rating colours (text-safe on white and Linen) */
+  --rate-again: #a23a4b;
+  --rate-hard: #a4500e;
+  --rate-good: #2f6b45;
+  --rate-easy: #2d5fa0;
+  --switch-off: #e6ddcc;
   --input: #8f8271;
   --ring: #9c5a08;
   --rose-ring: #ede5d5;
-  --shadow-soft-value: 0 1px 2px rgba(20, 27, 45, 0.04), 0 6px 18px rgba(20, 27, 45, 0.05);
+  --shadow-soft-value: 0 1px 2px rgba(60, 45, 20, 0.04), 0 4px 14px rgba(60, 45, 20, 0.05);
   --shadow-lifted-value: 0 2px 4px rgba(20, 27, 45, 0.05), 0 14px 32px rgba(20, 27, 45, 0.09);
 }
 
@@ -163,6 +173,11 @@
   --warning-ink: #f4c873;
   --border: #2c3756;
   --border-strong: #68759c;
+  --rate-again: #e2737f;
+  --rate-hard: #ef8a4c;
+  --rate-good: #8cc5a2;
+  --rate-easy: #8bb8f0;
+  --switch-off: #3a4463;
   --input: #68759c;
   --ring: #f4b23e;
   --rose-ring: #29324d;

@@ -36,7 +36,9 @@ function HowProgressWorks() {
   return (
     <div className="dark fixed inset-0 z-50 flex flex-col overflow-y-auto bg-night text-linen">
       <div className="lamp-glow mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
-        <p className="text-[13px] font-semibold text-mist">How progress works</p>
+        <p className="text-[13px] font-bold uppercase tracking-[0.05em] text-mist">
+          How progress works
+        </p>
         <div className="mt-6 flex justify-center">
           <ProgressRose
             petals={
@@ -44,12 +46,12 @@ function HowProgressWorks() {
                 ? data.subjects.map((s, i) => ({ ...s, mastery: SAMPLE[i % 6].mastery }))
                 : SAMPLE
             }
-            size={220}
+            size={250}
             glow
             title="An example progress rose"
           />
         </div>
-        <h1 className="mt-8 font-display text-[32px] leading-[1.08]">Each petal is a subject.</h1>
+        <h1 className="mt-10 font-display text-[34px] leading-[1.08]">Each petal is a subject.</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-linen/85">
           A longer petal means you remember more of that subject's cards and do better on its
           quizzes. Petals can shrink if you stop reviewing, and grow back when you return.
@@ -64,12 +66,6 @@ function HowProgressWorks() {
           <p className="mt-3 text-center text-[13px] text-mist">
             Tap any petal later to see its subject.
           </p>
-          <Link
-            to="/home"
-            className="mt-1 flex min-h-11 items-center justify-center text-[14px] font-semibold text-linen/80"
-          >
-            Not now
-          </Link>
         </div>
       </div>
     </div>

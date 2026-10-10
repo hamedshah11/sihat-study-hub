@@ -14,17 +14,17 @@ function isStandalone() {
   return (
     window.matchMedia?.("(display-mode: standalone)").matches ||
     // iOS Safari
-    (window.navigator as any).standalone === true
+    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
   );
 }
 
 function isIOS() {
   if (typeof window === "undefined") return false;
   const ua = window.navigator.userAgent;
-  return /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+  return /iPad|iPhone|iPod/.test(ua) && !("MSStream" in window);
 }
 
-export function InstallPrompt() {
+export function InstallPrompt({ firstDay = false }: { firstDay?: boolean }) {
   const [bip, setBip] = useState<BIPEvent | null>(null);
   const [showIOSHint, setShowIOSHint] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -63,6 +63,18 @@ export function InstallPrompt() {
   };
 
   if (dismissed) return null;
+
+  if (firstDay) {
+    if (typeof window !== "undefined" && isStandalone()) return null;
+    return (
+      <div className="rounded-[20px] border border-dashed border-border-strong/70 px-4 py-3.5">
+        <p className="text-[15px] font-semibold">Add Florence to your home screen</p>
+        <p className="mt-1 text-[13.5px] leading-snug text-muted-foreground">
+          Do this after your first review. It opens faster, like an app.
+        </p>
+      </div>
+    );
+  }
 
   if (!bip && !showIOSHint) return null;
 

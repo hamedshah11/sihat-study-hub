@@ -25,11 +25,6 @@ function SubjectsList() {
           {data?.student.semesterName ?? (data ? "Semester 1" : "")}
         </p>
       </header>
-      {data?.student.batchName && (
-        <p className="mt-0.5 text-[13px] text-muted-foreground">
-          {data.student.college} · {data.student.programmeName ?? data.student.batchName}
-        </p>
-      )}
 
       <div className="mt-5 space-y-2.5">
         {isLoading &&
@@ -55,7 +50,7 @@ function SubjectsList() {
           >
             <span
               aria-hidden
-              className="h-11 w-1.5 shrink-0 rounded-full"
+              className="h-12 w-[5px] shrink-0 rounded-full"
               style={{ backgroundColor: petalColour(subject.colour, subject.index) }}
             />
             <span className="min-w-0 flex-1">
@@ -76,7 +71,7 @@ function SubjectsList() {
                 )}
               </span>
             </span>
-            <span className="fl-number shrink-0 text-[15px] text-foreground">
+            <span className="shrink-0 text-[15px] font-semibold tabular-nums text-foreground">
               {subject.mastery == null ? "" : `${subject.percent}%`}
             </span>
             <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />

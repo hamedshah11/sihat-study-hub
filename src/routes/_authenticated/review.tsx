@@ -2,10 +2,8 @@ import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { answerMistake } from "@/lib/study.functions";
 import { MISTAKES_QUERY_KEY, useMistakes } from "@/lib/mistakes-data";
 import { MISTAKE_CLEAR_AFTER, MISTAKE_SECOND_GAP_DAYS } from "@/lib/mistakes";
@@ -14,6 +12,7 @@ import { pageTitle } from "@/lib/brand";
 import { useStudySessionLock } from "@/hooks/use-study-session";
 import { SessionHeader } from "@/components/study/FlashcardDeck";
 import { ReportProblem } from "@/components/study/ReportProblem";
+import { AnswerFeedback, AnswerOption } from "@/components/study/AnswerOption";
 
 export const Route = createFileRoute("/_authenticated/review")({
   head: () => ({ meta: [{ title: pageTitle("Questions to revisit") }] }),
@@ -211,51 +210,30 @@ function ReviewRunner({
           You missed this one before
         </p>
         <h2 className="fl-question mt-2">{q.prompt}</h2>
-        <div className="mt-5 space-y-2.5">
-          {q.options.map((opt, i) => {
-            const correct = i === feedback?.correctIndex;
-            const mine = i === picked;
-            return (
-              <button
-                key={i}
-                disabled={revealed || busy}
-                onClick={() => void choose(i)}
-                className={cn(
-                  "flex min-h-[56px] w-full items-center gap-3 rounded-2xl border bg-card px-3.5 py-3 text-left text-[16px] font-medium transition-colors",
-                  !revealed && "border-border-strong/70 hover:bg-muted",
-                  revealed && correct && "border-success ring-1 ring-success",
-                  revealed && mine && !correct && "border-destructive ring-1 ring-destructive",
-                  revealed && !correct && !mine && "opacity-70",
-                )}
-              >
-                <span className="fl-number grid size-7 shrink-0 place-items-center rounded-lg bg-muted text-[12px] text-muted-foreground">
-                  {LETTERS[i] ?? i + 1}
-                </span>
-                <span className="flex-1">{opt}</span>
-                {revealed && correct && (
-                  <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-success-ink">
-                    <Check className="size-3.5" aria-hidden /> Correct answer
-                  </span>
-                )}
-                {revealed && mine && !correct && (
-                  <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-destructive-ink">
-                    <X className="size-3.5" aria-hidden /> Your answer
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        <div className="mt-5 space-y-3">
+          {q.options.map((opt, i) => (
+            <AnswerOption
+              key={i}
+              index={i}
+              text={opt}
+              state={
+                !revealed
+                  ? "idle"
+                  : i === feedback?.correctIndex
+                    ? "correct"
+                    : i === picked
+                      ? "wrong"
+                      : "idle"
+              }
+              disabled={revealed || busy}
+              onClick={() => void choose(i)}
+            />
+          ))}
         </div>
         {revealed && (
-          <div className="animate-fade-up mt-4 rounded-2xl bg-muted px-4 py-3" aria-live="polite">
-            <p className="text-[14px] font-semibold">{isRight ? "That's right." : "Not quite."}</p>
-            {feedback?.explanation && (
-              <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
-                {feedback.explanation}
-              </p>
-            )}
+          <AnswerFeedback correct={isRight} explanation={feedback?.explanation ?? null}>
             <ReportProblem kind="question" itemId={q.id} className="-mb-2" />
-          </div>
+          </AnswerFeedback>
         )}
       </div>
 

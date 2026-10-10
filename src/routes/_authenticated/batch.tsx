@@ -76,13 +76,13 @@ function BatchPage() {
           </Link>
         </div>
       ) : (
-        <section className="dark animate-fade-up stagger-1 rounded-[24px] bg-night p-5 text-linen">
-          <p className="text-[13px] font-semibold text-mist">This week, together</p>
-          <p className="mt-1 font-display text-[34px] leading-tight text-lamp">
+        <section className="animate-fade-up stagger-1 rounded-[22px] border bg-card p-5">
+          <p className="text-[14px] font-semibold">This week, together</p>
+          <p className="mt-1 font-display text-[36px] leading-tight text-accent-ink dark:text-lamp">
             {data.reviewsThisWeek.toLocaleString("en-GB")} review
             {data.reviewsThisWeek === 1 ? "" : "s"}
           </p>
-          <p className="mt-1 text-[14px] leading-snug text-linen/85">
+          <p className="mt-1.5 text-[15px] leading-snug text-muted-foreground">
             {data.hardestSubject
               ? `${data.hardestSubject} is the subject the batch finds hardest right now.`
               : data.reviewsThisWeek > 0
@@ -94,19 +94,16 @@ function BatchPage() {
 
       {progress && (
         <section className="animate-fade-up stagger-2 rounded-[22px] border bg-card p-4">
-          <p className="text-[13px] font-semibold text-muted-foreground">Your week</p>
-          <div className="mt-3 grid grid-cols-7 gap-1.5">
+          <p className="text-[14px] font-semibold">Your week</p>
+          <div className="mt-3 grid grid-cols-7 gap-1">
             {progress.week.map((d) => (
               <div key={d.date} className="flex flex-col items-center gap-1.5">
                 <span
                   className={cn(
-                    "grid aspect-square w-full max-w-9 place-items-center rounded-full",
-                    d.studied ? "bg-lamp text-night" : "border border-dashed border-border-strong",
-                    d.isToday && !d.studied && "border-solid",
+                    "aspect-square w-full max-w-10 rounded-full",
+                    d.studied ? "bg-lamp" : "border-2 border-dashed border-border-strong/60",
                   )}
-                >
-                  {d.studied && <Check className="size-4" aria-hidden />}
-                </span>
+                />
                 <span
                   className={cn("text-[12px]", d.isToday ? "font-bold" : "text-muted-foreground")}
                 >
@@ -165,14 +162,10 @@ function StudyCircle({ circle }: { circle: BatchOverview["circle"] }) {
 
   if (!circle.code) {
     return (
-      <section className="animate-fade-up stagger-3 rounded-[22px] border bg-card p-4">
-        <div className="flex items-baseline justify-between">
-          <p className="text-[15px] font-semibold">Study circle</p>
-          <p className="text-[12.5px] text-muted-foreground">Off</p>
-        </div>
-        <p className="mt-1 text-[13.5px] leading-snug text-muted-foreground">
-          Choose up to five friends to see when each of you studied today. No scores, no rankings.
-          Joining shows your friends whether you studied today, nothing else.
+      <section className="animate-fade-up stagger-3 rounded-[22px] border-2 border-dashed border-border-strong/45 p-5">
+        <p className="text-[16px] font-semibold">Study circle · off</p>
+        <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+          Choose up to 5 friends to see when each of you studied today. No scores, no rankings.
         </p>
         {joining ? (
           <form
@@ -201,19 +194,19 @@ function StudyCircle({ circle }: { circle: BatchOverview["circle"] }) {
             </button>
           </form>
         ) : (
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-x-5">
             <button
               disabled={busy}
               onClick={() => void run(() => create())}
-              className="h-11 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+              className="min-h-11 text-[15px] font-semibold text-accent-ink disabled:opacity-50"
             >
               Set up a circle
             </button>
             <button
               onClick={() => setJoining(true)}
-              className="h-11 rounded-full border border-border-strong px-5 text-sm font-semibold"
+              className="min-h-11 text-[14px] font-medium text-muted-foreground"
             >
-              I have a code
+              Have a code? Join a circle
             </button>
           </div>
         )}
@@ -222,7 +215,7 @@ function StudyCircle({ circle }: { circle: BatchOverview["circle"] }) {
   }
 
   const circleCode = circle.code;
-  const shareText = `Join my Florence study circle. Open Florence, go to Batch, tap "I have a code" and enter ${circleCode}.`;
+  const shareText = `Join my Florence study circle. Open Florence, go to Batch, tap "Have a code? Join a circle" and enter ${circleCode}.`;
   async function shareCode() {
     try {
       if (navigator.share) await navigator.share({ text: shareText });

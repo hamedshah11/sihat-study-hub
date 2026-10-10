@@ -44,7 +44,7 @@ function AdminLayout() {
   return (
     <div>
       <AdminNav />
-      <div className="mt-6">
+      <div className="mt-6 md:mt-0">
         <Outlet />
       </div>
     </div>
@@ -54,6 +54,7 @@ function AdminLayout() {
 function AdminNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const tabs = [
+    { to: "/admin/review", label: "Review" },
     { to: "/admin", label: "Chapters", exact: true },
     { to: "/admin/reports", label: "Reported by students" },
     { to: "/admin/invite-codes", label: "Batch codes" },
@@ -62,7 +63,7 @@ function AdminNav() {
   const isActive = (t: { to: string; exact?: boolean }) =>
     t.exact ? pathname === t.to : pathname.startsWith(t.to);
   return (
-    <nav className="flex flex-wrap gap-2 border-b border-border pb-3">
+    <nav className="flex flex-wrap gap-2 border-b border-border pb-3 md:hidden">
       {tabs.map((t) => (
         <Link
           key={t.to}

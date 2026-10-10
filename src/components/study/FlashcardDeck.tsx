@@ -20,13 +20,13 @@ export type DeckCard = {
 
 export type DeckResult = { reviewed: number; subjectIds?: string[] };
 
-// The four FSRS ratings in plain words. The buttons stay neutral, so colour
-// never carries the meaning.
-const RATINGS: { rating: Rating; label: string; fsrs: string }[] = [
-  { rating: "again", label: "Forgot", fsrs: "Again" },
-  { rating: "hard", label: "Barely", fsrs: "Hard" },
-  { rating: "good", label: "Got it", fsrs: "Good" },
-  { rating: "easy", label: "Instant", fsrs: "Easy" },
+// The four FSRS ratings, each with its plain-word meaning underneath. The
+// words carry the meaning; the colour (from the screen sheets) only helps.
+const RATINGS: { rating: Rating; label: string; fsrs: string; tone: string }[] = [
+  { rating: "again", label: "Forgot", fsrs: "Again", tone: "var(--rate-again)" },
+  { rating: "hard", label: "Barely", fsrs: "Hard", tone: "var(--rate-hard)" },
+  { rating: "good", label: "Got it", fsrs: "Good", tone: "var(--rate-good)" },
+  { rating: "easy", label: "Instant", fsrs: "Easy", tone: "var(--rate-easy)" },
 ];
 
 function whenBack(previous: Partial<ReviewState> | null | undefined, rating: Rating) {
@@ -54,44 +54,51 @@ export function SessionHeader({
   total: number;
   onExit: () => void;
   exitLabel?: string;
-  /** Per-step states for short sessions (quiz); omitted for long decks. */
+  /** Per-step states for a quiz (thick segments); decks get small dashes. */
   segments?: ("done" | "current" | "todo" | "wrong")[];
 }) {
+  const shown = Math.min(position, total);
+  // Long decks: one dash per card, up to 18; beyond that the dashes stand
+  // for equal shares of the deck.
+  const dashes = Math.min(total, 18);
+  const lit = total <= 18 ? shown : Math.round((shown / total) * dashes);
   return (
     <div className="flex items-center gap-3">
       <button
         type="button"
         onClick={onExit}
         aria-label={exitLabel}
-        className="grid size-11 shrink-0 place-items-center rounded-full border border-border-strong/70 bg-card text-foreground"
+        className="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-foreground"
       >
-        <X className="size-5" />
+        <X className="size-[18px]" />
       </button>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="truncate text-[13.5px] font-semibold">{title}</p>
-          <p className="fl-number shrink-0 text-[12px] text-muted-foreground">
-            {Math.min(position, total)} of {total}
+          <p className="truncate text-[14px] font-semibold">{title}</p>
+          <p className="fl-number shrink-0 text-[12.5px] font-normal text-muted-foreground">
+            {shown} of {total}
           </p>
         </div>
         {segments ? (
-          <div className="mt-1.5 flex gap-1" aria-hidden>
+          <div className="mt-2 flex gap-1.5" aria-hidden>
             {segments.map((s, i) => (
               <span
                 key={i}
                 className={cn(
-                  "h-1.5 flex-1 rounded-full",
-                  s === "todo" ? "bg-muted" : s === "wrong" ? "bg-destructive" : "bg-accent",
+                  "h-[5px] flex-1 rounded-full",
+                  s === "todo" ? "bg-muted" : "bg-accent",
                 )}
               />
             ))}
           </div>
         ) : (
-          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
-            <div
-              className="h-full rounded-full bg-accent transition-[width] duration-300"
-              style={{ width: `${(Math.min(position, total) / Math.max(1, total)) * 100}%` }}
-            />
+          <div className="mt-2 flex gap-[3px]" aria-hidden>
+            {Array.from({ length: dashes }, (_, i) => (
+              <span
+                key={i}
+                className={cn("h-[5px] flex-1 rounded-full", i < lit ? "bg-accent" : "bg-muted")}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -101,8 +108,9 @@ export function SessionHeader({
 
 /**
  * One flashcard at a time: the question on its own, one button to reveal
- * the answer, then four plain-word ratings, each showing when the card
- * comes back. FSRS scheduling and the review write happen on the server.
+ * the answer, then Again / Hard / Good / Easy with their plain words
+ * (Forgot, Barely, Got it, Instant). When each card comes back is in the
+ * button's label and title, and "What do these mean?" explains them. FSRS scheduling and the review write happen on the server.
  */
 export function FlashcardDeck({
   cards,
@@ -175,7 +183,7 @@ export function FlashcardDeck({
         onExit={onExit}
       />
 
-      <div className="mt-5 flex flex-1 flex-col rounded-[26px] border bg-card p-5 md:p-7">
+      <div className="mt-5 flex flex-1 flex-col rounded-[26px] border border-border-strong/40 bg-card p-6 md:p-8">
         {!revealed ? (
           <button
             type="button"
@@ -196,9 +204,9 @@ export function FlashcardDeck({
             <p className="mt-auto whitespace-pre-wrap text-[15px] leading-snug text-muted-foreground">
               {card.front}
             </p>
-            <hr className="my-4" />
-            <p className="text-[12.5px] font-semibold text-accent-ink">Answer</p>
-            <p className="mt-2 whitespace-pre-wrap text-[18px] font-medium leading-[1.5] text-foreground">
+            <hr className="my-4 border-border" />
+            <p className="text-[13px] font-semibold text-rate-good">Answer</p>
+            <p className="mt-2.5 whitespace-pre-wrap text-[19px] leading-[1.55] text-foreground">
               {card.back}
             </p>
             <div className="mt-auto pt-4">
@@ -243,26 +251,33 @@ export function FlashcardDeck({
           </button>
         ) : (
           <>
-            <div className="mb-1 flex items-center justify-between">
-              <p className="text-[13px] text-muted-foreground">How well did you remember it?</p>
+            <div className="mb-2 flex items-start justify-between gap-3">
+              <p className="max-w-[150px] text-[13.5px] leading-snug text-muted-foreground">
+                How well did you remember it?
+              </p>
               <RatingHelp />
             </div>
             <div className="grid grid-cols-4 gap-2">
-              {RATINGS.map(({ rating, label, fsrs }) => (
-                <button
-                  key={rating}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void rate(rating)}
-                  aria-label={`${label} (${fsrs}), back in ${whenBack(card.previous, rating)}`}
-                  className="flex h-[60px] flex-col items-center justify-center rounded-2xl border border-border-strong/70 bg-card text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                >
-                  <span className="text-[14px] font-semibold">{label}</span>
-                  <span className="text-[12px] text-muted-foreground">
-                    {whenBack(card.previous, rating)}
-                  </span>
-                </button>
-              ))}
+              {RATINGS.map(({ rating, label, fsrs, tone }) => {
+                const back = whenBack(card.previous, rating);
+                return (
+                  <button
+                    key={rating}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void rate(rating)}
+                    title={`Comes back in ${back}`}
+                    aria-label={`${fsrs}: ${label}. Comes back in ${back}`}
+                    style={{ borderColor: tone }}
+                    className="flex h-[62px] flex-col items-center justify-center rounded-[16px] border-2 bg-card transition-transform disabled:opacity-50"
+                  >
+                    <span className="text-[15px] font-semibold" style={{ color: tone }}>
+                      {fsrs}
+                    </span>
+                    <span className="text-[12.5px] text-muted-foreground">{label}</span>
+                  </button>
+                );
+              })}
             </div>
           </>
         )}

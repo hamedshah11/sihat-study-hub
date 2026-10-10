@@ -39,7 +39,7 @@ function ResetPassword() {
   };
 
   return (
-    <AuthShell title="Set a new password." back={{ to: "/login", label: "Sign in" }}>
+    <AuthShell heading="New password" back="/login">
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-1.5">
           <label htmlFor="reset-password" className="text-[14px] font-semibold">
