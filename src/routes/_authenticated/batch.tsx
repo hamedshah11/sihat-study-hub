@@ -48,7 +48,7 @@ function BatchPage() {
             {[
               data.programmeName ?? data.batchName,
               FOUNDING_PARTNER.short,
-              data.students ? `${data.students} students` : null,
+              data.students ? `${data.students} student${data.students === 1 ? "" : "s"}` : null,
             ]
               .filter(Boolean)
               .join(" · ")}
