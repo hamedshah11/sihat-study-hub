@@ -19,3 +19,51 @@ verify_jwt = true
 
 [functions.curate-videos]
 verify_jwt = true
+
+# ---------------------------------------------------------------------------
+# Local stack only (`supabase start`, used by the end-to-end tests in e2e/).
+# Never apply these settings to the hosted project with `supabase config push`:
+# the test phone code below would let anyone sign in as that number.
+# ---------------------------------------------------------------------------
+
+[auth]
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000/**", "http://localhost:3000/**", "http://localhost:8080/**"]
+
+# The tests send many codes in a few minutes; the local defaults allow two
+# emails an hour.
+[auth.rate_limit]
+email_sent = 1000
+sms_sent = 1000
+sign_in_sign_ups = 1000
+token_verifications = 1000
+token_refresh = 1000
+
+[auth.email]
+max_frequency = "1s"
+
+# Florence signs students in with a 6-digit code, so the emails must carry
+# {{ .Token }}. The hosted project's templates need the same.
+[auth.email.template.magic_link]
+subject = "Your Florence sign-in code"
+content_path = "./supabase/templates/sign-in-code.html"
+
+[auth.email.template.confirmation]
+subject = "Your Florence sign-in code"
+content_path = "./supabase/templates/sign-in-code.html"
+
+[auth.sms]
+enable_signup = true
+max_frequency = "1s"
+
+# Phone sign-in without a real SMS provider: 0300 0000001 always gets this
+# code and nothing is sent. Phone sign-in only switches on when a provider is
+# enabled, so this one has placeholder values; any other number fails.
+[auth.sms.test_otp]
+923000000001 = "246810"
+
+[auth.sms.twilio]
+enabled = true
+account_sid = "ACe2e000000000000000000000000000"
+message_service_sid = "MGe2e000000000000000000000000000"
+auth_token = "not-a-real-token"

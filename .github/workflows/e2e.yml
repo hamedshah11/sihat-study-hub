@@ -1,0 +1,63 @@
+# End-to-end tests on every pull request: a local Supabase stack with every
+# migration applied, seeded test data, a production build of the app and the
+# Playwright suite (journeys, security checks and screenshots). Nothing here
+# connects to the hosted Supabase project, and no secrets are needed.
+name: End-to-end tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Playwright on local Supabase
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package.json
+
+      # bun.lock resolves packages through Lovable's private registry, so CI
+      # installs from npm instead.
+      - name: Install dependencies
+        run: npm install --no-package-lock --legacy-peer-deps
+
+      - name: Start local Supabase and edge functions
+        run: npm run e2e:supabase
+
+      - name: Seed test data
+        run: npm run e2e:seed
+
+      - name: Build against local Supabase
+        run: npm run e2e:build
+
+      # The browser runs in the official Playwright image, so screenshots
+      # match the committed ones pixel for pixel.
+      - name: Run the Playwright suite
+        run: npm run test:e2e
+        env:
+          E2E_SKIP_BUILD: "1"
+
+      - name: Upload the report and screenshot diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+            e2e/.cache/functions.log
+          if-no-files-found: ignore
+          retention-days: 14

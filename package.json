@@ -10,6 +10,13 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:e2e": "node e2e/scripts/run.ts",
+    "test:e2e:update": "node e2e/scripts/run.ts --update-snapshots",
+    "test:e2e:host": "playwright test",
+    "e2e:supabase": "node e2e/scripts/supabase.ts up",
+    "e2e:supabase:stop": "node e2e/scripts/supabase.ts down",
+    "e2e:seed": "node e2e/seed.ts",
+    "e2e:build": "node e2e/scripts/build.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -77,6 +84,7 @@
   "devDependencies": {
     "@eslint/js": "^9.32.0",
     "@lovable.dev/vite-tanstack-config": "2.23.1",
+    "@playwright/test": "1.56.1",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",

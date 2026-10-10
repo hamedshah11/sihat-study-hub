@@ -175,7 +175,11 @@ env-var split (`VITE_`-prefixed = public/bundled, unprefixed = server-only).
 - Phone codes need a Supabase SMS provider; until one is set up, phone
   attempts show a plain "use your email" message. Email codes need
   `{{ .Token }}` in the Supabase email templates; the link in the email
-  works either way.
+  works either way. `supabase/templates/sign-in-code.html` is the local
+  template (a model for the hosted one).
+- Batch codes are redeemed by `redeem_invite_code` (keyed by
+  `invite_codes.code`; the table has no `id`). The e2e join test checks the
+  student really lands in the batch.
 
 ## Answer colours
 
@@ -224,6 +228,32 @@ env-var split (`VITE_`-prefixed = public/bundled, unprefixed = server-only).
   RLS-scoped and safe in browser code for the read-only tables above and
   ordinary curriculum reads (subjects, chapters, questions, flashcards).
 
+## End-to-end tests (`e2e/`)
+
+Playwright drives a production build (served by wrangler on
+127.0.0.1:3000) against the **local** Supabase stack from `supabase start`
+with every migration applied. Read `e2e/README.md` before adding tests.
+- Never point them at the hosted project: `e2e/support/env.ts` refuses any
+  non-loopback Supabase URL, `e2e/scripts/build.ts` overrides every `VITE_`
+  value from the tracked `.env`, and the fixtures block outside requests.
+- `e2e/seed.ts` (run before every test run) resets fixed-id curriculum and
+  three accounts (student, screenshot student, instructor). Tests make their
+  own students with the `student` fixture. The local service-role key is for
+  set-up and checks only; what a test verifies must go through the browser or
+  the anon key.
+- `supabase/config.toml` has a local-only block (test phone code for
+  0300 0000001, raised rate limits, email templates, a placeholder SMS
+  provider). Never `supabase config push` it.
+- Ask Florence calls a stub: `tutor-ask` reads `ANTHROPIC_BASE_URL` (unset in
+  production), set in `e2e/supabase/functions.env`.
+- The browser runs in the official Playwright image (version pinned with
+  `@playwright/test`) so screenshots match; update them on purpose with
+  `bun run test:e2e:update` and review the images. Data is relative to the
+  real time; only the browser clock is moved, and only into the past.
+- A new screen worth guarding gets a light and dark screenshot in
+  `e2e/tests/screenshots.e2e.ts`; a new write path gets an RLS case in
+  `e2e/tests/security.e2e.ts`.
+
 ## Exam mode
 
 `/subjects/$subjectId/exam` (route file `subjects/$subjectId_.exam.tsx`,
@@ -257,6 +287,10 @@ review XP once per PKT day. Browser reads go through
 - `bun run lint` — ESLint (flat config, TypeScript + react-hooks +
   react-refresh + Prettier).
 - `bun run build` — production build (Vite + Cloudflare plugin).
+- `bun run test` — Vitest unit tests.
+- `bun run e2e:supabase` then `bun run test:e2e` — the Playwright end-to-end
+  suite against a local Supabase stack (needs Docker); `test:e2e:update`
+  re-records screenshots on purpose. See `e2e/README.md`.
 
 ## Content conventions
 
@@ -283,8 +317,11 @@ review XP once per PKT day. Browser reads go through
 - No payment/subscription layer — access is invite-code gated
   (`invite_codes` table, `internal` vs `external` `student_type`), not
   billed.
-- Automated coverage is currently limited to focused Vitest unit/regression
-  tests; continue to run `bun run test`, `bun run lint`, and `bun run build`.
+- Automated coverage is focused Vitest unit/regression tests plus the
+  Playwright suite in `e2e/` (journeys, RLS checks, screenshots); continue to
+  run `bun run test`, `bun run lint`, and `bun run build`. `bun run lint`
+  already fails on `main` (Prettier formatting in generated files and edge
+  functions); new code should add no errors.
 - `tutor-practice` and `award-badges`/`backfill-question-options` edge
   functions exist but are thinner/ops-oriented; not documented in depth
   here — read them directly before modifying.
