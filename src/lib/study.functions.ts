@@ -410,30 +410,32 @@ export const recordReview = createServerFn({ method: "POST" })
     const userId = context.userId;
     if (!userId) throw new Error("Unauthorized");
 
-    // The card must exist and be approved — no XP for phantom cards.
-    const { data: card } = await supabaseAdmin
-      .from("flashcards")
-      .select("id")
-      .eq("id", data.flashcardId)
-      .eq("status", "approved")
-      .maybeSingle();
+    // The card must exist and be approved — no XP for phantom cards. Both
+    // reads are independent, so they run together to keep each rating quick.
+    const [{ data: card }, { data: prev }] = await Promise.all([
+      supabaseAdmin
+        .from("flashcards")
+        .select("id")
+        .eq("id", data.flashcardId)
+        .eq("status", "approved")
+        .maybeSingle(),
+      supabaseAdmin
+        .from("flashcard_reviews")
+        .select(
+          "reps, lapses, state, stability, difficulty, scheduled_days, elapsed_days, learning_steps, last_review, due_at, next_review_at",
+        )
+        .eq("user_id", userId)
+        .eq("flashcard_id", data.flashcardId)
+        .maybeSingle(),
+    ]);
     if (!card) throw new Error("Flashcard not found");
-
-    const { data: prev } = await supabaseAdmin
-      .from("flashcard_reviews")
-      .select(
-        "reps, lapses, state, stability, difficulty, scheduled_days, elapsed_days, learning_steps, last_review, due_at, next_review_at",
-      )
-      .eq("user_id", userId)
-      .eq("flashcard_id", data.flashcardId)
-      .maybeSingle();
 
     const next: ReviewState = schedule(
       (prev as Partial<ReviewState> | null) ?? null,
       data.rating as Rating,
     );
 
-    await supabaseAdmin.from("flashcard_reviews").upsert(
+    const saveReview = supabaseAdmin.from("flashcard_reviews").upsert(
       {
         user_id: userId,
         flashcard_id: data.flashcardId,
@@ -457,8 +459,14 @@ export const recordReview = createServerFn({ method: "POST" })
     const lastReviewDay = prev?.last_review ? pakistanDate(new Date(prev.last_review)) : null;
     const xpEligible = lastReviewDay === null || lastReviewDay < today;
 
-    await bumpStreak(userId);
-    if (xpEligible) await insertXp(userId, "flashcard");
+    // The review, days in a row and XP touch different tables, so they are
+    // written together rather than one after another.
+    const [{ error: saveError }] = await Promise.all([
+      saveReview,
+      bumpStreak(userId),
+      xpEligible ? insertXp(userId, "flashcard") : null,
+    ]);
+    if (saveError) throw new Error(saveError.message);
 
     return { awardedXp: xpEligible ? XP_AMOUNTS.flashcard : 0 };
   });
