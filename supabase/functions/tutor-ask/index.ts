@@ -105,8 +105,10 @@ CHAPTER NOTES:
 ${notes || "(No notes available for this chapter.)"}
 """`;
 
-    // Call Anthropic
-    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+    // Call Anthropic. ANTHROPIC_BASE_URL is unset in production; the local
+    // end-to-end tests point it at a stub (e2e/stubs/anthropic.ts).
+    const anthropicBase = Deno.env.get("ANTHROPIC_BASE_URL") ?? "https://api.anthropic.com";
+    const anthropicRes = await fetch(`${anthropicBase}/v1/messages`, {
       method: "POST",
       headers: {
         "x-api-key": anthropicKey,
