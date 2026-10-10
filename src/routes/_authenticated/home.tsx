@@ -56,8 +56,8 @@ export function SessionCard({ data }: { data: ProgressPayload }) {
           <>
             <h2 className="mt-2 font-display text-[24px] leading-tight">No chapters yet.</h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              Your teachers are reviewing the first chapters. They'll appear here as soon as
-              they're approved.
+              Your teachers are reviewing the first chapters. They'll appear here as soon as they're
+              approved.
             </p>
           </>
         ) : (
@@ -83,7 +83,10 @@ export function SessionCard({ data }: { data: ProgressPayload }) {
   if (hasReview) {
     headline = `${plan.cardsDue} card${plan.cardsDue === 1 ? "" : "s"}${hasQuiz ? " · 1 quiz" : ""}`;
     const subjects = joinNames(plan.dueSubjects.slice(0, 2).map((s) => shortSubject(s.name)));
-    const tonight = evening && plan.dueSubjects.length === 1 ? " These cards are due today, so tonight is the best time to review them." : "";
+    const tonight =
+      evening && plan.dueSubjects.length === 1
+        ? " These cards are due today, so tonight is the best time to review them."
+        : "";
     detail = `About ${plan.minutes} minutes. ${subjects}.${tonight}`;
   } else if (hasNew) {
     const n = plan.newCards!;

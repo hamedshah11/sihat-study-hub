@@ -8,7 +8,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
 import { Lockup } from "@/components/brand/Lockup";
 import { applyInviteCode } from "@/lib/invite.functions";
-import { getStudentSettings, updateStudentSettings, type StudentSettings } from "@/lib/settings.functions";
+import {
+  getStudentSettings,
+  updateStudentSettings,
+  type StudentSettings,
+} from "@/lib/settings.functions";
 import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
 import { invalidateProgress } from "@/lib/progress-data";
 import { pageTitle } from "@/lib/brand";
@@ -43,7 +47,11 @@ function SettingsPage() {
         .maybeSingle();
       let batch: string | null = null;
       if (profile?.batch_id) {
-        const { data: b } = await supabase.from("batches").select("name").eq("id", profile.batch_id).maybeSingle();
+        const { data: b } = await supabase
+          .from("batches")
+          .select("name")
+          .eq("id", profile.batch_id)
+          .maybeSingle();
         batch = b?.name ?? null;
       }
       return {
@@ -93,7 +101,11 @@ function SettingsPage() {
 
       <Group title="Theme">
         <div className="p-3">
-          <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 rounded-full bg-muted p-1">
+          <div
+            role="radiogroup"
+            aria-label="Theme"
+            className="grid grid-cols-3 rounded-full bg-muted p-1"
+          >
             {(
               [
                 ["light", "Light"],
@@ -124,7 +136,7 @@ function SettingsPage() {
         </div>
       </Group>
 
-      <Group title="Reminders" note="Off until you turn them on, and never more than one a day.">
+      <Group title="Reminders">
         <Row label="Daily reminder" hint="One a day at most">
           <Switch
             checked={settings?.reminderEnabled ?? false}
@@ -157,12 +169,16 @@ function SettingsPage() {
           />
         </Row>
         <p className="px-4 pb-3 text-[12.5px] leading-snug text-muted-foreground">
-          Reminders are being switched on in a coming update. Your choices are saved now.
+          Off until you turn them on, and never more than one a day. Reminders are being switched on
+          in a coming update; your choices are saved now.
         </p>
       </Group>
 
       <Group title="Batch">
-        <Row label="Show me in study circles" hint="Friends in your circle see only whether you studied today">
+        <Row
+          label="Show me in study circles"
+          hint="Friends in your circle see only whether you studied today"
+        >
           <Switch
             checked={settings?.showInCircles ?? false}
             disabled={!settings?.available}
@@ -175,10 +191,14 @@ function SettingsPage() {
 
       <Group title="Account">
         <Row label="Name">
-          <span className="max-w-[55%] truncate text-[14px] text-muted-foreground">{account?.name || "–"}</span>
+          <span className="max-w-[55%] truncate text-[14px] text-muted-foreground">
+            {account?.name || "–"}
+          </span>
         </Row>
         <Row label="Email">
-          <span className="max-w-[60%] truncate text-[14px] text-muted-foreground">{account?.email || "–"}</span>
+          <span className="max-w-[60%] truncate text-[14px] text-muted-foreground">
+            {account?.email || "–"}
+          </span>
         </Row>
         {staff && (
           <Row label="Faculty console">
@@ -197,7 +217,7 @@ function SettingsPage() {
       </button>
 
       <footer className="mt-10 flex flex-col items-center gap-2 text-center">
-        <Lockup height={24} />
+        <Lockup height={30} />
         <p className="text-[12.5px] text-muted-foreground">
           Content reviewed by SIHAT faculty · Version {APP_VERSION}
         </p>
@@ -206,7 +226,15 @@ function SettingsPage() {
   );
 }
 
-function Group({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+function Group({
+  title,
+  note,
+  children,
+}: {
+  title: string;
+  note?: string;
+  children: React.ReactNode;
+}) {
   return (
     <section className="mt-6">
       <h2 className="px-1 text-[13px] font-semibold text-muted-foreground">{title}</h2>
@@ -216,7 +244,15 @@ function Group({ title, note, children }: { title: string; note?: string; childr
   );
 }
 
-function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Row({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex min-h-14 items-center gap-3 px-4 py-2.5">
       <div className="min-w-0 flex-1">
@@ -266,7 +302,10 @@ function BatchRow({ batch }: { batch: string | null }) {
           if (res.ok) {
             toast.success("You've joined your batch.");
             setCode("");
-            await Promise.all([qc.invalidateQueries({ queryKey: ["profile-page"] }), invalidateProgress(qc)]);
+            await Promise.all([
+              qc.invalidateQueries({ queryKey: ["profile-page"] }),
+              invalidateProgress(qc),
+            ]);
           } else toast.error(reasons[res.reason] ?? "That code didn't work.");
         } catch {
           toast.error("That didn't work. Check your connection and try again.");
@@ -278,7 +317,9 @@ function BatchRow({ batch }: { batch: string | null }) {
       <label htmlFor="batch-code" className="text-[14.5px] font-medium">
         Batch code
       </label>
-      <p className="text-[12.5px] text-muted-foreground">From your class coordinator. No college email needed.</p>
+      <p className="text-[12.5px] text-muted-foreground">
+        From your class coordinator. No college email needed.
+      </p>
       <div className="mt-2 flex gap-2">
         <input
           id="batch-code"

@@ -44,7 +44,8 @@ function ReviewSession() {
 
   const subjects = (before ?? snapshot)?.subjects ?? [];
   const chapterSubject = new Map<string, { id: string; name: string }>();
-  for (const s of subjects) for (const c of s.chapters) chapterSubject.set(c.id, { id: s.id, name: s.name });
+  for (const s of subjects)
+    for (const c of s.chapters) chapterSubject.set(c.id, { id: s.id, name: s.name });
 
   const { data: cards, isLoading: loadingCards } = useQuery({
     queryKey: ["review-session-cards", plan?.cardsDue, plan?.newCards?.chapterId],
@@ -187,7 +188,9 @@ function ReviewSession() {
     return (
       <div className="mt-6 rounded-[24px] border bg-card p-6 text-center">
         <h1 className="font-display text-[26px]">Done for today.</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Tomorrow's cards will be ready in the morning.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Tomorrow's cards will be ready in the morning.
+        </p>
         <button
           onClick={exit}
           className="mt-5 h-11 rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"

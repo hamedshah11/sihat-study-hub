@@ -38,9 +38,11 @@ export function AuthShell({
         </div>
         <h1 className="animate-fade-up mt-8 font-display text-[32px] leading-[1.08]">{title}</h1>
         {subtitle && (
-          <p className="animate-fade-up stagger-1 mt-2 text-[15px] leading-relaxed text-muted-foreground">{subtitle}</p>
+          <p className="animate-fade-up stagger-1 mt-2 text-[15px] leading-relaxed text-muted-foreground">
+            {subtitle}
+          </p>
         )}
-        <div className="animate-fade-up stagger-2 mt-6 flex flex-1 flex-col [&_input]:h-12 [&_input]:rounded-2xl [&_input]:border-input [&_input]:bg-card [&_input]:text-[15px]">
+        <div className="animate-fade-up stagger-2 mt-6 flex flex-1 flex-col [&_input]:h-12 [&_input]:rounded-2xl [&_input]:border [&_input]:border-input [&_input]:bg-card [&_input]:text-[15px]">
           {children}
         </div>
         <div className="mt-8 flex justify-center">

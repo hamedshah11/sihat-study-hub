@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 export const Route = createFileRoute("/_authenticated/admin/bulk-generate")({
   head: () => ({
     meta: [
-      { title: "Bulk generate — Sihat Admin" },
+      { title: "Bulk generate · Florence faculty" },
       { name: "description", content: "Generate notes, questions and flashcards for many chapters at once." },
     ],
   }),

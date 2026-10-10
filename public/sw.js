@@ -1,4 +1,4 @@
-/* Sihat service worker — Workbox via CDN.
+/* Florence service worker — Workbox via CDN.
    Bump CACHE_VERSION on every deploy to invalidate old caches. */
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js");
 

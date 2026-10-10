@@ -31,6 +31,7 @@ import { Route as AuthenticatedSubjectsIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedSubjectsSubjectIdRouteImport } from './routes/_authenticated/subjects/$subjectId'
 import { Route as AuthenticatedChaptersChapterIdRouteImport } from './routes/_authenticated/chapters/$chapterId'
+import { Route as AuthenticatedAdminReportsRouteImport } from './routes/_authenticated/admin/reports'
 import { Route as AuthenticatedAdminInviteCodesRouteImport } from './routes/_authenticated/admin/invite-codes'
 import { Route as AuthenticatedAdminDiagnosticsRouteImport } from './routes/_authenticated/admin/diagnostics'
 import { Route as AuthenticatedAdminBulkGenerateRouteImport } from './routes/_authenticated/admin/bulk-generate'
@@ -154,6 +155,12 @@ const AuthenticatedChaptersChapterIdRoute =
     path: '/chapters/$chapterId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminReportsRoute =
+  AuthenticatedAdminReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminInviteCodesRoute =
   AuthenticatedAdminInviteCodesRouteImport.update({
     id: '/invite-codes',
@@ -219,6 +226,7 @@ export interface FileRoutesByFullPath {
   '/admin/bulk-generate': typeof AuthenticatedAdminBulkGenerateRoute
   '/admin/diagnostics': typeof AuthenticatedAdminDiagnosticsRoute
   '/admin/invite-codes': typeof AuthenticatedAdminInviteCodesRoute
+  '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/chapters/$chapterId': typeof AuthenticatedChaptersChapterIdRoute
   '/subjects/$subjectId': typeof AuthenticatedSubjectsSubjectIdRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -248,6 +256,7 @@ export interface FileRoutesByTo {
   '/admin/bulk-generate': typeof AuthenticatedAdminBulkGenerateRoute
   '/admin/diagnostics': typeof AuthenticatedAdminDiagnosticsRoute
   '/admin/invite-codes': typeof AuthenticatedAdminInviteCodesRoute
+  '/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/chapters/$chapterId': typeof AuthenticatedChaptersChapterIdRoute
   '/subjects/$subjectId': typeof AuthenticatedSubjectsSubjectIdRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -280,6 +289,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/bulk-generate': typeof AuthenticatedAdminBulkGenerateRoute
   '/_authenticated/admin/diagnostics': typeof AuthenticatedAdminDiagnosticsRoute
   '/_authenticated/admin/invite-codes': typeof AuthenticatedAdminInviteCodesRoute
+  '/_authenticated/admin/reports': typeof AuthenticatedAdminReportsRoute
   '/_authenticated/chapters/$chapterId': typeof AuthenticatedChaptersChapterIdRoute
   '/_authenticated/subjects/$subjectId': typeof AuthenticatedSubjectsSubjectIdRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -312,6 +322,7 @@ export interface FileRouteTypes {
     | '/admin/bulk-generate'
     | '/admin/diagnostics'
     | '/admin/invite-codes'
+    | '/admin/reports'
     | '/chapters/$chapterId'
     | '/subjects/$subjectId'
     | '/admin/'
@@ -341,6 +352,7 @@ export interface FileRouteTypes {
     | '/admin/bulk-generate'
     | '/admin/diagnostics'
     | '/admin/invite-codes'
+    | '/admin/reports'
     | '/chapters/$chapterId'
     | '/subjects/$subjectId'
     | '/admin'
@@ -372,6 +384,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/bulk-generate'
     | '/_authenticated/admin/diagnostics'
     | '/_authenticated/admin/invite-codes'
+    | '/_authenticated/admin/reports'
     | '/_authenticated/chapters/$chapterId'
     | '/_authenticated/subjects/$subjectId'
     | '/_authenticated/admin/'
@@ -549,6 +562,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChaptersChapterIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/reports': {
+      id: '/_authenticated/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AuthenticatedAdminReportsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/invite-codes': {
       id: '/_authenticated/admin/invite-codes'
       path: '/invite-codes'
@@ -605,6 +625,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminBulkGenerateRoute: typeof AuthenticatedAdminBulkGenerateRoute
   AuthenticatedAdminDiagnosticsRoute: typeof AuthenticatedAdminDiagnosticsRoute
   AuthenticatedAdminInviteCodesRoute: typeof AuthenticatedAdminInviteCodesRoute
+  AuthenticatedAdminReportsRoute: typeof AuthenticatedAdminReportsRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminChaptersChapterIdRoute: typeof AuthenticatedAdminChaptersChapterIdRoute
 }
@@ -613,6 +634,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminBulkGenerateRoute: AuthenticatedAdminBulkGenerateRoute,
   AuthenticatedAdminDiagnosticsRoute: AuthenticatedAdminDiagnosticsRoute,
   AuthenticatedAdminInviteCodesRoute: AuthenticatedAdminInviteCodesRoute,
+  AuthenticatedAdminReportsRoute: AuthenticatedAdminReportsRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminChaptersChapterIdRoute:
     AuthenticatedAdminChaptersChapterIdRoute,

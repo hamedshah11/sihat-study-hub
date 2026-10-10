@@ -49,13 +49,19 @@ async function circleFor(userId: string): Promise<BatchOverview["circle"]> {
     .select("show_in_circles")
     .eq("user_id", userId)
     .maybeSingle();
-  const showInCircles = Boolean((settings as { show_in_circles?: boolean } | null)?.show_in_circles);
+  const showInCircles = Boolean(
+    (settings as { show_in_circles?: boolean } | null)?.show_in_circles,
+  );
   const circleId = (membership as { circle_id?: string } | null)?.circle_id;
   if (!circleId) return { available: true, code: null, members: [], showInCircles };
 
   const [{ data: circle }, { data: rows }] = await Promise.all([
     db.from("study_circles").select("code").eq("id", circleId).maybeSingle(),
-    db.from("study_circle_members").select("user_id, joined_at").eq("circle_id", circleId).order("joined_at"),
+    db
+      .from("study_circle_members")
+      .select("user_id, joined_at")
+      .eq("circle_id", circleId)
+      .order("joined_at"),
   ]);
   const ids = ((rows ?? []) as { user_id: string }[]).map((r) => r.user_id);
   const [{ data: profiles }, { data: visible }, { data: activity }] = await Promise.all([
@@ -67,7 +73,9 @@ async function circleFor(userId: string): Promise<BatchOverview["circle"]> {
       .in("user_id", ids)
       .gte("occurred_at", studyDayStart(studyDay())),
   ]);
-  const nameOf = new Map((profiles ?? []).map((p) => [p.id, (p.display_name ?? "").trim().split(/\s+/)[0] || "Friend"]));
+  const nameOf = new Map(
+    (profiles ?? []).map((p) => [p.id, (p.display_name ?? "").trim().split(/\s+/)[0] || "Friend"]),
+  );
   const shows = new Set(
     ((visible ?? []) as { user_id: string; show_in_circles: boolean }[])
       .filter((v) => v.show_in_circles)
@@ -100,7 +108,14 @@ export const getBatchOverview = createServerFn({ method: "GET" })
       .maybeSingle();
     const circle = await circleFor(userId);
     if (!profile?.batch_id) {
-      return { batchName: null, programmeName: null, students: 0, reviewsThisWeek: 0, hardestSubject: null, circle };
+      return {
+        batchName: null,
+        programmeName: null,
+        students: 0,
+        reviewsThisWeek: 0,
+        hardestSubject: null,
+        circle,
+      };
     }
 
     const { data: batch } = await supabaseAdmin
@@ -187,9 +202,12 @@ function newCode() {
 async function optIn(userId: string) {
   await db
     .from("student_settings")
-    .upsert({ user_id: userId, show_in_circles: true, updated_at: new Date().toISOString() } as never, {
-      onConflict: "user_id",
-    });
+    .upsert(
+      { user_id: userId, show_in_circles: true, updated_at: new Date().toISOString() } as never,
+      {
+        onConflict: "user_id",
+      },
+    );
 }
 
 export const createCircle = createServerFn({ method: "POST" })
@@ -225,20 +243,34 @@ export const createCircle = createServerFn({ method: "POST" })
 export const joinCircle = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
-    z.object({ code: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{6}$/) }).parse(data),
+    z
+      .object({
+        code: z
+          .string()
+          .trim()
+          .toUpperCase()
+          .regex(/^[A-Z0-9]{6}$/),
+      })
+      .parse(data),
   )
   .handler(async ({ data, context }) => {
     const userId = context.userId;
     if (!userId) throw new Error("Unauthorized");
-    const { data: circle, error } = await db.from("study_circles").select("id").eq("code", data.code).maybeSingle();
+    const { data: circle, error } = await db
+      .from("study_circles")
+      .select("id")
+      .eq("code", data.code)
+      .maybeSingle();
     if (error) return { ok: false as const, reason: "unavailable" as const };
     if (!circle) return { ok: false as const, reason: "not_found" as const };
     const { error: joinError } = await db
       .from("study_circle_members")
       .insert({ circle_id: (circle as { id: string }).id, user_id: userId } as never);
     if (joinError) {
-      if (joinError.message.includes("circle_full")) return { ok: false as const, reason: "full" as const };
-      if (joinError.code === "23505") return { ok: false as const, reason: "already_in_circle" as const };
+      if (joinError.message.includes("circle_full"))
+        return { ok: false as const, reason: "full" as const };
+      if (joinError.code === "23505")
+        return { ok: false as const, reason: "already_in_circle" as const };
       return { ok: false as const, reason: "unavailable" as const };
     }
     await optIn(userId);

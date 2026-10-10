@@ -76,7 +76,8 @@ export const previewBatchCode = createServerFn({ method: "POST" })
       .eq("code", data.code.trim())
       .maybeSingle();
     if (!invite?.batch_id) return { ok: false, reason: "not_found" };
-    if (invite.expires_at && Date.parse(invite.expires_at) < Date.now()) return { ok: false, reason: "expired" };
+    if (invite.expires_at && Date.parse(invite.expires_at) < Date.now())
+      return { ok: false, reason: "expired" };
     if (invite.max_uses != null && (invite.used_count ?? 0) >= invite.max_uses) {
       return { ok: false, reason: "exhausted" };
     }
@@ -91,7 +92,11 @@ export const previewBatchCode = createServerFn({ method: "POST" })
         ? supabaseAdmin.from("programs").select("name").eq("id", batch.program_id).maybeSingle()
         : Promise.resolve({ data: null }),
       batch.current_semester_id
-        ? supabaseAdmin.from("semesters").select("name").eq("id", batch.current_semester_id).maybeSingle()
+        ? supabaseAdmin
+            .from("semesters")
+            .select("name")
+            .eq("id", batch.current_semester_id)
+            .maybeSingle()
         : Promise.resolve({ data: null }),
       batch.current_semester_id
         ? supabaseAdmin.from("subjects").select("id").eq("semester_id", batch.current_semester_id)

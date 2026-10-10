@@ -36,7 +36,12 @@ type QuizResult = {
   awardedXp: number;
   review: QuizReview[];
 };
-type Feedback = { correct: boolean; correctIndex: number; explanation: string | null; selectedIndex: number };
+type Feedback = {
+  correct: boolean;
+  correctIndex: number;
+  explanation: string | null;
+  selectedIndex: number;
+};
 
 export type QuizOutcome = { score: number; total: number };
 
@@ -176,7 +181,9 @@ function QuizRunner({
     if (instant && !feedback) {
       setBusy(true);
       try {
-        const res = await check({ data: { quizId, questionId: question.id, selectedIndex: selected } });
+        const res = await check({
+          data: { quizId, questionId: question.id, selectedIndex: selected },
+        });
         if (res.available) {
           setFeedback({
             correct: res.correct,
@@ -218,7 +225,9 @@ function QuizRunner({
         chapterId={chapterId}
         before={before}
         after={freshAfter}
-        onDone={() => (onComplete ? onComplete({ score: result.score, total: result.total }) : onExit())}
+        onDone={() =>
+          onComplete ? onComplete({ score: result.score, total: result.total }) : onExit()
+        }
       />
     );
   }
@@ -268,7 +277,10 @@ function QuizRunner({
               onClick={() => setSelected(i)}
               className={cn(
                 "flex min-h-[56px] w-full items-center gap-3 rounded-2xl border bg-card px-3.5 py-3 text-left text-[16px] leading-snug transition-colors disabled:cursor-default",
-                !feedback && (isPicked ? "border-foreground ring-1 ring-foreground" : "border-border-strong/70"),
+                !feedback &&
+                  (isPicked
+                    ? "border-foreground ring-1 ring-foreground"
+                    : "border-border-strong/70"),
                 isCorrect && "border-success ring-1 ring-success",
                 isWrongPick && "border-destructive ring-1 ring-destructive",
                 feedback && !isCorrect && !isWrongPick && "border-border opacity-70",
@@ -277,7 +289,9 @@ function QuizRunner({
               <span
                 className={cn(
                   "fl-number grid size-7 shrink-0 place-items-center rounded-lg text-[12px]",
-                  isPicked && !feedback ? "bg-foreground text-background" : "bg-muted text-muted-foreground",
+                  isPicked && !feedback
+                    ? "bg-foreground text-background"
+                    : "bg-muted text-muted-foreground",
                 )}
               >
                 {optionLetter(i)}
@@ -300,16 +314,23 @@ function QuizRunner({
 
       {feedback && (
         <div className="animate-fade-up mt-4 rounded-2xl bg-muted px-4 py-3" aria-live="polite">
-          <p className="text-[14px] font-semibold">{feedback.correct ? "That's right." : "Not quite."}</p>
+          <p className="text-[14px] font-semibold">
+            {feedback.correct ? "That's right." : "Not quite."}
+          </p>
           {feedback.explanation && (
-            <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{feedback.explanation}</p>
+            <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
+              {feedback.explanation}
+            </p>
           )}
           <ReportProblem kind="question" itemId={question.id} className="-mb-2" />
         </div>
       )}
 
       {saveError && (
-        <p role="alert" className="mt-4 rounded-xl bg-destructive-bg px-4 py-3 text-[13.5px] text-destructive-ink">
+        <p
+          role="alert"
+          className="mt-4 rounded-xl bg-destructive-bg px-4 py-3 text-[13.5px] text-destructive-ink"
+        >
           {saveError}
         </p>
       )}
@@ -378,7 +399,9 @@ function QuizResults({
             key={a.questionId}
             className={cn(
               "grid size-9 place-items-center rounded-full border-2",
-              a.correct ? "border-success bg-success-bg text-success-ink" : "border-destructive bg-destructive-bg text-destructive-ink",
+              a.correct
+                ? "border-success bg-success-bg text-success-ink"
+                : "border-destructive bg-destructive-bg text-destructive-ink",
             )}
           >
             {a.correct ? <Check className="size-4" /> : <X className="size-4" />}
@@ -393,7 +416,9 @@ function QuizResults({
           <>
             {now.title}:{" "}
             <span className="fl-number text-foreground">
-              {was && was.percent !== now.percent ? `${was.percent}% to ${now.percent}%` : `${now.percent}%`}
+              {was && was.percent !== now.percent
+                ? `${was.percent}% to ${now.percent}%`
+                : `${now.percent}%`}
             </span>
           </>
         ) : (
@@ -411,9 +436,13 @@ function QuizResults({
               <div key={a.questionId} className="rounded-2xl border bg-card p-4">
                 <p className="text-[15px] font-semibold leading-snug">{a.prompt}</p>
                 <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
-                  You chose {a.options[a.selectedIndex] ? `“${a.options[a.selectedIndex]}”` : "another option"}. The
-                  answer is <span className="font-semibold text-foreground">{a.options[a.correctIndex]}</span>.
-                  {a.explanation ? ` ${a.explanation}` : ""}
+                  You chose{" "}
+                  {a.options[a.selectedIndex]
+                    ? `“${a.options[a.selectedIndex]}”`
+                    : "another option"}
+                  . The answer is{" "}
+                  <span className="font-semibold text-foreground">{a.options[a.correctIndex]}</span>
+                  .{a.explanation ? ` ${a.explanation}` : ""}
                 </p>
               </div>
             ))}
@@ -436,7 +465,9 @@ function QuizResults({
           onClick={onDone}
           className={cn(
             "h-[52px] w-full rounded-full text-[15px] font-semibold",
-            missed.length > 0 ? "border border-border-strong" : "bg-primary text-primary-foreground",
+            missed.length > 0
+              ? "border border-border-strong"
+              : "bg-primary text-primary-foreground",
           )}
         >
           Done
@@ -454,8 +485,16 @@ function PractiseMissed({ questions, onDone }: { questions: QuizReview[]; onDone
   const last = index + 1 >= questions.length;
   return (
     <div className="flex min-h-[calc(100dvh-2rem)] flex-col pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <SessionHeader title="Practice" position={index + 1} total={questions.length} onExit={onDone} exitLabel="Back to results" />
-      <p className="mt-6 text-[12.5px] font-semibold text-muted-foreground">Try it again. This one isn't scored.</p>
+      <SessionHeader
+        title="Practice"
+        position={index + 1}
+        total={questions.length}
+        onExit={onDone}
+        exitLabel="Back to results"
+      />
+      <p className="mt-6 text-[12.5px] font-semibold text-muted-foreground">
+        Try it again. This one isn't scored.
+      </p>
       <h2 className="fl-question mt-2">{q.prompt}</h2>
       <div className="mt-5 space-y-2.5">
         {q.options.map((option, i) => {
@@ -479,15 +518,21 @@ function PractiseMissed({ questions, onDone }: { questions: QuizReview[]; onDone
                 {optionLetter(i)}
               </span>
               <span className="flex-1">{option}</span>
-              {show && correct && <Check className="size-4 text-success-ink" aria-label="Correct answer" />}
+              {show && correct && (
+                <Check className="size-4 text-success-ink" aria-label="Correct answer" />
+              )}
             </button>
           );
         })}
       </div>
       {picked !== null && (
         <div className="animate-fade-up mt-4 rounded-2xl bg-muted px-4 py-3">
-          <p className="text-[14px] font-semibold">{picked === q.correctIndex ? "That's right." : "Not quite."}</p>
-          {q.explanation && <p className="mt-1 text-[14px] text-muted-foreground">{q.explanation}</p>}
+          <p className="text-[14px] font-semibold">
+            {picked === q.correctIndex ? "That's right." : "Not quite."}
+          </p>
+          {q.explanation && (
+            <p className="mt-1 text-[14px] text-muted-foreground">{q.explanation}</p>
+          )}
         </div>
       )}
       <div className="mt-auto pt-6">

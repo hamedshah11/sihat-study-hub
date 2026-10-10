@@ -37,12 +37,19 @@ function Welcome() {
     <div className="flex min-h-dvh flex-col bg-background">
       <section className="dark relative flex min-h-[52dvh] flex-col items-center justify-center overflow-hidden bg-night px-6 pb-10 pt-[max(2.5rem,env(safe-area-inset-top))] text-linen">
         <div aria-hidden className="lamp-glow absolute inset-0" />
-        <Lockup layout="stacked" height={30} variant="night" className="animate-scale-in relative" />
+        <Lockup
+          layout="stacked"
+          height={30}
+          variant="night"
+          className="animate-scale-in relative"
+        />
         <p className="relative mt-6 text-[13.5px] text-mist">{BRAND.tagline}</p>
       </section>
 
       <section className="mx-auto flex w-full max-w-[440px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-8">
-        <h1 className="animate-fade-up font-display text-[32px] leading-[1.08]">Welcome to Florence.</h1>
+        <h1 className="animate-fade-up font-display text-[32px] leading-[1.08]">
+          Welcome to Florence.
+        </h1>
         <p className="animate-fade-up stagger-1 mt-2 text-[15px] leading-relaxed text-muted-foreground">
           Short daily reviews for your BSN subjects, checked by your college's teachers.
         </p>
@@ -57,7 +64,8 @@ function Welcome() {
             Your class coordinator gives you this code. No college email needed.
           </p>
           <div className="my-5 flex items-center gap-3 text-[12.5px] text-muted-foreground">
-            <span className="h-px flex-1 bg-border" /> Already joined? <span className="h-px flex-1 bg-border" />
+            <span className="h-px flex-1 bg-border" /> Already joined?{" "}
+            <span className="h-px flex-1 bg-border" />
           </div>
           <Link
             to="/login"

@@ -37,7 +37,8 @@ function ProgressPage() {
         daysStudied: data.daysStudied,
       });
       const how = await shareRose(blob);
-      if (how === "downloaded") toast.success("Your rose card is saved. Share it from your photos.");
+      if (how === "downloaded")
+        toast.success("Your rose card is saved. Share it from your photos.");
     } catch (e) {
       if ((e as Error)?.name !== "AbortError") toast.error("The card didn't save. Try again.");
     } finally {
@@ -76,8 +77,8 @@ function ProgressPage() {
           <ProgressRose petals={data.subjects} size={240} interactive glow />
         </div>
         <p className="mt-2 text-center text-[13.5px] leading-snug text-mist">
-          Each petal is a subject. A longer petal means you remember more of that subject's cards and do
-          better on its quizzes, across the chapters you've started.
+          Each petal is a subject. A longer petal means you remember more of that subject's cards
+          and do better on its quizzes, across the chapters you've started.
         </p>
       </section>
 
@@ -96,11 +97,13 @@ function ProgressPage() {
             />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-semibold">{s.name}</span>
-              <span className="block text-[12.5px] text-muted-foreground">
-                {s.chaptersStarted} of {s.chaptersTotal} chapters started
+              <span className="mt-1 flex flex-wrap items-center gap-2">
+                <StatusChip state={s.state} />
+                <span className="text-[12.5px] text-muted-foreground">
+                  {s.chaptersStarted} of {s.chaptersTotal} started
+                </span>
               </span>
             </span>
-            <StatusChip state={s.state} className="hidden min-[380px]:inline-flex" />
             <span className="fl-number w-11 shrink-0 text-right text-[14px]">
               {s.mastery == null ? "–" : `${s.percent}%`}
             </span>
@@ -115,12 +118,13 @@ function ProgressPage() {
         </summary>
         <div className="mt-2 space-y-2 leading-relaxed">
           <p>
-            A subject's number combines how well you'd recall its cards today (60%) with your recent quiz scores
-            (40%), across the chapters you've started. Chapters you haven't started don't count against you.
+            A subject's number combines how well you'd recall its cards today (60%) with your recent
+            quiz scores (40%), across the chapters you've started. Chapters you haven't started
+            don't count against you.
           </p>
           <p>
-            Petals can shrink if you stop reviewing, and grow back when you return. "In bloom" needs 80% or more,
-            at least two quizzes and two weeks of study in that subject.
+            Petals can shrink if you stop reviewing, and grow back when you return. "In bloom" needs
+            80% or more, at least two quizzes and two weeks of study in that subject.
           </p>
         </div>
       </details>

@@ -1,7 +1,14 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { petalColour } from "@/lib/subject-colours";
 import { STATE_LABEL, type PetalState } from "@/lib/mastery";
-import { petalPath, ROSE_CENTRE, ROSE_FULL, ROSE_INNER, ROSE_STROKE, rosePetalLength } from "./rose-geometry";
+import {
+  petalPath,
+  ROSE_CENTRE,
+  ROSE_FULL,
+  ROSE_INNER,
+  ROSE_STROKE,
+  rosePetalLength,
+} from "./rose-geometry";
 import { cn } from "@/lib/utils";
 
 export type RosePetal = {
@@ -106,7 +113,14 @@ function Petal({
       strokeLinejoin="round"
     >
       <path d={ring} fill="var(--rose-ring)" stroke="var(--rose-ring)" />
-      {fill && <path d={fill} fill={colour} stroke={colour} opacity={selected || !interactive ? 1 : 0.95} />}
+      {fill && (
+        <path
+          d={fill}
+          fill={colour}
+          stroke={colour}
+          opacity={selected || !interactive ? 1 : 0.95}
+        />
+      )}
     </g>
   );
 }
@@ -182,12 +196,17 @@ export function ProgressRose({
         <circle cx="50" cy="50" r={ROSE_CENTRE} fill="#F4B23E" />
       </svg>
       {interactive && petals.length > 0 && (
-        <figcaption className="mt-3 min-h-5 text-center text-[13px] text-muted-foreground" aria-live="polite">
+        <figcaption
+          className="mt-3 min-h-5 text-center text-[13px] text-muted-foreground"
+          aria-live="polite"
+        >
           {selected ? (
             <>
               <span className="font-semibold text-foreground">{selected.name}</span>
               {" · "}
-              {selected.mastery == null ? "Not started" : `${selected.percent}% · ${STATE_LABEL[selected.state]}`}
+              {selected.mastery == null
+                ? "Not started"
+                : `${selected.percent}% · ${STATE_LABEL[selected.state]}`}
             </>
           ) : (
             "Tap a petal to see its subject."

@@ -29,7 +29,12 @@ export type StudentContext = {
   college: string;
 };
 
-export type EarlierSubject = { id: string; name: string; colour: string | null; semesterName: string };
+export type EarlierSubject = {
+  id: string;
+  name: string;
+  colour: string | null;
+  semesterName: string;
+};
 
 export type ProgressPayload = ProgressSnapshot & {
   student: StudentContext;
@@ -76,7 +81,10 @@ const PAGE = 1000;
 
 /** PostgREST caps responses at 1,000 rows; page through bigger reads. */
 async function fetchAll<T>(
-  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  page: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
   max = 20_000,
 ): Promise<T[]> {
   const rows: T[] = [];
@@ -133,8 +141,11 @@ export const getProgressSnapshot = createServerFn({ method: "GET" })
       .eq("id", userId)
       .maybeSingle();
 
-    let batch: { name: string; current_semester_id: string | null; program_id: string | null } | null =
-      null;
+    let batch: {
+      name: string;
+      current_semester_id: string | null;
+      program_id: string | null;
+    } | null = null;
     if (profile?.batch_id) {
       const { data } = await supabaseAdmin
         .from("batches")
@@ -145,7 +156,11 @@ export const getProgressSnapshot = createServerFn({ method: "GET" })
     }
     const [{ data: semester }, { data: programme }] = await Promise.all([
       batch?.current_semester_id
-        ? supabaseAdmin.from("semesters").select("name").eq("id", batch.current_semester_id).maybeSingle()
+        ? supabaseAdmin
+            .from("semesters")
+            .select("name")
+            .eq("id", batch.current_semester_id)
+            .maybeSingle()
         : Promise.resolve({ data: null }),
       batch?.program_id
         ? supabaseAdmin.from("programs").select("name").eq("id", batch.program_id).maybeSingle()
@@ -159,14 +174,15 @@ export const getProgressSnapshot = createServerFn({ method: "GET" })
     const subjectIds = subjects.map((s) => s.id);
 
     const chapters: RawChapter[] = subjectIds.length
-      ? await fetchAll<RawChapter>((from, to) =>
-          supabaseAdmin
-            .from("chapters")
-            .select("id, title, subject_id, display_order")
-            .in("subject_id", subjectIds)
-            .eq("status", "published")
-            .order("display_order", { ascending: true })
-            .range(from, to) as never,
+      ? await fetchAll<RawChapter>(
+          (from, to) =>
+            supabaseAdmin
+              .from("chapters")
+              .select("id, title, subject_id, display_order")
+              .in("subject_id", subjectIds)
+              .eq("status", "published")
+              .order("display_order", { ascending: true })
+              .range(from, to) as never,
         )
       : [];
     const chapterIds = chapters.map((c) => c.id);
@@ -175,21 +191,23 @@ export const getProgressSnapshot = createServerFn({ method: "GET" })
     const questionCounts = new Map<string, number>();
     for (const ids of chunks(chapterIds)) {
       const [chapterCards, questions] = await Promise.all([
-        fetchAll<{ id: string; chapter_id: string }>((from, to) =>
-          supabaseAdmin
-            .from("flashcards")
-            .select("id, chapter_id")
-            .in("chapter_id", ids)
-            .eq("status", "approved")
-            .range(from, to) as never,
+        fetchAll<{ id: string; chapter_id: string }>(
+          (from, to) =>
+            supabaseAdmin
+              .from("flashcards")
+              .select("id, chapter_id")
+              .in("chapter_id", ids)
+              .eq("status", "approved")
+              .range(from, to) as never,
         ),
-        fetchAll<{ chapter_id: string }>((from, to) =>
-          supabaseAdmin
-            .from("questions")
-            .select("chapter_id")
-            .in("chapter_id", ids)
-            .eq("status", "approved")
-            .range(from, to) as never,
+        fetchAll<{ chapter_id: string }>(
+          (from, to) =>
+            supabaseAdmin
+              .from("questions")
+              .select("chapter_id")
+              .in("chapter_id", ids)
+              .eq("status", "approved")
+              .range(from, to) as never,
         ),
       ]);
       cards.push(...chapterCards);
@@ -199,28 +217,31 @@ export const getProgressSnapshot = createServerFn({ method: "GET" })
     }
 
     const [reviews, progress, quizAttempts, streakResult, activity] = await Promise.all([
-      fetchAll<RawReview>((from, to) =>
-        supabaseAdmin
-          .from("flashcard_reviews")
-          .select(
-            "flashcard_id, reps, lapses, state, stability, difficulty, scheduled_days, elapsed_days, learning_steps, last_review, due_at, next_review_at",
-          )
-          .eq("user_id", userId)
-          .range(from, to) as never,
+      fetchAll<RawReview>(
+        (from, to) =>
+          supabaseAdmin
+            .from("flashcard_reviews")
+            .select(
+              "flashcard_id, reps, lapses, state, stability, difficulty, scheduled_days, elapsed_days, learning_steps, last_review, due_at, next_review_at",
+            )
+            .eq("user_id", userId)
+            .range(from, to) as never,
       ),
-      fetchAll<RawProgress>((from, to) =>
-        supabaseAdmin
-          .from("chapter_progress")
-          .select("chapter_id, mastery_score, attempts, last_attempt_at")
-          .eq("user_id", userId)
-          .range(from, to) as never,
+      fetchAll<RawProgress>(
+        (from, to) =>
+          supabaseAdmin
+            .from("chapter_progress")
+            .select("chapter_id, mastery_score, attempts, last_attempt_at")
+            .eq("user_id", userId)
+            .range(from, to) as never,
       ),
-      fetchAll<RawQuizAttempt>((from, to) =>
-        supabaseAdmin
-          .from("quiz_attempts")
-          .select("chapter_id, attempted_at")
-          .eq("user_id", userId)
-          .range(from, to) as never,
+      fetchAll<RawQuizAttempt>(
+        (from, to) =>
+          supabaseAdmin
+            .from("quiz_attempts")
+            .select("chapter_id, attempted_at")
+            .eq("user_id", userId)
+            .range(from, to) as never,
       ),
       supabaseAdmin
         .from("streaks")

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/admin")({
-  head: () => ({ meta: [{ title: "Admin — Sihat" }] }),
+  head: () => ({ meta: [{ title: "Faculty · Florence" }] }),
   component: AdminLayout,
 });
 
@@ -13,7 +13,9 @@ function AdminLayout() {
   const { data, isLoading } = useQuery({
     queryKey: ["admin-gate-role"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return { role: null as string | null };
       const { data: profile } = await supabase
         .from("profiles")
@@ -52,8 +54,9 @@ function AdminLayout() {
 function AdminNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const tabs = [
-    { to: "/admin", label: "Dashboard", exact: true },
-    { to: "/admin/invite-codes", label: "Invite codes" },
+    { to: "/admin", label: "Chapters", exact: true },
+    { to: "/admin/reports", label: "Reported by students" },
+    { to: "/admin/invite-codes", label: "Batch codes" },
     { to: "/admin/diagnostics", label: "Diagnostics" },
   ] as const;
   const isActive = (t: { to: string; exact?: boolean }) =>
@@ -67,8 +70,8 @@ function AdminNav() {
           className={
             "rounded-lg px-3 py-1.5 text-sm transition-colors " +
             (isActive(t)
-              ? "bg-accent text-accent-foreground"
-              : "text-muted-foreground hover:bg-secondary")
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-muted")
           }
         >
           {t.label}

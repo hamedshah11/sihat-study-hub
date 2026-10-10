@@ -38,12 +38,21 @@ function HowProgressWorks() {
       <div className="lamp-glow mx-auto flex w-full max-w-[480px] flex-1 flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
         <p className="text-[13px] font-semibold text-mist">How progress works</p>
         <div className="mt-6 flex justify-center">
-          <ProgressRose petals={data?.subjects.length ? data.subjects.map((s, i) => ({ ...s, mastery: SAMPLE[i % 6].mastery })) : SAMPLE} size={220} glow title="An example progress rose" />
+          <ProgressRose
+            petals={
+              data?.subjects.length
+                ? data.subjects.map((s, i) => ({ ...s, mastery: SAMPLE[i % 6].mastery }))
+                : SAMPLE
+            }
+            size={220}
+            glow
+            title="An example progress rose"
+          />
         </div>
         <h1 className="mt-8 font-display text-[32px] leading-[1.08]">Each petal is a subject.</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-linen/85">
-          A longer petal means you remember more of that subject's cards and do better on its quizzes. Petals can
-          shrink if you stop reviewing, and grow back when you return.
+          A longer petal means you remember more of that subject's cards and do better on its
+          quizzes. Petals can shrink if you stop reviewing, and grow back when you return.
         </p>
         <div className="mt-auto pt-10">
           <Link
@@ -52,8 +61,13 @@ function HowProgressWorks() {
           >
             Start my first review · {minutes} min
           </Link>
-          <p className="mt-3 text-center text-[13px] text-mist">Tap any petal later to see its subject.</p>
-          <Link to="/home" className="mt-1 flex min-h-11 items-center justify-center text-[14px] font-semibold text-linen/80">
+          <p className="mt-3 text-center text-[13px] text-mist">
+            Tap any petal later to see its subject.
+          </p>
+          <Link
+            to="/home"
+            className="mt-1 flex min-h-11 items-center justify-center text-[14px] font-semibold text-linen/80"
+          >
             Not now
           </Link>
         </div>

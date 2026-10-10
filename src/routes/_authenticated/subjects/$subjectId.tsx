@@ -90,7 +90,9 @@ function SubjectDetail() {
               params={{ chapterId: c.id }}
               className="flex min-h-[64px] items-center gap-3 rounded-[20px] border bg-card px-4 py-3"
             >
-              <span className="fl-number w-5 shrink-0 text-[13px] text-muted-foreground">{c.display_order ?? i + 1}</span>
+              <span className="fl-number w-5 shrink-0 text-[13px] text-muted-foreground">
+                {c.display_order ?? i + 1}
+              </span>
               <span className="min-w-0 flex-1 text-[15px] font-semibold">{c.title}</span>
               <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
             </Link>
@@ -106,7 +108,9 @@ function SubjectDetail() {
       <SubjectTitle name={subject.name} colour={subject.colour} index={subject.index} />
       <div className="mt-2 flex items-center gap-2">
         <StatusChip state={subject.state} />
-        {subject.mastery != null && <span className="fl-number text-[14px]">{subject.percent}%</span>}
+        {subject.mastery != null && (
+          <span className="fl-number text-[14px]">{subject.percent}%</span>
+        )}
         <span className="text-[13px] text-muted-foreground">
           · {subject.chaptersStarted} of {subject.chaptersTotal} chapters started
         </span>
@@ -127,7 +131,9 @@ function SubjectDetail() {
             search={{ tab: tabFor(c.action) }}
             className={`animate-fade-up stagger-${Math.min(i + 1, 6)} flex min-h-[72px] items-center gap-3 rounded-[20px] border bg-card px-4 py-3`}
           >
-            <span className="fl-number w-5 shrink-0 text-[13px] text-muted-foreground">{c.order}</span>
+            <span className="fl-number w-5 shrink-0 text-[13px] text-muted-foreground">
+              {c.order}
+            </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] font-semibold leading-snug">{c.title}</span>
               <span className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -143,7 +149,9 @@ function SubjectDetail() {
                 </span>
               </span>
             </span>
-            <span className="fl-number shrink-0 text-[14px]">{c.mastery == null ? "" : `${c.percent}%`}</span>
+            <span className="fl-number shrink-0 text-[14px]">
+              {c.mastery == null ? "" : `${c.percent}%`}
+            </span>
             <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
         ))}
@@ -170,10 +178,22 @@ function SubjectDetail() {
   );
 }
 
-function SubjectTitle({ name, colour, index }: { name: string; colour: string | null; index: number }) {
+function SubjectTitle({
+  name,
+  colour,
+  index,
+}: {
+  name: string;
+  colour: string | null;
+  index: number;
+}) {
   return (
     <div className="mt-2 flex items-center gap-3">
-      <span aria-hidden className="h-9 w-1.5 rounded-full" style={{ backgroundColor: petalColour(colour, index) }} />
+      <span
+        aria-hidden
+        className="h-9 w-1.5 rounded-full"
+        style={{ backgroundColor: petalColour(colour, index) }}
+      />
       <h1 className="font-display text-[28px] leading-tight md:text-[34px]">{name}</h1>
     </div>
   );

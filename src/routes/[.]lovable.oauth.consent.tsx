@@ -81,9 +81,9 @@ function Consent() {
   return (
     <main className="mx-auto max-w-md p-6 space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Connect {clientName} to Sihat</h1>
+        <h1 className="text-xl font-semibold">Connect {clientName} to Florence</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          This lets {clientName} use Sihat as you. It can read approved study
+          This lets {clientName} use Florence as you. It can read approved study
           notes, flashcards, and your progress — subject to your account's
           permissions.
         </p>
@@ -110,7 +110,7 @@ function Consent() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Approving does not bypass Sihat's own permissions or role checks.
+        Approving does not bypass Florence's own permissions or role checks.
       </p>
     </main>
   );

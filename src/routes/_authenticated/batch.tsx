@@ -7,7 +7,13 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TopBar } from "@/components/TopBar";
 import { useProgress } from "@/lib/progress-data";
-import { createCircle, getBatchOverview, joinCircle, leaveCircle, type BatchOverview } from "@/lib/batch.functions";
+import {
+  createCircle,
+  getBatchOverview,
+  joinCircle,
+  leaveCircle,
+  type BatchOverview,
+} from "@/lib/batch.functions";
 import { FOUNDING_PARTNER, pageTitle } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +32,11 @@ const BATCH_KEY = ["batch-overview"] as const;
 function BatchPage() {
   const { data: progress } = useProgress();
   const load = useServerFn(getBatchOverview);
-  const { data, isLoading } = useQuery({ queryKey: BATCH_KEY, queryFn: () => load(), staleTime: 60_000 });
+  const { data, isLoading } = useQuery({
+    queryKey: BATCH_KEY,
+    queryFn: () => load(),
+    staleTime: 60_000,
+  });
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-4">
@@ -35,7 +45,11 @@ function BatchPage() {
         <h1 className="font-display text-[30px] leading-tight md:text-[36px]">Your batch</h1>
         {data?.batchName && (
           <p className="mt-0.5 text-[13.5px] text-muted-foreground">
-            {[data.programmeName ?? data.batchName, FOUNDING_PARTNER.short, data.students ? `${data.students} students` : null]
+            {[
+              data.programmeName ?? data.batchName,
+              FOUNDING_PARTNER.short,
+              data.students ? `${data.students} students` : null,
+            ]
               .filter(Boolean)
               .join(" · ")}
           </p>
@@ -65,7 +79,8 @@ function BatchPage() {
         <section className="dark animate-fade-up stagger-1 rounded-[24px] bg-night p-5 text-linen">
           <p className="text-[13px] font-semibold text-mist">This week, together</p>
           <p className="mt-1 font-display text-[34px] leading-tight text-lamp">
-            {data.reviewsThisWeek.toLocaleString("en-GB")} review{data.reviewsThisWeek === 1 ? "" : "s"}
+            {data.reviewsThisWeek.toLocaleString("en-GB")} review
+            {data.reviewsThisWeek === 1 ? "" : "s"}
           </p>
           <p className="mt-1 text-[14px] leading-snug text-linen/85">
             {data.hardestSubject
@@ -92,7 +107,11 @@ function BatchPage() {
                 >
                   {d.studied && <Check className="size-4" aria-hidden />}
                 </span>
-                <span className={cn("text-[12px]", d.isToday ? "font-bold" : "text-muted-foreground")}>{d.label}</span>
+                <span
+                  className={cn("text-[12px]", d.isToday ? "font-bold" : "text-muted-foreground")}
+                >
+                  {d.label}
+                </span>
                 <span className="sr-only">{d.studied ? "studied" : "not studied"}</span>
               </div>
             ))}
@@ -152,8 +171,8 @@ function StudyCircle({ circle }: { circle: BatchOverview["circle"] }) {
           <p className="text-[12.5px] text-muted-foreground">Off</p>
         </div>
         <p className="mt-1 text-[13.5px] leading-snug text-muted-foreground">
-          Choose up to five friends to see when each of you studied today. No scores, no rankings. Joining
-          shows your friends whether you studied today, nothing else.
+          Choose up to five friends to see when each of you studied today. No scores, no rankings.
+          Joining shows your friends whether you studied today, nothing else.
         </p>
         {joining ? (
           <form
@@ -233,7 +252,9 @@ function StudyCircle({ circle }: { circle: BatchOverview["circle"] }) {
               {m.isMe && <span className="text-muted-foreground"> (you)</span>}
             </span>
             <span className="text-[13px] text-muted-foreground">
-              {m.studiedToday === null ? "Hidden" : m.studiedToday ? (
+              {m.studiedToday === null ? (
+                "Hidden"
+              ) : m.studiedToday ? (
                 <span className="inline-flex items-center gap-1 font-semibold text-foreground">
                   <Check className="size-4 text-accent-ink" aria-hidden /> Studied
                 </span>

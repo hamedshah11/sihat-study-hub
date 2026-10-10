@@ -71,7 +71,10 @@ export const updateStudentSettings = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const userId = context.userId;
     if (!userId) throw new Error("Unauthorized");
-    const patch: Record<string, unknown> = { user_id: userId, updated_at: new Date().toISOString() };
+    const patch: Record<string, unknown> = {
+      user_id: userId,
+      updated_at: new Date().toISOString(),
+    };
     if (data.showInCircles !== undefined) patch.show_in_circles = data.showInCircles;
     if (data.reminderEnabled !== undefined) patch.reminder_enabled = data.reminderEnabled;
     if (data.reminderTime !== undefined) patch.reminder_time = data.reminderTime;

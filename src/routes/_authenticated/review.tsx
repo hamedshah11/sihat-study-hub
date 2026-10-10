@@ -207,7 +207,9 @@ function ReviewRunner({
         onExit={onExit}
       />
       <div key={q.id} className="animate-fade-up">
-        <p className="mt-6 text-[12.5px] font-semibold text-muted-foreground">You missed this one before</p>
+        <p className="mt-6 text-[12.5px] font-semibold text-muted-foreground">
+          You missed this one before
+        </p>
         <h2 className="fl-question mt-2">{q.prompt}</h2>
         <div className="mt-5 space-y-2.5">
           {q.options.map((opt, i) => {
@@ -248,7 +250,9 @@ function ReviewRunner({
           <div className="animate-fade-up mt-4 rounded-2xl bg-muted px-4 py-3" aria-live="polite">
             <p className="text-[14px] font-semibold">{isRight ? "That's right." : "Not quite."}</p>
             {feedback?.explanation && (
-              <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{feedback.explanation}</p>
+              <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
+                {feedback.explanation}
+              </p>
             )}
             <ReportProblem kind="question" itemId={q.id} className="-mb-2" />
           </div>
@@ -256,7 +260,10 @@ function ReviewRunner({
       </div>
 
       {saveError && (
-        <p role="alert" className="mt-4 rounded-xl bg-destructive-bg px-4 py-3 text-[13.5px] text-destructive-ink">
+        <p
+          role="alert"
+          className="mt-4 rounded-xl bg-destructive-bg px-4 py-3 text-[13.5px] text-destructive-ink"
+        >
           This answer couldn't be checked. Check your connection and try again.
         </p>
       )}

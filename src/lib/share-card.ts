@@ -3,7 +3,13 @@
 // chooses to share it. Drawn on a canvas so the brand fonts (already loaded
 // by the page) are used.
 
-import { petalPath, ROSE_CENTRE, ROSE_FULL, ROSE_INNER, rosePetalLength } from "@/components/brand/rose-geometry";
+import {
+  petalPath,
+  ROSE_CENTRE,
+  ROSE_FULL,
+  ROSE_INNER,
+  rosePetalLength,
+} from "@/components/brand/rose-geometry";
 import { markGeometry } from "@/components/brand/rose-geometry";
 import { petalColour } from "@/lib/subject-colours";
 import type { SubjectSnapshot } from "@/lib/progress-snapshot";
@@ -28,7 +34,8 @@ function drawPath(ctx: CanvasRenderingContext2D, d: string, fill: string) {
 
 function headline(subjects: SubjectSnapshot[]) {
   const started = subjects.filter((s) => s.mastery != null);
-  if (started.length && subjects.every((s) => s.state === "in_bloom")) return ["Fully", "in bloom."];
+  if (started.length && subjects.every((s) => s.state === "in_bloom"))
+    return ["Fully", "in bloom."];
   if (started.length === 0) return ["Just", "planted."];
   return ["Growing,", "petal by petal."];
 }
@@ -71,11 +78,21 @@ export async function renderShareCard(opts: {
     const angle = i * (360 / n);
     const half = 180 / n;
     ctx.lineWidth = 3;
-    drawPath(ctx, petalPath({ angle, halfAngle: half, inner: ROSE_INNER, outer: ROSE_FULL, gap: 3 }), RING);
+    drawPath(
+      ctx,
+      petalPath({ angle, halfAngle: half, inner: ROSE_INNER, outer: ROSE_FULL, gap: 3 }),
+      RING,
+    );
     if (s.mastery != null) {
       drawPath(
         ctx,
-        petalPath({ angle, halfAngle: half, inner: ROSE_INNER, outer: rosePetalLength(s.mastery), gap: 3 }),
+        petalPath({
+          angle,
+          halfAngle: half,
+          inner: ROSE_INNER,
+          outer: rosePetalLength(s.mastery),
+          gap: 3,
+        }),
         petalColour(s.colour, s.index),
       );
     }
@@ -131,7 +148,10 @@ export async function renderShareCard(opts: {
   ctx.fillText("POWERED BY SIHAT", W / 2 - 86, 1866);
 
   return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Could not draw the card"))), "image/png"),
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("Could not draw the card"))),
+      "image/png",
+    ),
   );
 }
 
@@ -140,7 +160,11 @@ export async function shareRose(blob: Blob) {
   const file = new File([blob], "florence-rose.png", { type: "image/png" });
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
   if (nav.canShare?.({ files: [file] })) {
-    await nav.share({ files: [file], title: "My Florence rose", text: "Watch your knowledge bloom." });
+    await nav.share({
+      files: [file],
+      title: "My Florence rose",
+      text: "Watch your knowledge bloom.",
+    });
     return "shared" as const;
   }
   const url = URL.createObjectURL(blob);

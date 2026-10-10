@@ -116,8 +116,8 @@ function JoinBatch() {
     return (
       <AuthShell title="Check your email." back={{ to: "/login", label: "Sign in" }}>
         <p className="text-[15px] leading-relaxed text-muted-foreground">
-          We sent a link to <span className="font-semibold text-foreground">{sentTo}</span>. Open it on this phone to
-          finish joining {found?.batch ?? "your batch"}.
+          We sent a link to <span className="font-semibold text-foreground">{sentTo}</span>. Open it
+          on this phone to finish joining {found?.batch ?? "your batch"}.
         </p>
         <p className="mt-3 text-[13.5px] text-muted-foreground">
           Can't find it? Look in your spam or promotions folder.
@@ -169,7 +169,8 @@ function JoinBatch() {
     <AuthShell title="Join your batch." back={null}>
       <div className="rounded-[20px] border bg-card p-4">
         <p className="flex items-center gap-2 text-[14px] font-semibold">
-          <CheckCircle2 className="size-[18px] text-success-ink" aria-hidden /> Code found. Is this you?
+          <CheckCircle2 className="size-[18px] text-success-ink" aria-hidden /> Code found. Is this
+          you?
         </p>
         <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[14px]">
           <dt className="text-muted-foreground">College</dt>
@@ -180,7 +181,8 @@ function JoinBatch() {
           <dd className="font-medium">{found.semester ?? "To be set"}</dd>
           <dt className="text-muted-foreground">Subjects</dt>
           <dd className="font-medium">
-            {found.subjects}, with {found.chaptersReady} chapter{found.chaptersReady === 1 ? "" : "s"} ready
+            {found.subjects}, with {found.chaptersReady} chapter
+            {found.chaptersReady === 1 ? "" : "s"} ready
           </dd>
         </dl>
       </div>
@@ -190,7 +192,12 @@ function JoinBatch() {
           <label htmlFor={ids.name} className="text-[14px] font-semibold">
             Your name
           </label>
-          <input id={ids.name} name="displayName" autoComplete="name" className="w-full px-4 outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          <input
+            id={ids.name}
+            name="displayName"
+            autoComplete="name"
+            className="w-full px-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
           <FieldError>{errors.displayName}</FieldError>
         </div>
         <div className="space-y-1.5">
@@ -205,7 +212,9 @@ function JoinBatch() {
             inputMode="email"
             className="w-full px-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
-          <p className="text-[12.5px] text-muted-foreground">For signing in. We never show it to classmates.</p>
+          <p className="text-[12.5px] text-muted-foreground">
+            For signing in. We never show it to classmates.
+          </p>
           <FieldError>{errors.email}</FieldError>
         </div>
         <div className="space-y-1.5">

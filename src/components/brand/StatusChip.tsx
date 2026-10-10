@@ -6,12 +6,26 @@ import { cn } from "@/lib/utils";
  * so they read the same in both themes and for colour-blind students.
  */
 export function StateGlyph({ state, className }: { state: PetalState; className?: string }) {
-  const common = { width: 12, height: 12, viewBox: "0 0 12 12", className, "aria-hidden": true } as const;
+  const common = {
+    width: 12,
+    height: 12,
+    viewBox: "0 0 12 12",
+    className,
+    "aria-hidden": true,
+  } as const;
   switch (state) {
     case "not_started":
       return (
         <svg {...common}>
-          <circle cx="6" cy="6" r="4.75" fill="none" stroke="currentColor" strokeWidth="1.4" strokeDasharray="2 1.6" />
+          <circle
+            cx="6"
+            cy="6"
+            r="4.75"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeDasharray="2 1.6"
+          />
         </svg>
       );
     case "needs_light":

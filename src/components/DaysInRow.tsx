@@ -43,7 +43,8 @@ export function DaysInRow({ week, count }: { week: WeekDay[]; count: number }) {
         )}
       </p>
       <span className="sr-only">
-        This week: {week.map((d) => `${d.label} ${d.studied ? "studied" : "not studied"}`).join(", ")}
+        This week:{" "}
+        {week.map((d) => `${d.label} ${d.studied ? "studied" : "not studied"}`).join(", ")}
       </span>
     </div>
   );

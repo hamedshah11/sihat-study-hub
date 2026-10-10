@@ -53,11 +53,20 @@ describe("computeMastery", () => {
 
   it("keeps an 80%+ subject growing until there is enough evidence", () => {
     const strong = { cardRecall: [1, 1], reviewedCards: 2, quizScore: 100 };
-    const early = computeMastery([chapter({ ...strong, quizAttempts: 1, firstActivityAt: daysAgo(20) })], now);
+    const early = computeMastery(
+      [chapter({ ...strong, quizAttempts: 1, firstActivityAt: daysAgo(20) })],
+      now,
+    );
     expect(early.state).toBe("growing");
-    const recent = computeMastery([chapter({ ...strong, quizAttempts: 3, firstActivityAt: daysAgo(5) })], now);
+    const recent = computeMastery(
+      [chapter({ ...strong, quizAttempts: 3, firstActivityAt: daysAgo(5) })],
+      now,
+    );
     expect(recent.state).toBe("growing");
-    const proven = computeMastery([chapter({ ...strong, quizAttempts: 2, firstActivityAt: daysAgo(15) })], now);
+    const proven = computeMastery(
+      [chapter({ ...strong, quizAttempts: 2, firstActivityAt: daysAgo(15) })],
+      now,
+    );
     expect(proven.state).toBe("in_bloom");
   });
 });

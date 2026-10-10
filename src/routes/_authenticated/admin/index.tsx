@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
-  head: () => ({ meta: [{ title: "Admin Console — Sihat" }] }),
+  head: () => ({ meta: [{ title: "Faculty console · Florence" }] }),
   component: AdminDashboard,
 });
 

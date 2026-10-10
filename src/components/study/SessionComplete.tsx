@@ -91,7 +91,9 @@ export function SessionComplete({
           >
             Done
           </button>
-          <p className="mt-3 text-[13px] text-mist">Tomorrow's cards will be ready in the morning.</p>
+          <p className="mt-3 text-[13px] text-mist">
+            Tomorrow's cards will be ready in the morning.
+          </p>
         </div>
       </div>
     </div>

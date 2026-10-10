@@ -33,7 +33,9 @@ function SubjectsList() {
 
       <div className="mt-5 space-y-2.5">
         {isLoading &&
-          Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[76px] rounded-[20px]" />)}
+          Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-[76px] rounded-[20px]" />
+          ))}
 
         {data && data.subjects.length === 0 && (
           <div className="rounded-[22px] border bg-card p-6 text-center">
@@ -100,7 +102,9 @@ function SubjectsList() {
                 />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[14px] font-medium">{subject.name}</span>
-                  <span className="block text-[12.5px] text-muted-foreground">{subject.semesterName}</span>
+                  <span className="block text-[12.5px] text-muted-foreground">
+                    {subject.semesterName}
+                  </span>
                 </span>
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               </Link>

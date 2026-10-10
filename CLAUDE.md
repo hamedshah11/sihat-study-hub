@@ -1,11 +1,38 @@
-# Sihat
+# Florence (repo: sihat-study-hub)
 
-Sihat is a mobile-first PWA study companion for BSN (Bachelor of Science in
-Nursing) students at Sindh Institute, Karachi, following the Pakistani
-HEC/PNMC curriculum. Students read chapter notes, take quizzes, review
-flashcards on a spaced-repetition schedule, ask an AI tutor scoped to the
-current chapter, and track XP/streaks/leaderboard progress against their
-batch.
+Florence ("Florence: BSN Nursing Study", powered by SIHAT) is a mobile-first
+PWA study companion for BSN (Bachelor of Science in Nursing) students in
+Pakistan, following the HEC/PNMC curriculum. SIHAT (Sindh Institute of Health
+and Technology, Khairpur Mirs; said "sehat") is the founding partner and its
+faculty review the content. Students read chapter notes, review flashcards on
+a spaced-repetition schedule, take quizzes, ask the chapter-scoped AI tutor
+("Ask Florence") and watch their progress grow as a Nightingale rose, one
+petal per subject. "Sihat" was the working name; code identifiers, storage
+keys and cache prefixes may still say sihat.
+
+## Brand and design (Florence v2, October 2026)
+
+The brand book and screen sheets are the source of truth; see
+`design-reference/README.md` for links and the product rules. In code:
+- Tokens live in `src/styles.css` (Night ward, Lamplight, Linen, Deep amber,
+  essential borders). Light = Linen paper; Lamplight mode = the `.dark` class.
+  Any element can force Night tokens with the `dark` class (session complete,
+  intro, the Progress panel).
+- Fonts: Fraunces (display `font-display`; the wordmark only `fl-wordmark`),
+  Instrument Sans (everything else; every question uses `fl-question`, 21/30),
+  IBM Plex Mono (numbers `fl-number`, decorative `fl-label` only).
+- The mark, lockups and progress rose share one geometry:
+  `src/components/brand/rose-geometry.ts`. `FlorenceMark` switches to the
+  small-size version at 24 px and below.
+- Petal colours identify subjects only (`src/lib/subject-colours.ts` maps the
+  stored colour family keys to petals). Never use them for status or as text
+  on light backgrounds; status is `StatusChip` (glyph + word).
+- Voice: a calm senior nurse on the night shift. Brand words (lamp, rose,
+  bloom) for headings and celebrations; buttons, errors and clinical text are
+  plain. No exclamation marks, no "streak", no XP or ranks in student UI.
+- Themes (`src/lib/theme.ts`): Light, Dark or Automatic (Lamplight 8 pm to
+  6 am). Study runners call `useStudySessionLock()` so the theme never
+  switches mid-session.
 
 ## Architecture
 
@@ -56,23 +83,38 @@ using the Supabase **service-role** key, which bypasses RLS entirely:
    `insertXp`/`bumpStreak` helpers for server functions) — never let a
    caller pick their own XP value.
 
-Streaks roll over at **Pakistan Standard Time midnight** (UTC+5, no DST) —
-see `pakistanDate()` / `pktDate()` in both places above. Keep both in sync
-if you change the rollover logic. Streak rules, including freezes (a freeze
+"Days in a row" (the `streaks` table) counts study days that run **4 am to
+4 am Pakistan Standard Time** (UTC+5, no DST): `studyDay()` in
+`src/lib/streak.ts`, with a Deno copy in `supabase/functions/_shared/activity.ts`.
+Keep both in sync. XP caps still roll over at PKT midnight
+(`pakistanDate()` / `startOfTodayPkt()`). Streak rules, including freezes (a freeze
 covers one missed day; one is earned every 7 streak days, max 2), live in
 `src/lib/streak.ts::nextStreak`, with a Deno copy in
 `supabase/functions/_shared/activity.ts` — keep those two in sync as well.
 Screens show `displayStreak()`, not the raw `current_streak`, because the
 stored value only changes when the student next studies.
 
-Chapter mastery (`chapter_progress.mastery_score`) is the average of the
-last 3 quiz attempts (`MASTERY_WINDOW` in `study.functions.ts`), not the best
-score ever, so weak areas stay honest.
+`chapter_progress.mastery_score` is the average of the last 3 quiz attempts
+(`MASTERY_WINDOW` in `study.functions.ts`), not the best score ever.
+
+What students see as mastery is **mastery v1** (`src/lib/mastery.ts`, tested):
+across started chapters, 60% FSRS recall (average retrievability of every
+approved card, unreviewed = 0) + 40% quiz (the rolling quiz score above).
+States: Needs light < 40%, Growing 40–79%, In bloom ≥ 80% with at least two
+quizzes and two weeks of study. `getProgressSnapshot`
+(`src/lib/progress.functions.ts`; pure assembly in
+`src/lib/progress-snapshot.ts`) computes it server-side for Today, Subjects,
+Progress and session complete, so phones don't download every card row.
 
 Chapter quiz papers are selected by `getChapterQuiz` on the trusted server,
 bound to a one-use `quiz_sessions` row, and returned without `correct_index` or
-`explanation`. `submitQuiz` accepts only the complete issued paper, grades it,
-and only then returns answer review. Authenticated browser clients have
+`explanation`. Florence shows each answer's feedback straight away:
+`checkQuizAnswer` first **locks** the answer in `quiz_sessions.locked_answers`
+and only then returns correctness and the explanation for that one question.
+`submitQuiz` grades the locked answers (a different later selection is
+ignored), accepts only the complete issued paper, and returns the review. If
+the `locked_answers` column is missing, `checkQuizAnswer` returns
+`{ available: false }` and the client falls back to feedback after submit. Authenticated browser clients have
 column-level `SELECT` access to answer-free question fields; staff answer-key
 views go through trusted server/MCP paths.
 
@@ -100,14 +142,35 @@ into browser-reachable code — only `client.server.ts`, `*.functions.ts`
 server functions, and edge functions. See `SECURITY_NOTES.md` for the
 env-var split (`VITE_`-prefixed = public/bundled, unprefixed = server-only).
 
+## Batch, circles, reports and settings
+
+- The weekly leaderboard is gone (`/leaderboard` redirects to `/batch`).
+  `getBatchOverview` (`src/lib/batch.functions.ts`) returns batch totals only
+  (reviews this week; the subject with the lowest average mastery once 3+
+  students have data) and the student's opt-in study circle: up to six
+  people, joined by a 6-character code, showing only "studied today" for
+  members who opted in (`student_settings.show_in_circles`). Never sorted by
+  activity, never scores.
+- `content_reports` holds "Report a problem" submissions
+  (`src/lib/report.functions.ts`). Staff read and resolve them via RLS
+  (`is_staff`). An open report blocks approving that item, and the faculty
+  chapter page's publish checklist (15 approved questions, 25 approved
+  flashcards, notes written, no open reports) blocks publishing.
+- `student_settings` stores reminder preferences (off by default, one a day
+  at most). Nothing sends reminders yet.
+- All four come from `supabase/migrations/20261010120000_florence_redesign.sql`
+  and are written only through service-role server functions. Every reader
+  tolerates the migration not being applied yet.
+
 ## Conventions
 
 - **Chapter tabs** follow `?tab=` (`quiz`, `flashcards`, `diagrams`, `tutor`;
   omitted means Notes), so links can open a chapter on a specific tab.
 - **Routes**: file-based under `src/routes/`, mirroring URL structure.
   `_authenticated.tsx` is a pathless layout route gating everything under
-  `src/routes/_authenticated/` (home, subjects/$subjectId, chapters/$chapterId,
-  progress, leaderboard, profile, tutor, admin/*). Each route file exports
+  `src/routes/_authenticated/` (home = Today, session = today's review,
+  subjects/$subjectId, chapters/$chapterId, progress, batch, profile =
+  Settings, intro, review, tutor, admin/*). Each route file exports
   `Route = createFileRoute("/path")({ head, component })`.
 - **Server functions**: one file per domain in `src/lib/*.functions.ts`
   (`study.functions.ts`, `exam.functions.ts`, `admin.functions.ts`,
@@ -183,7 +246,12 @@ review XP once per PKT day. Browser reads go through
 ## Known deferred
 
 - No native push notifications — PWA install prompt only
-  (`InstallPrompt.tsx`); no web-push subscription/backend exists yet.
+  (`InstallPrompt.tsx`, offered after the first useful session); no web-push
+  subscription/backend exists yet. Reminder preferences are stored but unsent.
+- Phone-number sign-in from the design needs a Supabase SMS provider; joining
+  uses email for now.
+- Faculty console: per-option reasoning, highlighted source passages and
+  learning-objective coverage need `generate-content` to store them first.
 - No payment/subscription layer — access is invite-code gated
   (`invite_codes` table, `internal` vs `external` `student_type`), not
   billed.

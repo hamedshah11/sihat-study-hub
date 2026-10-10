@@ -183,8 +183,12 @@ export function FlashcardDeck({
             className="flex flex-1 flex-col text-left"
             aria-label="Show answer"
           >
-            <span className="mt-auto text-[12.5px] font-semibold text-muted-foreground">Question</span>
-            <span className="fl-question mt-2 whitespace-pre-wrap text-foreground">{card.front}</span>
+            <span className="mt-auto text-[12.5px] font-semibold text-muted-foreground">
+              Question
+            </span>
+            <span className="fl-question mt-2 whitespace-pre-wrap text-foreground">
+              {card.front}
+            </span>
             <span className="mt-auto" />
           </button>
         ) : (
@@ -220,7 +224,10 @@ export function FlashcardDeck({
       </div>
 
       {saveError && (
-        <p role="alert" className="mt-3 rounded-xl bg-destructive-bg px-4 py-3 text-[13.5px] text-destructive-ink">
+        <p
+          role="alert"
+          className="mt-3 rounded-xl bg-destructive-bg px-4 py-3 text-[13.5px] text-destructive-ink"
+        >
           That rating didn't save. Check your connection, then tap it again.
         </p>
       )}
@@ -251,7 +258,9 @@ export function FlashcardDeck({
                   className="flex h-[60px] flex-col items-center justify-center rounded-2xl border border-border-strong/70 bg-card text-foreground transition-colors hover:bg-muted disabled:opacity-50"
                 >
                   <span className="text-[14px] font-semibold">{label}</span>
-                  <span className="text-[12px] text-muted-foreground">{whenBack(card.previous, rating)}</span>
+                  <span className="text-[12px] text-muted-foreground">
+                    {whenBack(card.previous, rating)}
+                  </span>
                 </button>
               ))}
             </div>

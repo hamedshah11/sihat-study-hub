@@ -61,7 +61,11 @@ function ChapterDetail() {
       if (!chapter) return { chapter: null, subject: null, diagrams: 0 };
       const [{ data: subject }, { count }] = await Promise.all([
         chapter.subject_id
-          ? supabase.from("subjects").select("id, name, colour").eq("id", chapter.subject_id).maybeSingle()
+          ? supabase
+              .from("subjects")
+              .select("id, name, colour")
+              .eq("id", chapter.subject_id)
+              .maybeSingle()
           : Promise.resolve({ data: null }),
         supabase
           .from("diagram_labels")
@@ -98,7 +102,10 @@ function ChapterDetail() {
   if (!data?.chapter) {
     return (
       <div className="pt-2">
-        <Link to="/subjects" className="-ml-2 inline-flex min-h-11 items-center text-sm text-muted-foreground">
+        <Link
+          to="/subjects"
+          className="-ml-2 inline-flex min-h-11 items-center text-sm text-muted-foreground"
+        >
           <ChevronLeft className="size-5" /> Subjects
         </Link>
         <div className="mt-4 rounded-[22px] border bg-card p-6 text-sm text-muted-foreground">
@@ -131,9 +138,9 @@ function ChapterDetail() {
       setTab("notes");
       // Scroll to the cited section once the notes have rendered.
       window.setTimeout(() => {
-        const target = Array.from(document.querySelectorAll("article h1, article h2, article h3, article h4")).find(
-          (el) => el.textContent?.trim().toLowerCase() === heading.toLowerCase(),
-        );
+        const target = Array.from(
+          document.querySelectorAll("article h1, article h2, article h3, article h4"),
+        ).find((el) => el.textContent?.trim().toLowerCase() === heading.toLowerCase());
         target?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 350);
     };
@@ -152,7 +159,11 @@ function ChapterDetail() {
     (match) => match[1],
   );
   const updated = chapter.updated_at
-    ? new Date(chapter.updated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+    ? new Date(chapter.updated_at).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
     : null;
 
   const segments: { value: ChapterTab; label: string }[] = [
@@ -166,12 +177,19 @@ function ChapterDetail() {
   const fresh = chapterSnapshot?.cardsNew ?? 0;
   const practiseTab: ChapterTab = due > 0 || fresh > 0 ? "flashcards" : "quiz";
   const practiseDetail =
-    due > 0 ? ` · ${due} card${due === 1 ? "" : "s"} due` : fresh > 0 ? ` · ${Math.min(fresh, 10)} new cards` : " · Quiz";
+    due > 0
+      ? ` · ${due} card${due === 1 ? "" : "s"} due`
+      : fresh > 0
+        ? ` · ${Math.min(fresh, 10)} new cards`
+        : " · Quiz";
 
   return (
     <div className="mx-auto max-w-2xl pb-[136px] pt-2 md:pb-10">
       <div aria-hidden className="fixed inset-x-0 top-0 z-30 h-[3px]">
-        <div className="h-full bg-accent transition-[width]" style={{ width: `${readingProgress}%` }} />
+        <div
+          className="h-full bg-accent transition-[width]"
+          style={{ width: `${readingProgress}%` }}
+        />
       </div>
       {subject ? (
         <Link
@@ -182,7 +200,10 @@ function ChapterDetail() {
           <ChevronLeft className="size-5" /> {subject.name}
         </Link>
       ) : (
-        <Link to="/subjects" className="-ml-2 inline-flex min-h-11 items-center text-[14px] text-muted-foreground">
+        <Link
+          to="/subjects"
+          className="-ml-2 inline-flex min-h-11 items-center text-[14px] text-muted-foreground"
+        >
           <ChevronLeft className="size-5" /> Subjects
         </Link>
       )}
@@ -275,7 +296,8 @@ function ChapterDetail() {
                 onClick={() => setTab("tutor")}
                 className="flex h-[46px] w-full items-center justify-center gap-2 rounded-full border border-border-strong text-[14.5px] font-semibold"
               >
-                <MessageCircleQuestion className="size-4" aria-hidden /> Ask Florence about this chapter
+                <MessageCircleQuestion className="size-4" aria-hidden /> Ask Florence about this
+                chapter
               </button>
             </div>
           </div>

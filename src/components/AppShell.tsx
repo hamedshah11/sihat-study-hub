@@ -59,9 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div
         className={`mx-auto w-full max-w-[480px] px-4 md:max-w-none md:px-8 ${focusMode ? "pt-[max(1rem,env(safe-area-inset-top))]" : "pt-[max(0.75rem,env(safe-area-inset-top))] md:ml-[232px] md:pt-8"}`}
         style={
-          focusMode
-            ? undefined
-            : { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6rem)" }
+          focusMode ? undefined : { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6rem)" }
         }
       >
         <div className={`md:max-w-[720px] ${focusMode ? "md:mx-auto" : ""}`}>
@@ -212,7 +210,7 @@ function SideNav() {
       className="fixed inset-y-0 left-0 hidden w-[232px] flex-col border-r bg-card p-4 md:flex"
     >
       <Link to="/home" className="mb-8 px-2 pt-3 pb-2" aria-label="Florence, Today">
-        <Lockup height={26} />
+        <Lockup height={32} />
       </Link>
       <div className="flex flex-col gap-1">
         {[...items, { to: "/profile", label: "Settings", icon: Settings }].map(

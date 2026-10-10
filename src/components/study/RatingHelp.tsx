@@ -23,7 +23,9 @@ export function RatingHelp() {
       </DialogTrigger>
       <DialogContent className="max-w-sm rounded-[24px]">
         <DialogHeader>
-          <DialogTitle className="font-display text-[22px]">How well did you remember it?</DialogTitle>
+          <DialogTitle className="font-display text-[22px]">
+            How well did you remember it?
+          </DialogTitle>
           <DialogDescription>
             Be honest: Florence uses your answer to decide when you'll see the card again. The time
             under each button shows when that would be.

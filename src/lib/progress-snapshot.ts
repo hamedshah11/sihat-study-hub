@@ -2,7 +2,12 @@
 // session-complete screen all read from it) out of raw rows. Pure: the data
 // loading lives in progress.functions.ts, so this can be unit-tested.
 
-import { computeMastery, estimateMinutes, type ChapterEvidence, type PetalState } from "@/lib/mastery";
+import {
+  computeMastery,
+  estimateMinutes,
+  type ChapterEvidence,
+  type PetalState,
+} from "@/lib/mastery";
 import { retrievability, type ReviewState } from "@/lib/spacedRepetition";
 import { displayStreak, studyDay, type StreakRow } from "@/lib/streak";
 
@@ -78,7 +83,13 @@ export type SessionPlan = {
   /** The first chapter not started yet, in teaching order. */
   nextChapter: { id: string; title: string; subjectName: string } | null;
   /** When nothing is due: fresh cards to learn next (first day included). */
-  newCards: { chapterId: string; title: string; subjectName: string; order: number; count: number } | null;
+  newCards: {
+    chapterId: string;
+    title: string;
+    subjectName: string;
+    order: number;
+    count: number;
+  } | null;
   minutes: number;
 };
 
@@ -113,7 +124,8 @@ export function chapterAction(c: {
   state: PetalState;
 }): ChapterAction {
   if (!c.started) return { kind: "notes", label: "Read notes" };
-  if (c.cardsDue > 0) return { kind: "cards", label: `${plural(c.cardsDue, "card")} due`, count: c.cardsDue };
+  if (c.cardsDue > 0)
+    return { kind: "cards", label: `${plural(c.cardsDue, "card")} due`, count: c.cardsDue };
   if (c.quizAvailable && (c.quizAttempts === 0 || c.state === "needs_light")) {
     return { kind: "quiz", label: "Take quiz" };
   }
@@ -262,7 +274,8 @@ export function buildSnapshot(input: {
           count: Math.min(NEW_CARDS_PER_SESSION, learning.cardsNew),
         }
       : null;
-  const sessionCards = cardsDue > 0 ? Math.min(cardsDue, REVIEW_SESSION_SIZE) : (newCards?.count ?? 0);
+  const sessionCards =
+    cardsDue > 0 ? Math.min(cardsDue, REVIEW_SESSION_SIZE) : (newCards?.count ?? 0);
   const plan: SessionPlan = {
     cardsDue,
     dueSubjects,

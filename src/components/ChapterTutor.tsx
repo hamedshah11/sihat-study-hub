@@ -12,12 +12,19 @@ import { awardBadgesIfNeeded } from "@/lib/award-badges";
 type Msg = { id: string; role: string; content: string; created_at: string };
 
 const DAILY_LIMIT = 50;
-const SUGGESTIONS = ["Explain this chapter simply", "Quiz me on one idea", "Give me a way to remember it"];
+const SUGGESTIONS = [
+  "Explain this chapter simply",
+  "Quiz me on one idea",
+  "Give me a way to remember it",
+];
 
 /** Answers end with "Source: <section>"; split it off to show as a chip. */
 export function splitSource(content: string): { body: string; source: string | null } {
   const lines = content.trimEnd().split("\n");
-  const match = lines.at(-1)?.trim().match(/^source:\s*(.+)$/i);
+  const match = lines
+    .at(-1)
+    ?.trim()
+    .match(/^source:\s*(.+)$/i);
   if (!match) return { body: content, source: null };
   return { body: lines.slice(0, -1).join("\n").trimEnd(), source: match[1].trim() };
 }
@@ -90,11 +97,15 @@ export function ChapterTutor({
     setError(null);
     setSending(true);
     try {
-      const { error } = await supabase.functions.invoke("tutor-ask", { body: { chapterId, question } });
+      const { error } = await supabase.functions.invoke("tutor-ask", {
+        body: { chapterId, question },
+      });
       if (error) {
         const ctx = (error as { context?: Response }).context;
         if (ctx?.status === 429) {
-          setError(`You've asked ${DAILY_LIMIT} questions today, the daily limit. Ask Florence is back tomorrow.`);
+          setError(
+            `You've asked ${DAILY_LIMIT} questions today, the daily limit. Ask Florence is back tomorrow.`,
+          );
         } else {
           setError("Ask Florence isn't available right now. Try again in a minute.");
         }
@@ -128,14 +139,16 @@ export function ChapterTutor({
           )}
           <div className="min-w-0">
             <h1 className="text-[16px] font-semibold">Ask Florence</h1>
-            {chapterTitle && <p className="truncate text-[12.5px] text-muted-foreground">{chapterTitle}</p>}
+            {chapterTitle && (
+              <p className="truncate text-[12.5px] text-muted-foreground">{chapterTitle}</p>
+            )}
           </div>
         </div>
       </div>
 
       <p className="mt-2 rounded-2xl bg-muted px-4 py-3 text-[13px] leading-snug text-muted-foreground">
-        <span className="font-semibold text-foreground">AI tutor.</span> Answers only from this chapter's
-        notes, which your teachers approved. Check anything important with your teacher.
+        <span className="font-semibold text-foreground">AI tutor.</span> Answers only from this
+        chapter's notes, which your teachers approved. Check anything important with your teacher.
       </p>
 
       <div className="mt-4 flex flex-1 flex-col gap-4 pb-4">
@@ -153,7 +166,10 @@ export function ChapterTutor({
           messages.map((m) => {
             if (m.role !== "assistant") {
               return (
-                <div key={m.id} className="max-w-[85%] self-end rounded-[20px] rounded-br-md bg-primary px-4 py-2.5 text-[15px] leading-snug text-primary-foreground">
+                <div
+                  key={m.id}
+                  className="max-w-[85%] self-end rounded-[20px] rounded-br-md bg-primary px-4 py-2.5 text-[15px] leading-snug text-primary-foreground"
+                >
                   <p className="whitespace-pre-wrap">{m.content}</p>
                 </div>
               );
@@ -185,7 +201,10 @@ export function ChapterTutor({
         {sending && (
           <div className="flex items-end gap-2 self-start">
             <FlorenceMark size={22} className="mb-1 shrink-0" />
-            <div className="flex gap-1 rounded-[20px] rounded-bl-md border bg-card px-4 py-3.5" aria-label="Florence is writing">
+            <div
+              className="flex gap-1 rounded-[20px] rounded-bl-md border bg-card px-4 py-3.5"
+              aria-label="Florence is writing"
+            >
               {[0, 1, 2].map((dot) => (
                 <span key={dot} className="typing-dot size-1.5 rounded-full bg-muted-foreground" />
               ))}
@@ -202,7 +221,10 @@ export function ChapterTutor({
             Ask Florence needs internet. Your notes are still here.
           </p>
         ) : error ? (
-          <p role="alert" className="rounded-xl bg-destructive-bg px-3 py-2.5 text-[13.5px] text-destructive-ink">
+          <p
+            role="alert"
+            className="rounded-xl bg-destructive-bg px-3 py-2.5 text-[13.5px] text-destructive-ink"
+          >
             {error}
           </p>
         ) : null}
