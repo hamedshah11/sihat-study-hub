@@ -12,7 +12,7 @@ import { markGeometry, ROSE_STROKE } from "./rose-geometry";
 export type MarkVariant = "theme" | "night" | "paper" | "lamp" | "mono";
 
 const COLOURS: Record<MarkVariant, { petal: string; lit: string }> = {
-  theme: { petal: "var(--foreground)", lit: "var(--accent-ink)" },
+  theme: { petal: "var(--foreground)", lit: "#F4B23E" },
   night: { petal: "#FBF6EC", lit: "#F4B23E" },
   paper: { petal: "#141B2D", lit: "#9C5A08" },
   lamp: { petal: "#141B2D", lit: "#FBF6EC" },

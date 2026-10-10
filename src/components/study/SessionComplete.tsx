@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { ProgressRose } from "@/components/brand/ProgressRose";
-import { Flame } from "@/components/DaysInRow";
 import type { ProgressPayload } from "@/lib/progress.functions";
 
 function shortName(name: string) {
@@ -46,12 +45,12 @@ export function SessionComplete({
   return (
     <div className="dark fixed inset-0 z-50 flex flex-col overflow-y-auto bg-night text-linen">
       <div className="lamp-glow mx-auto flex w-full max-w-[480px] flex-1 flex-col items-center px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
-        <p className="text-[13px] font-semibold text-mist">{label}</p>
+        <p className="text-[14px] font-semibold text-linen">{label}</p>
         <div className="mt-8 rounded-full">
           {after ? (
             <ProgressRose
               petals={after.subjects}
-              size={230}
+              size={250}
               glow
               grow={result && grew ? { id: result.id, from: result.from } : undefined}
             />
@@ -59,7 +58,7 @@ export function SessionComplete({
             <div className="size-[230px] animate-pulse rounded-full bg-night-panel" />
           )}
         </div>
-        <h1 className="mt-8 font-display text-[32px] leading-[1.1]">
+        <h1 className="mt-10 font-display text-[34px] leading-[1.12]">
           {!result
             ? "Session complete."
             : grew
@@ -67,7 +66,7 @@ export function SessionComplete({
               : `Your ${shortName(result.name)} petal held steady.`}
         </h1>
         {result && (
-          <p className="fl-number mt-2 text-[15px] text-lamp">
+          <p className="fl-number mt-3 text-[15px] font-normal text-rate-good">
             {grew
               ? `${Math.round(result.from * 100)}% → ${Math.round(result.to * 100)}%`
               : `${Math.round(result.to * 100)}%`}
@@ -79,8 +78,8 @@ export function SessionComplete({
           </p>
         )}
         {days > 0 && (
-          <p className="mt-3 inline-flex items-center gap-1.5 text-[14px] text-linen/90">
-            <Flame lit /> {days} day{days === 1 ? "" : "s"} in a row
+          <p className="mt-3 text-[15px] text-linen/90">
+            {days} day{days === 1 ? "" : "s"} in a row
           </p>
         )}
         <div className="mt-auto w-full pt-10">

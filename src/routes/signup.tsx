@@ -1,12 +1,12 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useId, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { CheckCircle2 } from "lucide-react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { AuthShell, FieldError } from "@/components/AuthShell";
+import { AuthShell, Field, primaryButton } from "@/components/AuthShell";
+import { CodeStep } from "@/components/CodeStep";
 import { previewBatchCode, type BatchPreview } from "@/lib/invite.functions";
+import { displayPhone, isEmail, isPhoneUnavailable, normalisePhone } from "@/lib/auth-otp";
 import { pageTitle } from "@/lib/brand";
 
 export const Route = createFileRoute("/signup")({
@@ -18,19 +18,16 @@ export const Route = createFileRoute("/signup")({
   component: JoinBatch,
 });
 
-const accountSchema = z.object({
-  displayName: z.string().trim().min(1, "Enter your name").max(80),
-  email: z.string().trim().email("Enter a valid email").max(255),
-  password: z.string().min(8, "At least 8 characters").max(128),
-});
-
 type Found = Extract<BatchPreview, { ok: true }>;
+type Sent = { method: "phone" | "email"; to: string };
+
+const nameSchema = z.string().trim().min(1, "Enter your name").max(80);
 
 /**
- * Joining starts with the batch code the college hands out, so every student
- * lands in the right college, programme and semester on day one. The code is
- * checked and shown before anything is saved; it's redeemed only after the
- * account exists (AppShell's PendingInviteRedemption).
+ * "Join your batch" (Join sheet, screen 3): the batch code shows the
+ * college, programme and semester before anything is saved, then a name and
+ * phone number. Sign-in is by a one-time code; email works too. The batch
+ * code is redeemed once the account exists (AppShell's PendingInviteRedemption).
  */
 function JoinBatch() {
   const { code: codeFromLink } = Route.useSearch();
@@ -38,216 +35,247 @@ function JoinBatch() {
   const preview = useServerFn(previewBatchCode);
   const [code, setCode] = useState(codeFromLink ?? "");
   const [found, setFound] = useState<Found | null>(null);
-  const [codeError, setCodeError] = useState<string | null>(null);
+  const [codeError, setCodeError] = useState<string | undefined>();
   const [checking, setChecking] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [sentTo, setSentTo] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const ids = { code: useId(), name: useId(), email: useId(), password: useId() };
+  const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
+  const [useEmail, setUseEmail] = useState(false);
+  const [errors, setErrors] = useState<{ name?: string; contact?: string }>({});
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState<Sent | null>(null);
 
-  async function checkCode(e: React.FormEvent) {
-    e.preventDefault();
-    if (!code.trim() || checking) return;
-    setChecking(true);
-    setCodeError(null);
-    try {
-      const res = await preview({ data: { code: code.trim() } });
-      if (res.ok) setFound(res);
-      else
-        setCodeError(
-          res.reason === "expired"
-            ? "That code has expired. Ask your class coordinator for a new one."
-            : res.reason === "exhausted"
-              ? "That code is full. Ask your class coordinator for a new one."
-              : "That code didn't work. Check it with your class coordinator.",
-        );
-    } catch {
-      setCodeError("We couldn't check the code. Check your connection and try again.");
-    } finally {
-      setChecking(false);
-    }
-  }
+  // Look the code up as soon as it looks complete.
+  useEffect(() => {
+    const trimmed = code.trim();
+    setFound(null);
+    setCodeError(undefined);
+    if (trimmed.length < 6) return;
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setChecking(true);
+      try {
+        const res = await preview({ data: { code: trimmed } });
+        if (cancelled) return;
+        if (res.ok) setFound(res);
+        else
+          setCodeError(
+            res.reason === "expired"
+              ? "That code has expired. Ask your class coordinator for a new one."
+              : res.reason === "exhausted"
+                ? "That code is full. Ask your class coordinator for a new one."
+                : "That code didn't work. Check it with your class coordinator.",
+          );
+      } catch {
+        if (!cancelled) setCodeError("We couldn't check the code. Check your connection.");
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    }, 450);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [code, preview]);
 
-  async function join(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (submitting || !found) return;
-    const fd = new FormData(e.currentTarget);
-    const parsed = accountSchema.safeParse({
-      displayName: fd.get("displayName"),
-      email: fd.get("email"),
-      password: fd.get("password"),
-    });
-    if (!parsed.success) {
-      const next: Record<string, string> = {};
-      for (const issue of parsed.error.issues) next[String(issue.path[0])] = issue.message;
-      setErrors(next);
-      return;
-    }
-    setErrors({});
-    setSubmitting(true);
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: parsed.data.email,
-        password: parsed.data.password,
+  const metadata = () => ({ display_name: name.trim(), pending_invite_code: code.trim() });
+
+  async function send(): Promise<string | null> {
+    if (useEmail) {
+      const email = contact.trim();
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
         options: {
-          emailRedirectTo: `${window.location.origin}/home`,
-          data: {
-            display_name: parsed.data.displayName,
-            // Survives email confirmation (even on another device); the app
-            // redeems it against the signed-in student's own profile.
-            pending_invite_code: code.trim(),
-          },
+          shouldCreateUser: true,
+          data: metadata(),
+          emailRedirectTo: `${window.location.origin}/intro`,
         },
       });
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      if (data.session) navigate({ to: "/intro" });
-      else setSentTo(parsed.data.email);
-    } catch {
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setSubmitting(false);
+      if (error) return error.message;
+      setSent({ method: "email", to: email });
+      return null;
     }
+    const phone = normalisePhone(contact)!;
+    const { error } = await supabase.auth.signInWithOtp({
+      phone,
+      options: { shouldCreateUser: true, data: metadata(), channel: "sms" },
+    });
+    if (error) {
+      if (isPhoneUnavailable(error.message)) {
+        setUseEmail(true);
+        setContact("");
+        return "Signing in by phone isn't switched on yet. Please use your email for now.";
+      }
+      return error.message;
+    }
+    setSent({ method: "phone", to: phone });
+    return null;
   }
 
-  if (sentTo) {
-    return (
-      <AuthShell title="Check your email." back={{ to: "/login", label: "Sign in" }}>
-        <p className="text-[15px] leading-relaxed text-muted-foreground">
-          We sent a link to <span className="font-semibold text-foreground">{sentTo}</span>. Open it
-          on this phone to finish joining {found?.batch ?? "your batch"}.
-        </p>
-        <p className="mt-3 text-[13.5px] text-muted-foreground">
-          Can't find it? Look in your spam or promotions folder.
-        </p>
-      </AuthShell>
-    );
+  async function join(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy || !found) return;
+    const next: typeof errors = {};
+    const parsedName = nameSchema.safeParse(name);
+    if (!parsedName.success) next.name = parsedName.error.issues[0].message;
+    if (useEmail ? !isEmail(contact) : !normalisePhone(contact)) {
+      next.contact = useEmail
+        ? "Enter a valid email address."
+        : "Enter your mobile number, for example 0300 1234567.";
+    }
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    setBusy(true);
+    const problem = await send();
+    if (problem) setErrors({ contact: problem });
+    setBusy(false);
   }
 
-  if (!found) {
+  async function verify(token: string): Promise<string | null> {
+    if (!sent) return null;
+    const { error } =
+      sent.method === "phone"
+        ? await supabase.auth.verifyOtp({ phone: sent.to, token, type: "sms" })
+        : await supabase.auth.verifyOtp({ email: sent.to, token, type: "email" });
+    if (error) return "That code didn't work. Check it, or send a new one.";
+    navigate({ to: "/intro" });
+    return null;
+  }
+
+  if (sent) {
     return (
-      <AuthShell
-        title="Join your batch."
-        subtitle="Enter the batch code from your class coordinator. No college email needed."
-      >
-        <form onSubmit={checkCode} className="space-y-2">
-          <label htmlFor={ids.code} className="text-[14px] font-semibold">
-            Batch code
-          </label>
-          <input
-            id={ids.code}
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            autoCapitalize="characters"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="e.g. SI-BSN-7K2Q"
-            className="fl-number w-full px-4 tracking-[0.06em] outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-          <FieldError>{codeError ?? undefined}</FieldError>
-          <button
-            type="submit"
-            disabled={checking || !code.trim()}
-            className="mt-3 h-[52px] w-full rounded-full bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-50"
-          >
-            {checking ? "Checking…" : "Find my batch"}
-          </button>
-        </form>
-        <p className="mt-6 text-center text-[14px] text-muted-foreground">
-          Already joined?{" "}
-          <Link to="/login" className="font-semibold text-accent-ink">
-            Sign in
-          </Link>
-        </p>
+      <AuthShell heading="Join your batch">
+        <CodeStep
+          method={sent.method}
+          sentTo={sent.method === "phone" ? displayPhone(sent.to) : sent.to}
+          onVerify={verify}
+          onResend={async () => {
+            await send();
+          }}
+          onChange={() => setSent(null)}
+        />
       </AuthShell>
     );
   }
 
   return (
-    <AuthShell title="Join your batch." back={null}>
-      <div className="rounded-[20px] border bg-card p-4">
-        <p className="flex items-center gap-2 text-[14px] font-semibold">
-          <CheckCircle2 className="size-[18px] text-success-ink" aria-hidden /> Code found. Is this
-          you?
-        </p>
-        <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[14px]">
-          <dt className="text-muted-foreground">College</dt>
-          <dd className="font-medium">{found.college}</dd>
-          <dt className="text-muted-foreground">Programme</dt>
-          <dd className="font-medium">{found.programme ?? found.batch}</dd>
-          <dt className="text-muted-foreground">Semester</dt>
-          <dd className="font-medium">{found.semester ?? "To be set"}</dd>
-          <dt className="text-muted-foreground">Subjects</dt>
-          <dd className="font-medium">
-            {found.subjects}, with {found.chaptersReady} chapter
-            {found.chaptersReady === 1 ? "" : "s"} ready
-          </dd>
-        </dl>
-      </div>
+    <AuthShell
+      heading="Join your batch"
+      footer={
+        <>
+          <button
+            form="join-form"
+            type="submit"
+            disabled={busy || !found}
+            className={primaryButton}
+          >
+            {busy ? "Joining…" : "Join batch"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setCode("");
+              setFound(null);
+            }}
+            className="mt-2 flex min-h-11 w-full items-center justify-center text-[15px] font-semibold text-accent-ink"
+          >
+            Wrong college or semester?
+          </button>
+        </>
+      }
+    >
+      <form id="join-form" onSubmit={join} noValidate className="space-y-5">
+        <Field
+          id="batch-code"
+          label="Batch code"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          autoCapitalize="characters"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="SIHAT-26-BSN1"
+          className="fl-number tracking-[0.04em]"
+          hint={
+            checking
+              ? "Checking…"
+              : !found
+                ? "From your class coordinator. No college email needed."
+                : undefined
+          }
+          error={codeError}
+        />
 
-      <form onSubmit={join} className="mt-5 space-y-4" noValidate>
-        <div className="space-y-1.5">
-          <label htmlFor={ids.name} className="text-[14px] font-semibold">
-            Your name
-          </label>
-          <input
-            id={ids.name}
-            name="displayName"
-            autoComplete="name"
-            className="w-full px-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-          <FieldError>{errors.displayName}</FieldError>
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor={ids.email} className="text-[14px] font-semibold">
-            Email
-          </label>
-          <input
-            id={ids.email}
-            name="email"
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            className="w-full px-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-          <p className="text-[12.5px] text-muted-foreground">
-            For signing in. We never show it to classmates.
-          </p>
-          <FieldError>{errors.email}</FieldError>
-        </div>
-        <div className="space-y-1.5">
-          <label htmlFor={ids.password} className="text-[14px] font-semibold">
-            Password
-          </label>
-          <input
-            id={ids.password}
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            className="w-full px-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-          <p className="text-[12.5px] text-muted-foreground">At least 8 characters.</p>
-          <FieldError>{errors.password}</FieldError>
-        </div>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="h-[52px] w-full rounded-full bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
-        >
-          {submitting ? "Joining…" : "Join batch"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setFound(null);
-            setCodeError(null);
-          }}
-          className="min-h-11 w-full text-[14px] font-semibold text-accent-ink"
-        >
-          Wrong college or semester?
-        </button>
+        {found && (
+          <div className="animate-fade-up rounded-[18px] bg-card p-4 shadow-soft">
+            <p className="flex items-center gap-2.5 text-[15px] font-semibold">
+              <svg viewBox="0 0 20 20" className="size-5 shrink-0" aria-hidden>
+                <circle cx="10" cy="10" r="10" fill="var(--success-ink)" />
+                <path
+                  d="M5.8 10.2l2.7 2.7 5.7-5.8"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Code found. Is this you?
+            </p>
+            <dl className="mt-3 grid grid-cols-[112px_1fr] gap-y-2 pl-1 text-[14.5px]">
+              <dt className="text-muted-foreground">College</dt>
+              <dd className="font-semibold">{found.college}</dd>
+              <dt className="text-muted-foreground">Programme</dt>
+              <dd className="font-semibold">{found.programme ?? found.batch}</dd>
+              <dt className="text-muted-foreground">Semester</dt>
+              <dd className="font-semibold">{found.semester ?? "To be set"}</dd>
+              <dt className="text-muted-foreground">Subjects</dt>
+              <dd className="font-semibold">
+                {found.subjects}, with {found.chaptersReady} chapter
+                {found.chaptersReady === 1 ? "" : "s"} ready
+              </dd>
+            </dl>
+          </div>
+        )}
+
+        {found && (
+          <>
+            <Field
+              id="your-name"
+              label="Your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoComplete="name"
+              placeholder="Ayesha Memon"
+              error={errors.name}
+            />
+            <Field
+              id="contact"
+              label={useEmail ? "Email" : "Phone number"}
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              type={useEmail ? "email" : "tel"}
+              inputMode={useEmail ? "email" : "tel"}
+              autoComplete={useEmail ? "email" : "tel"}
+              placeholder={useEmail ? "you@example.com" : "0300 1234567"}
+              error={errors.contact}
+              hint={
+                <>
+                  For signing in. We never show it to classmates.{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseEmail((v) => !v);
+                      setContact("");
+                      setErrors({});
+                    }}
+                    className="font-semibold text-accent-ink"
+                  >
+                    {useEmail ? "Use a phone number" : "Use email instead"}
+                  </button>
+                </>
+              }
+            />
+          </>
+        )}
       </form>
     </AuthShell>
   );

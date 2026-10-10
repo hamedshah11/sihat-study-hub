@@ -5,10 +5,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TopBar } from "@/components/TopBar";
 import { ProgressRose } from "@/components/brand/ProgressRose";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { useOnline } from "@/components/OfflineBanner";
 import { DaysInRow } from "@/components/DaysInRow";
 import { useProgress } from "@/lib/progress-data";
 import { useMistakes } from "@/lib/mistakes-data";
-import { isLamplightHour } from "@/lib/theme";
 import { pageTitle } from "@/lib/brand";
 import type { ProgressPayload } from "@/lib/progress.functions";
 import { INTRO_SEEN_KEY } from "./intro";
@@ -41,7 +41,9 @@ function shortSubject(name: string) {
 
 export function SessionCard({ data }: { data: ProgressPayload }) {
   const { plan, firstDay } = data;
-  const evening = isLamplightHour();
+  // Matches the greeting: "Tonight's lamp" only when it says "Good evening".
+  const hour = new Date().getHours();
+  const evening = hour >= 17 || hour < 4;
   const label = firstDay ? "Your first review" : evening ? "Tonight's lamp" : "Today's review";
   const hasReview = plan.cardsDue > 0;
   const hasNew = !hasReview && plan.newCards !== null;
@@ -99,9 +101,11 @@ export function SessionCard({ data }: { data: ProgressPayload }) {
 
   return (
     <section className="animate-fade-up stagger-1 rounded-[24px] bg-lamp p-5 text-night">
-      <p className="text-[12.5px] font-bold uppercase tracking-[0.06em]">{label}</p>
-      <h2 className="mt-2 font-display text-[26px] leading-[1.1]">{headline}</h2>
-      <p className="mt-1.5 text-[14px] leading-snug text-night/80">{detail}</p>
+      <p className="text-[12.5px] font-bold uppercase tracking-[0.04em]">{label}</p>
+      <h2 className="mt-2.5 text-[24px] font-semibold leading-[1.18] tracking-[-0.01em]">
+        {headline}
+      </h2>
+      <p className="mt-2 text-[14px] leading-snug text-night/75">{detail}</p>
       <Link
         to="/session"
         className="mt-4 flex h-[52px] w-full items-center justify-center rounded-full bg-night text-[15px] font-semibold text-linen"
@@ -146,6 +150,7 @@ function TodayPage() {
   const { data: mistakes } = useMistakes();
   const dueMistakes = mistakes?.due.length ?? 0;
   const navigate = useNavigate();
+  const online = useOnline();
 
   // A brand-new student meets the rose once, before their first review.
   useEffect(() => {
@@ -195,6 +200,17 @@ function TodayPage() {
         {greeting(data.firstDay, data.student.firstName)}
       </h1>
 
+      {!online && (
+        <div className="animate-fade-up divide-y overflow-hidden rounded-[20px] border bg-card text-[14px]">
+          <p className="flex items-center justify-between px-4 py-3">
+            Ask Florence <span className="text-muted-foreground">Needs internet</span>
+          </p>
+          <p className="flex items-center justify-between px-4 py-3">
+            Saving reviews and quizzes <span className="text-muted-foreground">Needs internet</span>
+          </p>
+        </div>
+      )}
+
       <SessionCard data={data} />
 
       {dueMistakes > 0 && (
@@ -232,8 +248,8 @@ function TodayPage() {
         </Link>
       )}
 
-      {/* Offer installing only after the first useful session. */}
-      {!data.firstDay && <InstallPrompt />}
+      {/* Day one: a hint to install after the first review. Later: the real prompt. */}
+      <InstallPrompt firstDay={data.firstDay} />
     </div>
   );
 }

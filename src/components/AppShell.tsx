@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Home, BookOpen, Users, Shield, X, Settings } from "lucide-react";
+import { Home, PanelLeft, Users, Shield, X, Settings } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +21,7 @@ const RoseIcon: IconComponent = ({ className }) => (
 
 const baseNav: NavItem[] = [
   { to: "/home", label: "Today", icon: Home },
-  { to: "/subjects", label: "Subjects", icon: BookOpen },
+  { to: "/subjects", label: "Subjects", icon: PanelLeft },
   { to: "/progress", label: "Progress", icon: RoseIcon },
   { to: "/batch", label: "Batch", icon: Users },
 ];
@@ -53,22 +53,31 @@ function useNavItems(): NavItem[] {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const focusMode = useFocusMode();
+  const faculty = useLocation().pathname.startsWith("/admin");
   return (
     <div className="relative isolate min-h-dvh bg-background">
       <PendingInviteRedemption />
       <div
-        className={`mx-auto w-full max-w-[480px] px-4 md:max-w-none md:px-8 ${focusMode ? "pt-[max(1rem,env(safe-area-inset-top))]" : "pt-[max(0.75rem,env(safe-area-inset-top))] md:ml-[232px] md:pt-8"}`}
+        className={`mx-auto w-full max-w-[480px] px-4 md:w-auto md:max-w-none md:px-8 ${
+          focusMode
+            ? "pt-[max(1rem,env(safe-area-inset-top))]"
+            : `pt-[max(0.75rem,env(safe-area-inset-top))] md:pt-8 ${faculty ? "md:ml-[260px]" : "md:ml-[232px]"}`
+        }`}
         style={
           focusMode ? undefined : { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6rem)" }
         }
       >
-        <div className={`md:max-w-[720px] ${focusMode ? "md:mx-auto" : ""}`}>
+        <div
+          className={
+            faculty ? "md:max-w-[1280px]" : `md:max-w-[720px] ${focusMode ? "md:mx-auto" : ""}`
+          }
+        >
           <OfflineBanner />
           {children}
         </div>
       </div>
       {focusMode ? <FocusModeClose /> : <BottomNav />}
-      {!focusMode && <SideNav />}
+      {!focusMode && (faculty ? <FacultySidebar /> : <SideNav />)}
     </div>
   );
 }
@@ -232,6 +241,81 @@ function SideNav() {
       >
         Log out
       </button>
+    </nav>
+  );
+}
+
+/** The faculty console's sidebar: always Night ward, as on the For faculty sheet. */
+function FacultySidebar() {
+  const { data } = useQuery({
+    queryKey: ["faculty-sidebar"],
+    queryFn: async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const [{ data: profile }, { count: drafts }, reports] = await Promise.all([
+        user
+          ? supabase.from("profiles").select("display_name, role").eq("id", user.id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        supabase
+          .from("questions")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "draft"),
+        (supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> })
+          .from("content_reports")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "open"),
+      ]);
+      return {
+        name: profile?.display_name ?? "",
+        role: profile?.role === "admin" ? "Admin" : "Faculty",
+        drafts: drafts ?? 0,
+        reports: reports.error ? 0 : (reports.count ?? 0),
+      };
+    },
+    staleTime: 30_000,
+  });
+  const items = [
+    { to: "/admin/review", label: "Review", count: data?.drafts },
+    { to: "/admin", label: "Chapters", exact: true },
+    { to: "/admin/reports", label: "Reported by students", count: data?.reports },
+    { to: "/admin/invite-codes", label: "Batches" },
+    { to: "/admin/diagnostics", label: "Diagnostics" },
+  ];
+  return (
+    <nav
+      aria-label="Faculty navigation"
+      className="dark fixed inset-y-0 left-0 hidden w-[260px] flex-col bg-night p-4 text-linen md:flex"
+    >
+      <Link to="/admin/review" className="mb-8 px-2 pt-3" aria-label="Florence for faculty">
+        <Lockup height={30} variant="night" />
+      </Link>
+      <div className="flex flex-col gap-1">
+        {items.map((item) => (
+          <Link
+            key={item.to}
+            to={item.to as "/admin"}
+            activeOptions={{ exact: Boolean(item.exact) }}
+            className="flex min-h-11 items-center justify-between rounded-xl px-3 text-[15px] font-medium text-linen/85 hover:bg-white/5 data-[status=active]:bg-white/10 data-[status=active]:font-semibold data-[status=active]:text-lamp"
+          >
+            {item.label}
+            {item.count ? (
+              <span className="fl-number min-w-6 rounded-full bg-lamp px-1.5 text-center text-[12px] leading-6 text-night">
+                {item.count}
+              </span>
+            ) : null}
+          </Link>
+        ))}
+      </div>
+      <div className="mt-auto space-y-2">
+        <Link to="/home" className="block px-3 py-2 text-[13.5px] text-mist hover:text-linen">
+          Student app
+        </Link>
+        <div className="rounded-2xl bg-night-panel px-4 py-3">
+          <p className="truncate text-[14.5px] font-semibold">{data?.name || "Faculty"}</p>
+          <p className="text-[13px] text-mist">{data?.role ?? "Faculty"} · SIHAT</p>
+        </div>
+      </div>
     </nav>
   );
 }

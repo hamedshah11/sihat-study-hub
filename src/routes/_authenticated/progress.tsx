@@ -6,7 +6,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TopBar } from "@/components/TopBar";
 import { ProgressRose } from "@/components/brand/ProgressRose";
 import { StatusChip } from "@/components/brand/StatusChip";
-import { DaysInRow } from "@/components/DaysInRow";
 import { RecentExams } from "@/components/exam/RecentExams";
 import { useProgress } from "@/lib/progress-data";
 import { petalColour } from "@/lib/subject-colours";
@@ -72,69 +71,37 @@ function ProgressPage() {
         )}
       </header>
 
-      <section className="dark animate-fade-up stagger-1 rounded-[24px] bg-night p-5 text-linen">
-        <div className="lamp-glow -m-5 flex flex-col items-center p-5">
-          <ProgressRose petals={data.subjects} size={240} interactive glow />
-        </div>
-        <p className="mt-2 text-center text-[13.5px] leading-snug text-mist">
-          Each petal is a subject. A longer petal means you remember more of that subject's cards
-          and do better on its quizzes, across the chapters you've started.
+      <section className="dark animate-fade-up stagger-1 flex min-h-[188px] items-center gap-4 rounded-[24px] bg-night px-5 py-6 text-linen">
+        <ProgressRose petals={data.subjects} size={76} className="shrink-0" />
+        <p className="text-[15px] leading-relaxed text-linen/90">
+          How well you recall each subject's cards and score on its quizzes, across the chapters
+          you've covered.
         </p>
       </section>
 
-      <section className="animate-fade-up stagger-2 divide-y overflow-hidden rounded-[22px] border bg-card">
+      <section className="animate-fade-up stagger-2 divide-y divide-border">
         {data.subjects.map((s) => (
           <Link
             key={s.id}
             to="/subjects/$subjectId"
             params={{ subjectId: s.id }}
-            className="flex min-h-[64px] items-center gap-3 px-4 py-3"
+            className="flex min-h-[62px] items-center gap-3 py-2.5"
+            aria-label={`${s.name}, ${s.mastery == null ? "not started" : `${s.percent}%`}`}
           >
             <span
               aria-hidden
-              className="size-3 shrink-0 rounded-[3px]"
+              className="size-3 shrink-0 rounded-full"
               style={{ backgroundColor: petalColour(s.colour, s.index) }}
             />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[15px] font-semibold">{s.name}</span>
-              <span className="mt-1 flex flex-wrap items-center gap-2">
-                <StatusChip state={s.state} />
-                <span className="text-[12.5px] text-muted-foreground">
-                  {s.chaptersStarted} of {s.chaptersTotal} started
-                </span>
-              </span>
-            </span>
-            <span className="fl-number w-11 shrink-0 text-right text-[14px]">
+            <span className="min-w-0 flex-1 text-[16px] font-semibold leading-tight">{s.name}</span>
+            <StatusChip state={s.state} />
+            <span className="w-11 shrink-0 text-right text-[15px] font-semibold tabular-nums">
               {s.mastery == null ? "–" : `${s.percent}%`}
             </span>
-            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
         ))}
       </section>
-
-      <details className="animate-fade-up stagger-3 rounded-[20px] border bg-card px-4 py-3 text-[13.5px] text-muted-foreground">
-        <summary className="min-h-8 cursor-pointer list-none font-semibold text-foreground">
-          How each petal is measured
-        </summary>
-        <div className="mt-2 space-y-2 leading-relaxed">
-          <p>
-            A subject's number combines how well you'd recall its cards today (60%) with your recent
-            quiz scores (40%), across the chapters you've started. Chapters you haven't started
-            don't count against you.
-          </p>
-          <p>
-            Petals can shrink if you stop reviewing, and grow back when you return. "In bloom" needs
-            80% or more, at least two quizzes and two weeks of study in that subject.
-          </p>
-        </div>
-      </details>
-
-      {!data.firstDay && <DaysInRow week={data.week} count={data.daysInRow} />}
-      {data.daysStudied > 0 && (
-        <p className="text-center text-[13px] text-muted-foreground">
-          {data.daysStudied} day{data.daysStudied === 1 ? "" : "s"} studied so far
-        </p>
-      )}
 
       <div className="animate-fade-up stagger-4">
         <RecentExams />

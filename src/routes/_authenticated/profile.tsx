@@ -23,7 +23,15 @@ export const Route = createFileRoute("/_authenticated/profile")({
   component: SettingsPage,
 });
 
-const APP_VERSION = "2.0";
+const APP_VERSION = "1.0";
+
+/** "21:40" → "9:40 pm" */
+function formatTime(value: string) {
+  const [h, m] = value.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return value;
+  const suffix = h >= 12 ? "pm" : "am";
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${suffix}`;
+}
 const SETTINGS_KEY = ["student-settings"] as const;
 
 function SettingsPage() {
@@ -93,51 +101,62 @@ function SettingsPage() {
     <div className="mx-auto max-w-xl pb-6 pt-2">
       <Link
         to="/home"
-        className="-ml-2 inline-flex min-h-11 items-center gap-0.5 pr-3 text-[14px] font-medium text-muted-foreground hover:text-foreground md:hidden"
+        className="-ml-2 inline-flex min-h-11 items-center gap-1 pr-3 text-[16px] font-semibold text-foreground"
       >
-        <ChevronLeft className="size-5" /> Today
+        <ChevronLeft className="size-5" /> Settings
       </Link>
-      <h1 className="mt-1 font-display text-[30px] leading-tight">Settings</h1>
 
-      <Group title="Theme">
-        <div className="p-3">
-          <div
-            role="radiogroup"
-            aria-label="Theme"
-            className="grid grid-cols-3 rounded-full bg-muted p-1"
+      <h2 className="mt-5 text-[14px] font-semibold">Theme</h2>
+      <div
+        role="radiogroup"
+        aria-label="Theme"
+        className="mt-2.5 grid grid-cols-3 rounded-[14px] bg-muted p-1"
+      >
+        {(
+          [
+            ["light", "Light"],
+            ["dark", "Dark"],
+            ["auto", "Automatic"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            role="radio"
+            aria-checked={theme === value}
+            onClick={() => {
+              setTheme(value);
+              setThemePreference(value);
+            }}
+            className={cn(
+              "h-11 rounded-[11px] text-[14.5px] font-medium",
+              theme === value
+                ? "bg-card font-semibold text-foreground shadow-soft"
+                : "text-foreground/80",
+            )}
           >
-            {(
-              [
-                ["light", "Light"],
-                ["dark", "Dark"],
-                ["auto", "Automatic"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                role="radio"
-                aria-checked={theme === value}
-                onClick={() => {
-                  setTheme(value);
-                  setThemePreference(value);
-                }}
-                className={cn(
-                  "h-10 rounded-full text-[13.5px] font-semibold",
-                  theme === value ? "bg-card text-foreground shadow-soft" : "text-muted-foreground",
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2.5 px-1 text-[13px] leading-snug text-muted-foreground">
-            Automatic uses Lamplight mode from 8 pm to 6 am and never switches during a session.
-          </p>
-        </div>
-      </Group>
+            {label}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2.5 text-[13.5px] leading-snug text-muted-foreground">
+        Automatic uses Lamplight mode from 8 pm to 6 am and never switches during a session.
+      </p>
 
-      <Group title="Reminders">
-        <Row label="Daily reminder" hint="One a day at most">
+      <div className="mt-4 divide-y overflow-hidden rounded-[20px] border bg-card">
+        <Row label="Daily reminder">
+          <label className="relative text-[15px] text-muted-foreground">
+            <span className="tabular-nums">{formatTime(settings?.reminderTime ?? "21:00")}</span>
+            <input
+              type="time"
+              value={settings?.reminderTime ?? "21:00"}
+              disabled={!settings?.available}
+              onChange={(e) => e.target.value && void update({ reminderTime: e.target.value })}
+              className="absolute inset-0 cursor-pointer opacity-0"
+              aria-label="Daily reminder time"
+            />
+          </label>
+        </Row>
+        <Row label="App notifications" hint="One a day at most">
           <Switch
             checked={settings?.reminderEnabled ?? false}
             disabled={!settings?.available}
@@ -147,20 +166,13 @@ function SettingsPage() {
                 void Notification.requestPermission();
               }
             }}
-            aria-label="Daily reminder"
+            aria-label="App notifications"
           />
         </Row>
-        <Row label="Time" hint="When the reminder comes">
-          <input
-            type="time"
-            value={settings?.reminderTime ?? "21:00"}
-            disabled={!settings?.available || !settings?.reminderEnabled}
-            onChange={(e) => e.target.value && void update({ reminderTime: e.target.value })}
-            className="fl-number h-10 rounded-xl border border-input bg-card px-2 text-[14px] disabled:opacity-50"
-            aria-label="Reminder time"
-          />
-        </Row>
-        <Row label="WhatsApp reminders" hint="Off until you allow it">
+        <Row
+          label="WhatsApp reminders"
+          hint={settings?.whatsappOptIn ? "On" : "Off until you allow it"}
+        >
           <Switch
             checked={settings?.whatsappOptIn ?? false}
             disabled={!settings?.available}
@@ -168,17 +180,7 @@ function SettingsPage() {
             aria-label="WhatsApp reminders"
           />
         </Row>
-        <p className="px-4 pb-3 text-[12.5px] leading-snug text-muted-foreground">
-          Off until you turn them on, and never more than one a day. Reminders are being switched on
-          in a coming update; your choices are saved now.
-        </p>
-      </Group>
-
-      <Group title="Batch">
-        <Row
-          label="Show me in study circles"
-          hint="Friends in your circle see only whether you studied today"
-        >
+        <Row label="Show me in study circles" hint={settings?.showInCircles ? "On" : "Off"}>
           <Switch
             checked={settings?.showInCircles ?? false}
             disabled={!settings?.available}
@@ -186,6 +188,12 @@ function SettingsPage() {
             aria-label="Show me in study circles"
           />
         </Row>
+      </div>
+      <p className="mt-2 text-[12.5px] leading-snug text-muted-foreground">
+        Reminders start in a coming update. Your choices are saved now.
+      </p>
+
+      <Group title="Your batch">
         <BatchRow batch={account?.batch ?? null} />
       </Group>
 
@@ -216,10 +224,10 @@ function SettingsPage() {
         Log out
       </button>
 
-      <footer className="mt-10 flex flex-col items-center gap-2 text-center">
+      <footer className="mt-12 flex flex-col items-center gap-2.5 text-center">
         <Lockup height={30} />
-        <p className="text-[12.5px] text-muted-foreground">
-          Content reviewed by SIHAT faculty · Version {APP_VERSION}
+        <p className="text-[13px] text-muted-foreground">
+          Content reviewed by SIHAT faculty. Version {APP_VERSION}
         </p>
       </footer>
     </div>
@@ -256,7 +264,7 @@ function Row({
   return (
     <div className="flex min-h-14 items-center gap-3 px-4 py-2.5">
       <div className="min-w-0 flex-1">
-        <p className="text-[14.5px] font-medium">{label}</p>
+        <p className="text-[15.5px] font-semibold">{label}</p>
         {hint && <p className="text-[12.5px] leading-snug text-muted-foreground">{hint}</p>}
       </div>
       {children}

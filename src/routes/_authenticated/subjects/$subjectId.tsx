@@ -109,11 +109,8 @@ function SubjectDetail() {
       <div className="mt-2 flex items-center gap-2">
         <StatusChip state={subject.state} />
         {subject.mastery != null && (
-          <span className="fl-number text-[14px]">{subject.percent}%</span>
+          <span className="text-[14px] font-medium tabular-nums">{subject.percent}%</span>
         )}
-        <span className="text-[13px] text-muted-foreground">
-          · {subject.chaptersStarted} of {subject.chaptersTotal} chapters started
-        </span>
       </div>
 
       <h2 className="mt-6 text-[13px] font-semibold text-muted-foreground">Chapters</h2>
@@ -149,7 +146,7 @@ function SubjectDetail() {
                 </span>
               </span>
             </span>
-            <span className="fl-number shrink-0 text-[14px]">
+            <span className="shrink-0 text-[15px] font-semibold tabular-nums">
               {c.mastery == null ? "" : `${c.percent}%`}
             </span>
             <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />

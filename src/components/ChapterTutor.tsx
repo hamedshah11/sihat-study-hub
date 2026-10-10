@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, ChevronLeft, ChevronRight, WifiOff } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, WifiOff } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,11 +12,6 @@ import { awardBadgesIfNeeded } from "@/lib/award-badges";
 type Msg = { id: string; role: string; content: string; created_at: string };
 
 const DAILY_LIMIT = 50;
-const SUGGESTIONS = [
-  "Explain this chapter simply",
-  "Quiz me on one idea",
-  "Give me a way to remember it",
-];
 
 /** Answers end with "Source: <section>"; split it off to show as a chip. */
 export function splitSource(content: string): { body: string; source: string | null } {
@@ -137,12 +132,10 @@ export function ChapterTutor({
               <ChevronLeft className="size-6" />
             </button>
           )}
-          <div className="min-w-0">
-            <h1 className="text-[16px] font-semibold">Ask Florence</h1>
-            {chapterTitle && (
-              <p className="truncate text-[12.5px] text-muted-foreground">{chapterTitle}</p>
-            )}
-          </div>
+          <h1 className="text-[16px] font-semibold">
+            Ask Florence
+            {chapterTitle && <span className="sr-only">, about {chapterTitle}</span>}
+          </h1>
         </div>
       </div>
 
@@ -187,7 +180,7 @@ export function ChapterTutor({
                       type="button"
                       disabled={!onOpenSource}
                       onClick={() => onOpenSource?.(source)}
-                      className="mt-2.5 inline-flex min-h-8 items-center gap-1 rounded-full bg-chip px-2.5 text-[12.5px] font-semibold text-chip-foreground"
+                      className="mt-3 inline-flex min-h-8 items-center gap-1 rounded-[10px] bg-streak-bg px-3 text-[13px] font-semibold text-accent-ink"
                     >
                       Source: {source}
                       {onOpenSource && <ChevronRight className="size-3.5" aria-hidden />}
@@ -228,27 +221,12 @@ export function ChapterTutor({
             {error}
           </p>
         ) : null}
-        {!messages?.length && online && (
-          <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4">
-            {SUGGESTIONS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                disabled={sending || overLimit}
-                onClick={() => void sendQuestion(s)}
-                className="min-h-10 shrink-0 rounded-full border border-border-strong/70 bg-card px-3.5 text-[13px] font-semibold disabled:opacity-50"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
             void sendQuestion(input.trim());
           }}
-          className="flex items-center gap-2 rounded-full border border-border-strong/70 bg-card p-1.5 pl-4"
+          className="flex items-center gap-2"
         >
           <label htmlFor="ask-florence" className="sr-only">
             Ask about this chapter
@@ -261,20 +239,24 @@ export function ChapterTutor({
             placeholder={overLimit ? "Back tomorrow" : "Ask about this chapter"}
             disabled={sending || overLimit || !online}
             maxLength={1000}
-            className="h-10 min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground disabled:opacity-60"
+            className="h-12 min-w-0 flex-1 rounded-full border border-border-strong/60 bg-card px-5 text-[15px] outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
           />
           <button
             type="submit"
             disabled={sending || overLimit || !online || !input.trim()}
-            className="grid size-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+            className="grid size-12 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-100"
             aria-label="Send"
           >
-            <ArrowUp className="size-5" />
+            <ArrowRight className="size-5" />
           </button>
         </form>
-        <p className="text-center text-[12px] text-muted-foreground">
-          {overLimit ? "You've used today's questions." : `${remaining} questions left today`}
-        </p>
+        {remaining <= 10 && (
+          <p className="text-center text-[12px] text-muted-foreground">
+            {overLimit
+              ? "You've used today's questions. Ask Florence is back tomorrow."
+              : `${remaining} questions left today`}
+          </p>
+        )}
       </div>
     </div>
   );

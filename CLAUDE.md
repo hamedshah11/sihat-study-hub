@@ -153,9 +153,37 @@ env-var split (`VITE_`-prefixed = public/bundled, unprefixed = server-only).
   activity, never scores.
 - `content_reports` holds "Report a problem" submissions
   (`src/lib/report.functions.ts`). Staff read and resolve them via RLS
-  (`is_staff`). An open report blocks approving that item, and the faculty
-  chapter page's publish checklist (15 approved questions, 25 approved
-  flashcards, notes written, no open reports) blocks publishing.
+  (`is_staff`). An open report blocks approving that item, and the publish
+  checklist (`src/components/admin/PublishChecklist.tsx`: 15 approved
+  questions, 25 approved flashcards, notes written, no open reports) blocks
+  publishing, both on the faculty chapter page and on `/admin/review`.
+- `/admin/review` is the faculty review screen from the For faculty sheet
+  (Night sidebar `FacultySidebar` in `AppShell.tsx` on every `/admin` page,
+  draft list, the draft with Approve/Edit/Reject, source passage, checklist).
+  Editing goes through `updateStaffQuestion` and resets the question to
+  draft. The "source" is the closest matching paragraph of the approved
+  notes (`src/lib/source-passage.ts`), not stored provenance.
+
+## Joining and signing in
+
+- `/` shows a short Night splash, then a Night welcome ("I have a batch
+  code" / "Sign in with phone or email"). `/signup` is one "Join your
+  batch" screen: the batch code is looked up as it is typed, then name and
+  phone number or email, then a 6-digit code (`CodeStep.tsx`, helpers in
+  `src/lib/auth-otp.ts`). `/login` takes a phone number (SMS code) or an
+  email (password, or a code if left empty).
+- Phone codes need a Supabase SMS provider; until one is set up, phone
+  attempts show a plain "use your email" message. Email codes need
+  `{{ .Token }}` in the Supabase email templates; the link in the email
+  works either way.
+
+## Answer colours
+
+- Quiz options and mistake review use `AnswerOption` / `AnswerFeedback`
+  (`src/components/study/AnswerOption.tsx`); flashcard ratings in
+  `FlashcardDeck.tsx` use the `--rate-again/hard/good/easy` tokens. These
+  are feedback colours, separate from petal colours, and always pair with a
+  word.
 - `student_settings` stores reminder preferences (off by default, one a day
   at most). Nothing sends reminders yet.
 - All four come from `supabase/migrations/20261010120000_florence_redesign.sql`
@@ -248,10 +276,10 @@ review XP once per PKT day. Browser reads go through
 - No native push notifications — PWA install prompt only
   (`InstallPrompt.tsx`, offered after the first useful session); no web-push
   subscription/backend exists yet. Reminder preferences are stored but unsent.
-- Phone-number sign-in from the design needs a Supabase SMS provider; joining
-  uses email for now.
-- Faculty console: per-option reasoning, highlighted source passages and
-  learning-objective coverage need `generate-content` to store them first.
+- Phone-number codes need a Supabase SMS provider; email works meanwhile.
+- Faculty console: per-option reasoning, stored source passages (the review
+  screen matches against the notes instead) and learning-objective coverage
+  need `generate-content` to store them first.
 - No payment/subscription layer — access is invite-code gated
   (`invite_codes` table, `internal` vs `external` `student_type`), not
   billed.
