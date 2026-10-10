@@ -32,7 +32,7 @@ const PLACEHOLDER: RosePetal[] = Array.from({ length: 6 }, (_, i) => ({
   state: "not_started",
 }));
 
-function useTween(target: number, from: number | undefined, duration = 1200) {
+function useTween(target: number, from: number | undefined, duration = 900) {
   const [value, setValue] = useState(from ?? target);
   const frame = useRef<number | null>(null);
   useEffect(() => {
@@ -54,7 +54,7 @@ function useTween(target: number, from: number | undefined, duration = 1200) {
     };
     const delay = window.setTimeout(() => {
       frame.current = requestAnimationFrame(tick);
-    }, 350);
+    }, 120);
     return () => {
       window.clearTimeout(delay);
       if (frame.current) cancelAnimationFrame(frame.current);

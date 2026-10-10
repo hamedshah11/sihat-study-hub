@@ -47,18 +47,23 @@ export function SessionComplete({
       <div className="lamp-glow mx-auto flex w-full max-w-[480px] flex-1 flex-col items-center px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
         <p className="text-[14px] font-semibold text-linen">{label}</p>
         <div className="mt-8 rounded-full">
-          {after ? (
+          {/* The rose shows straight away as it was before the session; the
+              petal grows the moment the new numbers arrive from the server. */}
+          {after || before ? (
             <ProgressRose
-              petals={after.subjects}
+              petals={(after ?? before)!.subjects}
               size={250}
               glow
-              grow={result && grew ? { id: result.id, from: result.from } : undefined}
+              grow={after && result && grew ? { id: result.id, from: result.from } : undefined}
             />
           ) : (
             <div className="size-[230px] animate-pulse rounded-full bg-night-panel" />
           )}
         </div>
-        <h1 className="mt-10 font-display text-[34px] leading-[1.12]">
+        <h1
+          className={`mt-10 font-display text-[34px] leading-[1.12] transition-opacity duration-300 ${after ? "opacity-100" : "opacity-0"}`}
+          aria-busy={!after}
+        >
           {!result
             ? "Session complete."
             : grew

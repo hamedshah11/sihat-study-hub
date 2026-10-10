@@ -135,6 +135,57 @@ export const getProgressSnapshot = createServerFn({ method: "GET" })
     const userId = context.userId;
     if (!userId) throw new Error("Unauthorized");
 
+    // The student's own rows don't depend on the curriculum lookups below, so
+    // they load at the same time instead of after them. This is the read the
+    // session-complete rose waits for.
+    const userReads = Promise.all([
+      fetchAll<RawReview>(
+        (from, to) =>
+          supabaseAdmin
+            .from("flashcard_reviews")
+            .select(
+              "flashcard_id, reps, lapses, state, stability, difficulty, scheduled_days, elapsed_days, learning_steps, last_review, due_at, next_review_at",
+            )
+            .eq("user_id", userId)
+            .range(from, to) as never,
+      ),
+      fetchAll<RawProgress>(
+        (from, to) =>
+          supabaseAdmin
+            .from("chapter_progress")
+            .select("chapter_id, mastery_score, attempts, last_attempt_at")
+            .eq("user_id", userId)
+            .range(from, to) as never,
+      ),
+      fetchAll<RawQuizAttempt>(
+        (from, to) =>
+          supabaseAdmin
+            .from("quiz_attempts")
+            .select("chapter_id, attempted_at")
+            .eq("user_id", userId)
+            .range(from, to) as never,
+      ),
+      supabaseAdmin
+        .from("streaks")
+        .select("current_streak, longest_streak, last_active_date, freezes_available")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      fetchAll<{ occurred_at: string }>(
+        (from, to) =>
+          supabaseAdmin
+            .from("xp_events")
+            .select("occurred_at")
+            .eq("user_id", userId)
+            .order("occurred_at", { ascending: false })
+            .range(from, to) as never,
+        10_000,
+      ),
+    ]);
+
+    // Rejections surface at the await below; this stops an early curriculum
+    // error from leaving this promise's failure unhandled.
+    userReads.catch(() => undefined);
+
     const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("display_name, batch_id")
@@ -154,7 +205,7 @@ export const getProgressSnapshot = createServerFn({ method: "GET" })
         .maybeSingle();
       batch = data ?? null;
     }
-    const [{ data: semester }, { data: programme }] = await Promise.all([
+    const [{ data: semester }, { data: programme }, subjects, earlierSubjects] = await Promise.all([
       batch?.current_semester_id
         ? supabaseAdmin
             .from("semesters")
@@ -165,9 +216,6 @@ export const getProgressSnapshot = createServerFn({ method: "GET" })
       batch?.program_id
         ? supabaseAdmin.from("programs").select("name").eq("id", batch.program_id).maybeSingle()
         : Promise.resolve({ data: null }),
-    ]);
-
-    const [subjects, earlierSubjects] = await Promise.all([
       loadSemesterSubjects(batch?.current_semester_id ?? null),
       loadEarlierSubjects(batch?.program_id ?? null, batch?.current_semester_id ?? null),
     ]);
@@ -216,49 +264,7 @@ export const getProgressSnapshot = createServerFn({ method: "GET" })
       }
     }
 
-    const [reviews, progress, quizAttempts, streakResult, activity] = await Promise.all([
-      fetchAll<RawReview>(
-        (from, to) =>
-          supabaseAdmin
-            .from("flashcard_reviews")
-            .select(
-              "flashcard_id, reps, lapses, state, stability, difficulty, scheduled_days, elapsed_days, learning_steps, last_review, due_at, next_review_at",
-            )
-            .eq("user_id", userId)
-            .range(from, to) as never,
-      ),
-      fetchAll<RawProgress>(
-        (from, to) =>
-          supabaseAdmin
-            .from("chapter_progress")
-            .select("chapter_id, mastery_score, attempts, last_attempt_at")
-            .eq("user_id", userId)
-            .range(from, to) as never,
-      ),
-      fetchAll<RawQuizAttempt>(
-        (from, to) =>
-          supabaseAdmin
-            .from("quiz_attempts")
-            .select("chapter_id, attempted_at")
-            .eq("user_id", userId)
-            .range(from, to) as never,
-      ),
-      supabaseAdmin
-        .from("streaks")
-        .select("current_streak, longest_streak, last_active_date, freezes_available")
-        .eq("user_id", userId)
-        .maybeSingle(),
-      fetchAll<{ occurred_at: string }>(
-        (from, to) =>
-          supabaseAdmin
-            .from("xp_events")
-            .select("occurred_at")
-            .eq("user_id", userId)
-            .order("occurred_at", { ascending: false })
-            .range(from, to) as never,
-        10_000,
-      ),
-    ]);
+    const [reviews, progress, quizAttempts, streakResult, activity] = await userReads;
 
     const snapshot = buildSnapshot({
       subjects,
