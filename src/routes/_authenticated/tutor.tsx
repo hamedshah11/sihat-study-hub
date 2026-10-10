@@ -16,7 +16,7 @@ import {
 import { awardBadgesIfNeeded } from "@/lib/award-badges";
 
 export const Route = createFileRoute("/_authenticated/tutor")({
-  head: () => ({ meta: [{ title: "Tutor — Sihat" }] }),
+  head: () => ({ meta: [{ title: "Practice answers · Florence" }] }),
   component: TutorPracticePage,
 });
 

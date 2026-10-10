@@ -10,6 +10,6 @@ describe("service worker privacy", () => {
   });
 
   it("bumps the cache version so existing broad API caches are removed", () => {
-    expect(serviceWorker).toContain('const CACHE_VERSION = "v6"');
+    expect(serviceWorker).toContain('const CACHE_VERSION = "v7"');
   });
 });

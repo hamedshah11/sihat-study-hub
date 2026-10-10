@@ -1,56 +1,91 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { cloneElement, isValidElement, useId, useState } from "react";
+import { useId, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { AuthShell, FieldError } from "@/components/AuthShell";
+import { previewBatchCode, type BatchPreview } from "@/lib/invite.functions";
+import { pageTitle } from "@/lib/brand";
 
 export const Route = createFileRoute("/signup")({
-  head: () => ({ meta: [{ title: "Sign up — Sihat" }] }),
-  component: SignUp,
+  head: () => ({ meta: [{ title: pageTitle("Join your batch") }] }),
+  // Coordinators can share a link with the code filled in: /signup?code=…
+  validateSearch: (s: Record<string, unknown>): { code?: string } => ({
+    code: typeof s.code === "string" && s.code.length <= 64 ? s.code : undefined,
+  }),
+  component: JoinBatch,
 });
 
-const schema = z
-  .object({
-    displayName: z.string().trim().min(1, "Required").max(80),
-    email: z.string().trim().email("Enter a valid email").max(255),
-    password: z.string().min(8, "At least 8 characters").max(128),
-    confirm: z.string(),
-    inviteCode: z.string().trim().max(64).optional(),
-  })
-  .refine((d) => d.password === d.confirm, {
-    message: "Passwords do not match",
-    path: ["confirm"],
-  });
+const accountSchema = z.object({
+  displayName: z.string().trim().min(1, "Enter your name").max(80),
+  email: z.string().trim().email("Enter a valid email").max(255),
+  password: z.string().min(8, "At least 8 characters").max(128),
+});
 
-function SignUp() {
+type Found = Extract<BatchPreview, { ok: true }>;
+
+/**
+ * Joining starts with the batch code the college hands out, so every student
+ * lands in the right college, programme and semester on day one. The code is
+ * checked and shown before anything is saved; it's redeemed only after the
+ * account exists (AppShell's PendingInviteRedemption).
+ */
+function JoinBatch() {
+  const { code: codeFromLink } = Route.useSearch();
   const navigate = useNavigate();
+  const preview = useServerFn(previewBatchCode);
+  const [code, setCode] = useState(codeFromLink ?? "");
+  const [found, setFound] = useState<Found | null>(null);
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const ids = { code: useId(), name: useId(), email: useId(), password: useId() };
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  async function checkCode(e: React.FormEvent) {
     e.preventDefault();
-    setErrors({});
+    if (!code.trim() || checking) return;
+    setChecking(true);
+    setCodeError(null);
+    try {
+      const res = await preview({ data: { code: code.trim() } });
+      if (res.ok) setFound(res);
+      else
+        setCodeError(
+          res.reason === "expired"
+            ? "That code has expired. Ask your class coordinator for a new one."
+            : res.reason === "exhausted"
+              ? "That code is full. Ask your class coordinator for a new one."
+              : "That code didn't work. Check it with your class coordinator.",
+        );
+    } catch {
+      setCodeError("We couldn't check the code. Check your connection and try again.");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function join(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (submitting || !found) return;
     const fd = new FormData(e.currentTarget);
-    const parsed = schema.safeParse({
+    const parsed = accountSchema.safeParse({
       displayName: fd.get("displayName"),
       email: fd.get("email"),
       password: fd.get("password"),
-      confirm: fd.get("confirm"),
-      inviteCode: (fd.get("inviteCode") as string) || undefined,
     });
     if (!parsed.success) {
-      const errs: Record<string, string> = {};
-      for (const issue of parsed.error.issues) errs[String(issue.path[0])] = issue.message;
-      setErrors(errs);
+      const next: Record<string, string> = {};
+      for (const issue of parsed.error.issues) next[String(issue.path[0])] = issue.message;
+      setErrors(next);
       return;
     }
+    setErrors({});
     setSubmitting(true);
     try {
-      console.log("[signup] submitting", { email: parsed.data.email });
       const { data, error } = await supabase.auth.signUp({
         email: parsed.data.email,
         password: parsed.data.password,
@@ -58,152 +93,162 @@ function SignUp() {
           emailRedirectTo: `${window.location.origin}/home`,
           data: {
             display_name: parsed.data.displayName,
-            // User metadata survives email confirmation, including when the
-            // link is opened on another device. The authenticated app shell
-            // redeems this code against the signed-in user's own profile.
-            pending_invite_code: parsed.data.inviteCode || null,
+            // Survives email confirmation (even on another device); the app
+            // redeems it against the signed-in student's own profile.
+            pending_invite_code: code.trim(),
           },
         },
       });
       if (error) {
-        console.error("[signup] failed", error);
         toast.error(error.message);
         return;
       }
-      console.log("[signup] success", { userId: data.user?.id, hasSession: !!data.session });
-
-      if (data.session) {
-        toast.success("Account created. Welcome!");
-        navigate({ to: "/home" });
-      } else {
-        setSent(true);
-      }
-    } catch (e) {
-      console.error("[signup] unexpected error", e);
-      toast.error(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+      if (data.session) navigate({ to: "/intro" });
+      else setSentTo(parsed.data.email);
+    } catch {
+      toast.error("Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
-  return (
-    <AuthShell title="Create your account" subtitle="Start studying with Sihat.">
-      {sent ? (
-        <div className="rounded-xl bg-surface p-6 text-center">
-          <h2 className="font-semibold text-primary">Check your email</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            We sent a confirmation link to verify your account. Open it to finish signing up.
-          </p>
-          <Button asChild variant="outline" className="mt-6 w-full rounded-lg">
-            <Link to="/login">Back to log in</Link>
-          </Button>
-        </div>
-      ) : (
-        <form onSubmit={onSubmit} className="space-y-4">
-          <Field label="Display name" error={errors.displayName}>
-            <Input name="displayName" autoComplete="name" />
-          </Field>
-          <Field label="Email" error={errors.email}>
-            <Input name="email" type="email" autoComplete="email" />
-          </Field>
-          <Field label="Password" error={errors.password}>
-            <Input name="password" type="password" autoComplete="new-password" />
-          </Field>
-          <Field label="Confirm password" error={errors.confirm}>
-            <Input name="confirm" type="password" autoComplete="new-password" />
-          </Field>
-          <Field label="Invite code" hint="Optional — for Sindh Institute students">
-            <Input name="inviteCode" autoComplete="off" />
-          </Field>
-          <Button type="submit" disabled={submitting} className="w-full h-12 rounded-lg text-base">
-            {submitting ? "Creating account…" : "Sign up"}
-          </Button>
-          <p className="text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link to="/login" className="text-accent font-medium">
-              Log in
-            </Link>
-          </p>
+  if (sentTo) {
+    return (
+      <AuthShell title="Check your email." back={{ to: "/login", label: "Sign in" }}>
+        <p className="text-[15px] leading-relaxed text-muted-foreground">
+          We sent a link to <span className="font-semibold text-foreground">{sentTo}</span>. Open it
+          on this phone to finish joining {found?.batch ?? "your batch"}.
+        </p>
+        <p className="mt-3 text-[13.5px] text-muted-foreground">
+          Can't find it? Look in your spam or promotions folder.
+        </p>
+      </AuthShell>
+    );
+  }
+
+  if (!found) {
+    return (
+      <AuthShell
+        title="Join your batch."
+        subtitle="Enter the batch code from your class coordinator. No college email needed."
+      >
+        <form onSubmit={checkCode} className="space-y-2">
+          <label htmlFor={ids.code} className="text-[14px] font-semibold">
+            Batch code
+          </label>
+          <input
+            id={ids.code}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            autoCapitalize="characters"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="e.g. SI-BSN-7K2Q"
+            className="fl-number w-full px-4 tracking-[0.06em] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <FieldError>{codeError ?? undefined}</FieldError>
+          <button
+            type="submit"
+            disabled={checking || !code.trim()}
+            className="mt-3 h-[52px] w-full rounded-full bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-50"
+          >
+            {checking ? "Checking…" : "Find my batch"}
+          </button>
         </form>
-      )}
-    </AuthShell>
-  );
-}
+        <p className="mt-6 text-center text-[14px] text-muted-foreground">
+          Already joined?{" "}
+          <Link to="/login" className="font-semibold text-accent-ink">
+            Sign in
+          </Link>
+        </p>
+      </AuthShell>
+    );
+  }
 
-function Field({
-  label,
-  error,
-  hint,
-  children,
-}: {
-  label: string;
-  error?: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  // Link the label to its input so tapping the label focuses the field and
-  // screen readers announce it.
-  const id = useId();
-  const field = isValidElement<{ id?: string }>(children)
-    ? cloneElement(children, { id: children.props.id ?? id })
-    : children;
-  const fieldId = isValidElement<{ id?: string }>(field) ? field.props.id : undefined;
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={fieldId} className="text-sm">
-        {label}
-      </Label>
-      {field}
-      {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
-  );
-}
+    <AuthShell title="Join your batch." back={null}>
+      <div className="rounded-[20px] border bg-card p-4">
+        <p className="flex items-center gap-2 text-[14px] font-semibold">
+          <CheckCircle2 className="size-[18px] text-success-ink" aria-hidden /> Code found. Is this
+          you?
+        </p>
+        <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[14px]">
+          <dt className="text-muted-foreground">College</dt>
+          <dd className="font-medium">{found.college}</dd>
+          <dt className="text-muted-foreground">Programme</dt>
+          <dd className="font-medium">{found.programme ?? found.batch}</dd>
+          <dt className="text-muted-foreground">Semester</dt>
+          <dd className="font-medium">{found.semester ?? "To be set"}</dd>
+          <dt className="text-muted-foreground">Subjects</dt>
+          <dd className="font-medium">
+            {found.subjects}, with {found.chaptersReady} chapter
+            {found.chaptersReady === 1 ? "" : "s"} ready
+          </dd>
+        </dl>
+      </div>
 
-export function AuthShell({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="relative isolate min-h-screen overflow-hidden bg-background">
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute -right-36 -top-28 size-[420px] rounded-full bg-primary-tint" />
-        <div className="absolute -right-16 -top-10 size-[260px] rounded-full bg-primary-tint-2" />
-        <div className="animate-float-slow absolute right-8 top-28 w-[150px] rotate-6 rounded-[18px] bg-card p-3.5 shadow-lifted">
-          <p className="text-[10px] font-bold tracking-wider text-primary">FLASHCARD</p>
-          <p className="mt-1.5 font-display text-[17px] leading-tight text-foreground">
-            Normal adult pulse?
+      <form onSubmit={join} className="mt-5 space-y-4" noValidate>
+        <div className="space-y-1.5">
+          <label htmlFor={ids.name} className="text-[14px] font-semibold">
+            Your name
+          </label>
+          <input
+            id={ids.name}
+            name="displayName"
+            autoComplete="name"
+            className="w-full px-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <FieldError>{errors.displayName}</FieldError>
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor={ids.email} className="text-[14px] font-semibold">
+            Email
+          </label>
+          <input
+            id={ids.email}
+            name="email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            className="w-full px-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <p className="text-[12.5px] text-muted-foreground">
+            For signing in. We never show it to classmates.
           </p>
-          <div className="mt-2.5 h-1.5 rounded-full bg-primary-tint" />
-          <div className="mt-1.5 h-1.5 w-3/5 rounded-full bg-primary-tint" />
+          <FieldError>{errors.email}</FieldError>
         </div>
-      </div>
-      <div className="mx-auto w-full max-w-[480px] px-6 pb-12 pt-[60px]">
-        <Link to="/" className="animate-fade-up inline-flex items-center gap-2.5">
-          <div className="grid size-12 place-items-center rounded-[15px] bg-primary font-display text-3xl text-primary-foreground shadow-glow">
-            S
-          </div>
-        </Link>
-        <h1 className="animate-fade-up stagger-1 mt-[145px] font-display text-[44px] font-normal leading-[1.02] text-foreground">
-          Study smarter
-          <br />
-          for every <em className="text-primary">shift.</em>
-        </h1>
-        <div className="animate-fade-up stagger-2 mt-3">
-          <h2 className="text-base font-bold text-foreground">{title}</h2>
-          {subtitle && (
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{subtitle}</p>
-          )}
+        <div className="space-y-1.5">
+          <label htmlFor={ids.password} className="text-[14px] font-semibold">
+            Password
+          </label>
+          <input
+            id={ids.password}
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            className="w-full px-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <p className="text-[12.5px] text-muted-foreground">At least 8 characters.</p>
+          <FieldError>{errors.password}</FieldError>
         </div>
-        <div className="animate-fade-up stagger-3 mt-6 [&_input]:h-[52px] [&_input]:rounded-2xl [&_input]:bg-card [&_button[type=submit]]:h-[54px] [&_button[type=submit]]:rounded-2xl">
-          {children}
-        </div>
-      </div>
-    </div>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="h-[52px] w-full rounded-full bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+        >
+          {submitting ? "Joining…" : "Join batch"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setFound(null);
+            setCodeError(null);
+          }}
+          className="min-h-11 w-full text-[14px] font-semibold text-accent-ink"
+        >
+          Wrong college or semester?
+        </button>
+      </form>
+    </AuthShell>
   );
 }

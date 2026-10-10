@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, CheckCircle2, Flag, MinusCircle, RotateCcw, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { celebrate } from "@/lib/celebrate";
 import { EXAM_MODES, EXAM_PASS_MARK } from "@/lib/exam-config";
 import type { ExamResult, ExamReviewQuestion } from "@/lib/exam.functions";
 
@@ -18,7 +17,6 @@ function minutesLabel(seconds: number) {
 
 export function ExamResults({
   result,
-  celebrateOnMount,
   onDone,
 }: {
   result: ExamResult;
@@ -31,10 +29,6 @@ export function ExamResults({
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [view]);
-
-  useEffect(() => {
-    if (celebrateOnMount && result.passed) celebrate(result.pct >= 95 ? "big" : "small");
-  }, [celebrateOnMount, result.passed, result.pct]);
 
   const mistakes = useMemo(() => result.questions.filter((q) => !q.correct), [result.questions]);
   const titleByChapter = useMemo(
@@ -135,17 +129,13 @@ export function ExamResults({
           {modeLabel}
         </p>
         <h1 className="mt-1 font-display text-[34px] text-foreground">
-          {result.passed ? "Nicely done" : "Keep going"}
+          {result.passed ? "You passed." : "Not there yet."}
         </h1>
         {!result.passed && (
           <p className="text-sm text-muted-foreground">
-            {Math.round(EXAM_PASS_MARK * 100)}% is needed to pass.
+            {Math.round(EXAM_PASS_MARK * 100)}% is needed to pass. Your missed questions come back
+            tomorrow.
           </p>
-        )}
-        {result.xpAwarded > 0 && (
-          <span className="animate-pop mt-3 inline-flex rounded-full bg-streak-bg px-3 py-1.5 text-xs font-bold text-streak-ink">
-            +{result.xpAwarded} XP
-          </span>
         )}
       </section>
 

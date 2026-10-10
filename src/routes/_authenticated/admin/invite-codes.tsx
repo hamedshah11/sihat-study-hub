@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/invite-codes")({
-  head: () => ({ meta: [{ title: "Invite codes — Sihat" }] }),
+  head: () => ({ meta: [{ title: "Batch codes · Florence" }] }),
   component: InviteCodesPage,
 });
 

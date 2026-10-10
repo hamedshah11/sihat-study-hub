@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Shield, CheckCircle2, XCircle, Loader2, Shuffle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/diagnostics")({
-  head: () => ({ meta: [{ title: "Diagnostics — Sihat" }] }),
+  head: () => ({ meta: [{ title: "Diagnostics · Florence" }] }),
   component: DiagnosticsPage,
 });
 

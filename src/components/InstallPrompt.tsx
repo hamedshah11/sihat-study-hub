@@ -7,7 +7,7 @@ type BIPEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-const SESSION_KEY = "sihat:install-dismissed";
+const SESSION_KEY = "florence:install-dismissed";
 
 function isStandalone() {
   if (typeof window === "undefined") return false;
@@ -64,54 +64,38 @@ export function InstallPrompt() {
 
   if (dismissed) return null;
 
-  if (bip) {
-    return (
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="inline-flex size-9 items-center justify-center rounded-lg bg-accent/15 text-accent shrink-0">
-            <Download className="size-4" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-primary">Install Sihat</p>
-            <p className="text-xs text-muted-foreground truncate">
-              Add to your home screen for quick access.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <Button size="sm" onClick={install}>Install</Button>
-          <button
-            onClick={dismiss}
-            aria-label="Dismiss"
-            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (!bip && !showIOSHint) return null;
 
-  if (showIOSHint) {
-    return (
-      <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
-        <div className="inline-flex size-9 items-center justify-center rounded-lg bg-accent/15 text-accent shrink-0">
-          <Share className="size-4" />
-        </div>
-        <p className="flex-1 text-xs text-muted-foreground">
-          Install Sihat: tap <span className="font-medium text-primary">Share</span>, then{" "}
-          <span className="font-medium text-primary">Add to Home Screen</span>.
+  return (
+    <div className="flex items-start gap-3 rounded-[20px] border border-dashed border-border-strong px-4 py-3">
+      <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-foreground">
+        {bip ? <Download className="size-4" /> : <Share className="size-4" />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[14px] font-semibold">Add Florence to your home screen</p>
+        <p className="mt-0.5 text-[13px] leading-snug text-muted-foreground">
+          {bip ? (
+            "It opens faster, like an app."
+          ) : (
+            <>
+              Tap <span className="font-semibold text-foreground">Share</span>, then{" "}
+              <span className="font-semibold text-foreground">Add to Home Screen</span>.
+            </>
+          )}
         </p>
-        <button
-          onClick={dismiss}
-          aria-label="Dismiss"
-          className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted shrink-0"
-        >
-          <X className="size-4" />
-        </button>
+        {bip && (
+          <Button size="sm" onClick={install} className="mt-2.5 h-9 rounded-full px-4">
+            Add to home screen
+          </Button>
+        )}
       </div>
-    );
-  }
-
-  return null;
+      <button
+        onClick={dismiss}
+        aria-label="Dismiss"
+        className="-mr-2 -mt-1 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
 }

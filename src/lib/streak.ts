@@ -4,7 +4,10 @@
 // supabase/functions/_shared/activity.ts has a Deno copy of nextStreak for
 // the edge functions. Keep the two in sync.
 //
-// Days are Pakistan Standard Time calendar days ("YYYY-MM-DD", UTC+5, no DST).
+// Days in a row count study days, and a study day runs from 4 am to 4 am
+// Pakistan Standard Time (UTC+5, no DST): a session after midnight counts for
+// the day before, and morning or daytime study counts the same as evening
+// study. Days are "YYYY-MM-DD" labels of that study day.
 
 /** A streak freeze covers one missed day. */
 export const MAX_FREEZES = 2;
@@ -20,6 +23,14 @@ export type StreakRow = {
 
 export function pktDay(d: Date = new Date()): string {
   return new Date(d.getTime() + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** Hours after PKT midnight when a new study day starts. */
+export const STUDY_DAY_START_HOUR = 4;
+
+/** The study day (4 am to 4 am PKT) that `d` belongs to. */
+export function studyDay(d: Date = new Date()): string {
+  return pktDay(new Date(d.getTime() - STUDY_DAY_START_HOUR * 60 * 60 * 1000));
 }
 
 /** Whole days from `from` to `to`, both "YYYY-MM-DD". */
@@ -73,7 +84,7 @@ export function nextStreak(
  */
 export function displayStreak(
   row: Partial<StreakRow> | null | undefined,
-  today = pktDay(),
+  today = studyDay(),
 ): number {
   if (!row?.last_active_date) return 0;
   const gap = daysBetween(row.last_active_date, today);

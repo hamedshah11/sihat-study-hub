@@ -6,16 +6,18 @@
 export const XP_AMOUNTS = { flashcard: 1, quiz: 10, quiz_pass: 15, tutor: 2, exam: 20, exam_pass: 35, review: 10 } as const;
 export type XpSource = keyof typeof XP_AMOUNTS;
 
-// Pakistan Standard Time is UTC+5, no DST. Streaks roll over at PKT midnight.
-function pktDate(d = new Date()): string {
-  return new Date(d.getTime() + 5 * 3600_000).toISOString().slice(0, 10);
+// Pakistan Standard Time is UTC+5, no DST. A study day runs from 4 am to
+// 4 am PKT, so "days in a row" counts a session after midnight for the day
+// before. Keep in sync with studyDay() in src/lib/streak.ts.
+function studyDay(d = new Date()): string {
+  return new Date(d.getTime() + (5 - 4) * 3600_000).toISOString().slice(0, 10);
 }
 
 // deno-lint-ignore no-explicit-any
 export async function awardXpAndStreak(admin: any, userId: string, source: XpSource): Promise<void> {
   await admin.from("xp_events").insert({ user_id: userId, amount: XP_AMOUNTS[source], source });
 
-  const today = pktDate();
+  const today = studyDay();
   const { data: streak } = await admin
     .from("streaks")
     .select("current_streak, longest_streak, last_active_date, freezes_available")

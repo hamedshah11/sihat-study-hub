@@ -18,7 +18,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/_authenticated/subjects/$subjectId_/exam")({
-  head: () => ({ meta: [{ title: "Exam — Sihat" }] }),
+  head: () => ({ meta: [{ title: "Practice exam · Florence" }] }),
   validateSearch: (search) => searchSchema.parse(search),
   component: ExamPage,
 });

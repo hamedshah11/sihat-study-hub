@@ -1,75 +1,84 @@
-import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { ChevronLeft, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { BadgeShelf } from "@/components/BadgeShelf";
-import { Loader2, LogOut, Mail, Moon, User, Users } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Lockup } from "@/components/brand/Lockup";
 import { applyInviteCode } from "@/lib/invite.functions";
+import {
+  getStudentSettings,
+  updateStudentSettings,
+  type StudentSettings,
+} from "@/lib/settings.functions";
 import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
+import { invalidateProgress } from "@/lib/progress-data";
+import { pageTitle } from "@/lib/brand";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/profile")({
-  head: () => ({ meta: [{ title: "Profile — Sihat" }] }),
-  component: ProfilePage,
+  head: () => ({ meta: [{ title: pageTitle("Settings") }] }),
+  component: SettingsPage,
 });
 
-function ProfilePage() {
+const APP_VERSION = "2.0";
+const SETTINGS_KEY = ["student-settings"] as const;
+
+function SettingsPage() {
   const navigate = useNavigate();
   const router = useRouter();
   const qc = useQueryClient();
-  const [theme, setTheme] = useState<ThemePreference>("system");
+  const [theme, setTheme] = useState<ThemePreference>("auto");
   useEffect(() => setTheme(getThemePreference()), []);
 
-  const { data } = useQuery({
+  const { data: account } = useQuery({
     queryKey: ["profile-page"],
     queryFn: async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return null;
-      const [{ data: profile }, { data: allBadges }, { data: earned }] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("display_name, email, batch_id, student_type, role")
-          .eq("id", user.id)
-          .maybeSingle(),
-        supabase.from("badges").select("id, name, description, icon"),
-        supabase.from("user_badges").select("badge_id, earned_at").eq("user_id", user.id),
-      ]);
-      let batchName: string | null = null;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("display_name, email, batch_id, role")
+        .eq("id", user.id)
+        .maybeSingle();
+      let batch: string | null = null;
       if (profile?.batch_id) {
         const { data: b } = await supabase
           .from("batches")
           .select("name")
           .eq("id", profile.batch_id)
           .maybeSingle();
-        batchName = b?.name ?? null;
+        batch = b?.name ?? null;
       }
-      const earnedMap = new Map(
-        (earned ?? []).map((e: any) => [e.badge_id as string, e.earned_at as string]),
-      );
-      const badges = (allBadges ?? [])
-        .map((b: any) => ({
-          id: b.id as string,
-          name: b.name as string,
-          description: b.description as string,
-          icon: (b.icon ?? "award") as string,
-          earnedAt: earnedMap.get(b.id) ?? null,
-        }))
-        .sort((a, b) => Number(!!b.earnedAt) - Number(!!a.earnedAt));
       return {
-        displayName: profile?.display_name || "—",
+        name: profile?.display_name || "",
         email: profile?.email || user.email || "",
-        batch: batchName,
-        studentType: profile?.student_type,
+        batch,
         role: profile?.role ?? "student",
-        badges,
       };
     },
   });
+
+  const loadSettings = useServerFn(getStudentSettings);
+  const saveSettings = useServerFn(updateStudentSettings);
+  const { data: settings } = useQuery({ queryKey: SETTINGS_KEY, queryFn: () => loadSettings() });
+
+  async function update(patch: Partial<Omit<StudentSettings, "available">>) {
+    const previous = qc.getQueryData<StudentSettings>(SETTINGS_KEY);
+    if (previous) qc.setQueryData(SETTINGS_KEY, { ...previous, ...patch });
+    try {
+      const res = await saveSettings({ data: patch });
+      if (!res.ok) throw new Error("not saved");
+      void qc.invalidateQueries({ queryKey: ["batch-overview"] });
+    } catch {
+      if (previous) qc.setQueryData(SETTINGS_KEY, previous);
+      toast.error("That setting didn't save. Try again.");
+    }
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -78,259 +87,255 @@ function ProfilePage() {
     navigate({ to: "/login" });
   };
 
-  const elevatedRole = data?.role === "admin" || data?.role === "instructor" ? data.role : null;
-
-  const initials =
-    (data?.displayName ?? "")
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => w[0]?.toUpperCase())
-      .join("") || "?";
+  const staff = account?.role === "admin" || account?.role === "instructor";
 
   return (
-    <div className="pb-4">
-      <h1 className="animate-fade-up font-display text-[34px] font-normal text-foreground">
-        Profile
-      </h1>
-
-      {/* Identity card */}
-      <div className="animate-fade-up stagger-1 mt-5 flex items-center gap-4">
-        <span className="grid size-16 shrink-0 place-items-center rounded-[20px] bg-primary font-display text-2xl text-primary-foreground shadow-lifted">
-          {initials}
-        </span>
-        <div className="min-w-0">
-          <p className="font-display truncate text-2xl text-foreground">{data?.displayName}</p>
-          <p className="truncate text-sm text-muted-foreground">{data?.batch ?? data?.email}</p>
-          {elevatedRole && <Badge className="mt-1.5 capitalize">{elevatedRole}</Badge>}
-        </div>
-      </div>
-
-      <h2 className="mt-8 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
-        Account
-      </h2>
-      <div className="animate-fade-up stagger-2 mt-3 overflow-hidden rounded-[22px] bg-card shadow-soft divide-y">
-        <Row icon={<User className="size-4" />} label="Display name" value={data?.displayName} />
-        <Row icon={<Mail className="size-4" />} label="Email" value={data?.email} />
-        <Row
-          icon={<Users className="size-4" />}
-          label="Student type"
-          value={data?.studentType ?? "—"}
-        />
-      </div>
-
-      <BatchSection batch={data?.batch ?? null} />
-
-      <section className="mt-4 rounded-[22px] bg-card p-4 shadow-soft">
-        <div className="flex items-center gap-3">
-          <span className="grid size-9 place-items-center rounded-xl bg-primary-tint text-primary">
-            <Moon className="size-4" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">Appearance</p>
-            <p className="text-xs text-muted-foreground">Choose how Sihat looks</p>
-          </div>
-        </div>
-        <div
-          className="mt-4 grid grid-cols-3 rounded-xl bg-muted p-1"
-          aria-label="Theme preference"
-        >
-          {(["system", "light", "dark"] as ThemePreference[]).map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={theme === option}
-              onClick={() => {
-                setTheme(option);
-                setThemePreference(option);
-              }}
-              className={`rounded-lg px-2 py-2 text-xs font-semibold capitalize ${theme === option ? "bg-card text-primary shadow-soft" : "text-muted-foreground"}`}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {(data?.role === "admin" || data?.role === "instructor") && <TestGenerateContent />}
-
-      <BadgeShelf badges={data?.badges ?? []} />
-
-      <Button
-        onClick={handleLogout}
-        variant="outline"
-        className="mt-8 w-full h-14 rounded-[18px] border-0 bg-card text-destructive shadow-soft hover:bg-destructive-bg hover:text-destructive"
+    <div className="mx-auto max-w-xl pb-6 pt-2">
+      <Link
+        to="/home"
+        className="-ml-2 inline-flex min-h-11 items-center gap-0.5 pr-3 text-[14px] font-medium text-muted-foreground hover:text-foreground md:hidden"
       >
-        <LogOut className="size-4" /> Log out
-      </Button>
+        <ChevronLeft className="size-5" /> Today
+      </Link>
+      <h1 className="mt-1 font-display text-[30px] leading-tight">Settings</h1>
+
+      <Group title="Theme">
+        <div className="p-3">
+          <div
+            role="radiogroup"
+            aria-label="Theme"
+            className="grid grid-cols-3 rounded-full bg-muted p-1"
+          >
+            {(
+              [
+                ["light", "Light"],
+                ["dark", "Dark"],
+                ["auto", "Automatic"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                role="radio"
+                aria-checked={theme === value}
+                onClick={() => {
+                  setTheme(value);
+                  setThemePreference(value);
+                }}
+                className={cn(
+                  "h-10 rounded-full text-[13.5px] font-semibold",
+                  theme === value ? "bg-card text-foreground shadow-soft" : "text-muted-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2.5 px-1 text-[13px] leading-snug text-muted-foreground">
+            Automatic uses Lamplight mode from 8 pm to 6 am and never switches during a session.
+          </p>
+        </div>
+      </Group>
+
+      <Group title="Reminders">
+        <Row label="Daily reminder" hint="One a day at most">
+          <Switch
+            checked={settings?.reminderEnabled ?? false}
+            disabled={!settings?.available}
+            onCheckedChange={(on) => {
+              void update({ reminderEnabled: on });
+              if (on && "Notification" in window && Notification.permission === "default") {
+                void Notification.requestPermission();
+              }
+            }}
+            aria-label="Daily reminder"
+          />
+        </Row>
+        <Row label="Time" hint="When the reminder comes">
+          <input
+            type="time"
+            value={settings?.reminderTime ?? "21:00"}
+            disabled={!settings?.available || !settings?.reminderEnabled}
+            onChange={(e) => e.target.value && void update({ reminderTime: e.target.value })}
+            className="fl-number h-10 rounded-xl border border-input bg-card px-2 text-[14px] disabled:opacity-50"
+            aria-label="Reminder time"
+          />
+        </Row>
+        <Row label="WhatsApp reminders" hint="Off until you allow it">
+          <Switch
+            checked={settings?.whatsappOptIn ?? false}
+            disabled={!settings?.available}
+            onCheckedChange={(on) => void update({ whatsappOptIn: on })}
+            aria-label="WhatsApp reminders"
+          />
+        </Row>
+        <p className="px-4 pb-3 text-[12.5px] leading-snug text-muted-foreground">
+          Off until you turn them on, and never more than one a day. Reminders are being switched on
+          in a coming update; your choices are saved now.
+        </p>
+      </Group>
+
+      <Group title="Batch">
+        <Row
+          label="Show me in study circles"
+          hint="Friends in your circle see only whether you studied today"
+        >
+          <Switch
+            checked={settings?.showInCircles ?? false}
+            disabled={!settings?.available}
+            onCheckedChange={(on) => void update({ showInCircles: on })}
+            aria-label="Show me in study circles"
+          />
+        </Row>
+        <BatchRow batch={account?.batch ?? null} />
+      </Group>
+
+      <Group title="Account">
+        <Row label="Name">
+          <span className="max-w-[55%] truncate text-[14px] text-muted-foreground">
+            {account?.name || "–"}
+          </span>
+        </Row>
+        <Row label="Email">
+          <span className="max-w-[60%] truncate text-[14px] text-muted-foreground">
+            {account?.email || "–"}
+          </span>
+        </Row>
+        {staff && (
+          <Row label="Faculty console">
+            <Link to="/admin" className="text-[14px] font-semibold text-accent-ink">
+              Open
+            </Link>
+          </Row>
+        )}
+      </Group>
+
+      <button
+        onClick={handleLogout}
+        className="mt-6 h-12 w-full rounded-full border border-border-strong text-[15px] font-semibold"
+      >
+        Log out
+      </button>
+
+      <footer className="mt-10 flex flex-col items-center gap-2 text-center">
+        <Lockup height={30} />
+        <p className="text-[12.5px] text-muted-foreground">
+          Content reviewed by SIHAT faculty · Version {APP_VERSION}
+        </p>
+      </footer>
     </div>
   );
 }
 
-function Row({
-  icon,
-  label,
-  value,
+function Group({
+  title,
+  note,
+  children,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  value?: string | null;
+  title: string;
+  note?: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-14 items-center gap-3 px-4 py-3">
-      <span className="grid size-8 place-items-center rounded-lg bg-primary-tint text-primary">
-        {icon}
-      </span>
-      <p className="flex-1 text-sm font-medium">{label}</p>
-      <p className="max-w-[45%] truncate text-sm text-muted-foreground">{value || "—"}</p>
-    </div>
-  );
-}
-
-function BatchSection({ batch }: { batch: string | null }) {
-  const qc = useQueryClient();
-  const apply = useServerFn(applyInviteCode);
-  const [code, setCode] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
-
-  const reasonMap: Record<string, string> = {
-    not_found: "That code isn't valid",
-    expired: "That code has expired",
-    exhausted: "That code has been used up.",
-    already_enrolled: "Your batch is already assigned. Contact an administrator for help.",
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!code.trim() || submitting) return;
-    setSubmitting(true);
-    setMessage(null);
-    try {
-      const res = await apply({ data: { code: code.trim() } });
-      if (res.ok) {
-        setMessage({ kind: "success", text: "Joined batch successfully." });
-        setCode("");
-        await qc.invalidateQueries({ queryKey: ["profile-page"] });
-      } else {
-        setMessage({ kind: "error", text: reasonMap[res.reason] ?? "Could not apply code." });
-      }
-    } catch (err) {
-      setMessage({
-        kind: "error",
-        text: err instanceof Error ? err.message : "Something went wrong.",
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <section className="mt-4 rounded-[22px] bg-card p-5 shadow-soft">
-      <div>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Batch</p>
-        <p className="mt-0.5 text-foreground">{batch ?? "Not assigned"}</p>
-        {batch && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Your batch is assigned by Sindh Institute. Contact an administrator if it is incorrect.
-          </p>
-        )}
-      </div>
-
-      {!batch && (
-        <form onSubmit={handleSubmit} className="mt-3 flex gap-2">
-          <Input
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="Invite code"
-            disabled={submitting}
-          />
-          <Button type="submit" disabled={submitting || !code.trim()}>
-            {submitting ? <Loader2 className="size-4 animate-spin" /> : "Join batch"}
-          </Button>
-        </form>
-      )}
-
-      {message && (
-        <p
-          className={`mt-2 text-sm ${message.kind === "success" ? "text-accent" : "text-destructive"}`}
-        >
-          {message.text}
-        </p>
-      )}
+    <section className="mt-6">
+      <h2 className="px-1 text-[13px] font-semibold text-muted-foreground">{title}</h2>
+      <div className="mt-2 divide-y overflow-hidden rounded-[20px] border bg-card">{children}</div>
+      {note && <p className="mt-1.5 px-1 text-[12.5px] text-muted-foreground">{note}</p>}
     </section>
   );
 }
 
-const SAMPLE_SOURCE = `Cells are the fundamental structural, functional, and biological units of all known living organisms. Often called the "building blocks of life," cells were first described by Robert Hooke in 1665 when he observed cork tissue under a primitive microscope and noted small compartments that reminded him of monks' rooms, or "cellae." Since then, advances in microscopy and molecular biology have revealed the extraordinary complexity hidden within these microscopic units.
+function Row({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-14 items-center gap-3 px-4 py-2.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-[14.5px] font-medium">{label}</p>
+        {hint && <p className="text-[12.5px] leading-snug text-muted-foreground">{hint}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
 
-There are two broad categories of cells: prokaryotic and eukaryotic. Prokaryotic cells, found in bacteria and archaea, lack a true nucleus and membrane-bound organelles. Their genetic material floats freely in a region called the nucleoid. Eukaryotic cells, which make up plants, animals, fungi, and protists, are larger and far more complex. They contain a defined nucleus that houses DNA and a variety of specialized organelles, each performing distinct tasks.
-
-The cell membrane, a phospholipid bilayer studded with proteins, surrounds every cell and controls the movement of substances in and out. This selective permeability is essential for maintaining homeostasis. Inside, the cytoplasm provides a gel-like environment where chemical reactions take place. Suspended in the cytoplasm are organelles such as mitochondria, which generate ATP through cellular respiration; ribosomes, which synthesize proteins; the endoplasmic reticulum, which processes and transports those proteins; and the Golgi apparatus, which packages them for delivery.
-
-Plant cells contain additional structures, including chloroplasts for photosynthesis and a rigid cell wall made of cellulose that provides shape and protection. Lysosomes, found mainly in animal cells, digest waste materials and worn-out organelles, recycling their components.
-
-Cells reproduce through division. Mitosis produces two genetically identical daughter cells and is responsible for growth, tissue repair, and asexual reproduction. Meiosis, by contrast, produces gametes—sperm and egg cells—with half the chromosome number, enabling sexual reproduction and genetic diversity.
-
-For nursing students, understanding cells is foundational. Drug actions, infections, wound healing, fluid and electrolyte balance, cancer treatments, and immune responses all begin at the cellular level. A nurse who understands how cells take in nutrients, communicate, and die can better anticipate patient responses, recognize complications early, and explain conditions to patients in clear, accurate language. From administering antibiotics that target bacterial cell walls to monitoring chemotherapy patients whose rapidly dividing cells are affected, cellular biology is woven into everyday nursing practice.`;
-
-function TestGenerateContent() {
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<unknown>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleClick = async () => {
-    setLoading(true);
-    setResult(null);
-    setError(null);
-    try {
-      const { data: chapter, error: chErr } = await supabase
-        .from("chapters")
-        .select("id")
-        .eq("title", "Introduction to Cells")
-        .maybeSingle();
-      if (chErr) throw new Error(chErr.message);
-      if (!chapter) throw new Error('Chapter "Introduction to Cells" not found');
-
-      const { data, error: fnErr } = await supabase.functions.invoke("generate-content", {
-        body: { chapterId: chapter.id, sourceMaterial: SAMPLE_SOURCE },
-      });
-      if (fnErr) throw new Error(fnErr.message);
-      setResult(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
+function BatchRow({ batch }: { batch: string | null }) {
+  const qc = useQueryClient();
+  const apply = useServerFn(applyInviteCode);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const reasons: Record<string, string> = {
+    not_found: "That batch code didn't work. Check it with your class coordinator.",
+    expired: "That batch code has expired. Ask your class coordinator for a new one.",
+    exhausted: "That batch code is full. Ask your class coordinator for a new one.",
+    already_enrolled: "You're already in a batch. Ask your coordinator if it's wrong.",
   };
 
-  return (
-    <div className="mt-6 rounded-xl bg-surface p-4">
-      <h2 className="text-lg font-semibold text-foreground">Test generate-content</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Calls the edge function with a 500-word sample about cells. Takes 30–60 seconds.
-      </p>
-      <Button onClick={handleClick} disabled={loading} className="mt-3">
-        {loading ? (
-          <>
-            <Loader2 className="size-4 animate-spin" />
-            Generating… (30–60s)
-          </>
-        ) : (
-          "Test generate-content"
-        )}
-      </Button>
+  if (batch) {
+    return (
+      <div className="px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[14.5px] font-medium">Your batch</p>
+          <p className="truncate text-[14px] text-muted-foreground">{batch}</p>
+        </div>
+        <p className="mt-1 text-[12.5px] text-muted-foreground">
+          If this isn't your batch, ask your class coordinator to move you.
+        </p>
+      </div>
+    );
+  }
 
-      {error && (
-        <pre className="mt-4 max-h-96 overflow-auto rounded-lg bg-background p-3 text-xs text-red-400 whitespace-pre-wrap">
-          {error}
-        </pre>
-      )}
-      {result !== null && (
-        <pre className="mt-4 max-h-96 overflow-auto rounded-lg bg-background p-3 text-xs text-foreground whitespace-pre-wrap">
-          {JSON.stringify(result, null, 2)}
-        </pre>
-      )}
-    </div>
+  return (
+    <form
+      className="px-4 py-3"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!code.trim() || busy) return;
+        setBusy(true);
+        try {
+          const res = await apply({ data: { code: code.trim() } });
+          if (res.ok) {
+            toast.success("You've joined your batch.");
+            setCode("");
+            await Promise.all([
+              qc.invalidateQueries({ queryKey: ["profile-page"] }),
+              invalidateProgress(qc),
+            ]);
+          } else toast.error(reasons[res.reason] ?? "That code didn't work.");
+        } catch {
+          toast.error("That didn't work. Check your connection and try again.");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <label htmlFor="batch-code" className="text-[14.5px] font-medium">
+        Batch code
+      </label>
+      <p className="text-[12.5px] text-muted-foreground">
+        From your class coordinator. No college email needed.
+      </p>
+      <div className="mt-2 flex gap-2">
+        <input
+          id="batch-code"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="e.g. SI-BSN-7K2Q"
+          autoCapitalize="characters"
+          className="fl-number h-11 min-w-0 flex-1 rounded-full border border-input bg-card px-4 text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+        <button
+          disabled={busy || !code.trim()}
+          className="h-11 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {busy ? <Loader2 className="size-4 animate-spin" /> : "Join"}
+        </button>
+      </div>
+    </form>
   );
 }

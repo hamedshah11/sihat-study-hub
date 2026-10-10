@@ -1,15 +1,21 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, ClipboardList, RotateCcw, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Check, RotateCcw, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getChapterQuiz, submitQuiz, type ChapterQuizQuestion } from "@/lib/study.functions";
+import {
+  checkQuizAnswer,
+  getChapterQuiz,
+  submitQuiz,
+  type ChapterQuizQuestion,
+} from "@/lib/study.functions";
 import { awardBadgesIfNeeded } from "@/lib/award-badges";
-import { celebrate } from "@/lib/celebrate";
-import { MISTAKES_QUERY_KEY } from "@/lib/mistakes-data";
+import { invalidateProgress, PROGRESS_QUERY_KEY, useProgress } from "@/lib/progress-data";
+import type { ProgressPayload } from "@/lib/progress.functions";
+import { useStudySessionLock } from "@/hooks/use-study-session";
+import { SessionHeader } from "@/components/study/FlashcardDeck";
+import { ReportProblem } from "@/components/study/ReportProblem";
 import { cn } from "@/lib/utils";
 
 const QUIZ_SIZE = 5;
@@ -30,8 +36,28 @@ type QuizResult = {
   awardedXp: number;
   review: QuizReview[];
 };
+type Feedback = {
+  correct: boolean;
+  correctIndex: number;
+  explanation: string | null;
+  selectedIndex: number;
+};
 
-export function ChapterQuiz({ chapterId }: { chapterId: string }) {
+export type QuizOutcome = { score: number; total: number };
+
+export function ChapterQuiz({
+  chapterId,
+  subjectName,
+  onComplete,
+  onExit,
+}: {
+  chapterId: string;
+  subjectName?: string | null;
+  /** When the quiz is part of a review session, hand control back here. */
+  onComplete?: (outcome: QuizOutcome) => void;
+  onExit?: () => void;
+}) {
+  const navigate = useNavigate();
   const [seed, setSeed] = useState(0);
   const loadQuiz = useServerFn(getChapterQuiz);
   const { data, isLoading, error } = useQuery({
@@ -41,29 +67,39 @@ export function ChapterQuiz({ chapterId }: { chapterId: string }) {
     refetchOnMount: "always",
     refetchOnWindowFocus: false,
   });
+  const exit =
+    onExit ?? (() => navigate({ to: "/chapters/$chapterId", params: { chapterId }, search: {} }));
 
-  if (isLoading) return <Skeleton className="mt-4 h-64 rounded-xl" />;
+  if (isLoading) return <Skeleton className="mt-4 h-[420px] rounded-[26px]" />;
 
   if (error) {
     return (
-      <div className="mt-4 rounded-xl bg-surface p-8 text-center">
-        <p className="text-sm text-destructive">The quiz could not be loaded.</p>
-        <Button className="mt-4" variant="outline" onClick={() => setSeed((value) => value + 1)}>
+      <div className="mt-4 rounded-[24px] border bg-card p-6 text-center">
+        <h2 className="font-display text-[22px]">The quiz didn't load.</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Check your connection and try again.</p>
+        <button
+          className="mt-4 h-11 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground"
+          onClick={() => setSeed((value) => value + 1)}
+        >
           Try again
-        </Button>
+        </button>
       </div>
     );
   }
 
   if (!data || !data.quizId || data.available < QUIZ_SIZE || data.questions.length < QUIZ_SIZE) {
     return (
-      <div className="mt-4 rounded-xl bg-surface p-10 text-center">
-        <div className="mx-auto inline-flex items-center justify-center rounded-full bg-muted p-4 text-muted-foreground">
-          <ClipboardList className="size-8" />
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Not enough questions for this chapter yet. Check back soon.
+      <div className="mt-4 rounded-[24px] border bg-card p-6 text-center">
+        <h2 className="font-display text-[22px]">No quiz for this chapter yet.</h2>
+        <p className="mx-auto mt-1 max-w-[300px] text-sm text-muted-foreground">
+          Your teachers are still reviewing its questions. It will appear once five are approved.
         </p>
+        <button
+          onClick={exit}
+          className="mt-4 h-11 rounded-full border border-border-strong px-5 text-sm font-semibold"
+        >
+          {onExit ? "Continue" : "Back to the chapter"}
+        </button>
       </div>
     );
   }
@@ -74,263 +110,447 @@ export function ChapterQuiz({ chapterId }: { chapterId: string }) {
       chapterId={chapterId}
       quizId={data.quizId}
       questions={data.questions}
-      onRetake={() => setSeed((value) => value + 1)}
+      subjectName={subjectName ?? null}
+      onExit={exit}
+      onComplete={onComplete}
     />
   );
+}
+
+function optionLetter(i: number) {
+  return String.fromCharCode(65 + i);
 }
 
 function QuizRunner({
   chapterId,
   quizId,
   questions,
-  onRetake,
+  subjectName,
+  onExit,
+  onComplete,
 }: {
   chapterId: string;
   quizId: string;
   questions: ChapterQuizQuestion[];
-  onRetake: () => void;
+  subjectName: string | null;
+  onExit: () => void;
+  onComplete?: (outcome: QuizOutcome) => void;
 }) {
+  useStudySessionLock(true);
   const submit = useServerFn(submitQuiz);
+  const check = useServerFn(checkQuizAnswer);
   const queryClient = useQueryClient();
+  const { data: progress, dataUpdatedAt } = useProgress();
+  const [before] = useState(() => queryClient.getQueryData<ProgressPayload>(PROGRESS_QUERY_KEY));
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [answers, setAnswers] = useState<SubmittedAnswer[]>([]);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [outcomes, setOutcomes] = useState<(boolean | null)[]>(() => questions.map(() => null));
+  // Becomes false if the server can't lock answers yet (migration pending).
+  const [instant, setInstant] = useState(true);
   const [result, setResult] = useState<QuizResult | null>(null);
-  const [reviewMode, setReviewMode] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [submittedAt, setSubmittedAt] = useState(0);
+  const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const question = questions[index];
   const total = questions.length;
+  const isLast = index + 1 >= total;
 
-  async function continueQuiz() {
-    if (selected === null || saving) return;
-    const nextAnswers = [...answers, { questionId: question.id, selectedIndex: selected }];
-    setSaveError(null);
-
-    if (index + 1 < total) {
-      setAnswers(nextAnswers);
-      setIndex((value) => value + 1);
-      setSelected(null);
-      window.scrollTo({ top: 0 });
-      return;
-    }
-
-    setSaving(true);
+  async function finish(finalAnswers: SubmittedAnswer[]) {
+    setBusy(true);
     try {
-      const response = (await submit({
-        data: { quizId, answers: nextAnswers },
-      })) as QuizResult;
-      setAnswers(nextAnswers);
+      const response = (await submit({ data: { quizId, answers: finalAnswers } })) as QuizResult;
       setResult(response);
-      void queryClient.invalidateQueries({ queryKey: MISTAKES_QUERY_KEY });
-      void queryClient.invalidateQueries({ queryKey: ["home-today"] });
-      await awardBadgesIfNeeded();
-      if (response.score >= 4) celebrate(response.score === response.total ? "big" : "small");
+      setSubmittedAt(Date.now());
+      void invalidateProgress(queryClient);
+      void awardBadgesIfNeeded();
     } catch (error) {
       console.error("Failed to save quiz results", error);
-      setSaveError("Your quiz wasn't submitted. Check your connection and try again.");
+      setSaveError("Your quiz didn't save. Check your connection and try again.");
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   }
 
-  if (result && !reviewMode) {
-    const pct = result.total ? Math.round((result.score / result.total) * 100) : 0;
-    const mistakes = result.review.filter((answer) => !answer.correct).length;
+  async function primaryAction() {
+    if (busy || selected === null) return;
+    setSaveError(null);
+    // Step 1: lock the answer and show feedback straight away.
+    if (instant && !feedback) {
+      setBusy(true);
+      try {
+        const res = await check({
+          data: { quizId, questionId: question.id, selectedIndex: selected },
+        });
+        if (res.available) {
+          setFeedback({
+            correct: res.correct,
+            correctIndex: res.correctIndex,
+            explanation: res.explanation,
+            selectedIndex: res.selectedIndex,
+          });
+          setSelected(res.selectedIndex);
+          setOutcomes((o) => o.map((v, i) => (i === index ? res.correct : v)));
+          return;
+        }
+        setInstant(false);
+      } catch (e) {
+        console.error("Answer check failed", e);
+        setSaveError("That answer didn't send. Check your connection and try again.");
+        return;
+      } finally {
+        setBusy(false);
+      }
+    }
+    // Step 2: next question, or submit the paper.
+    const nextAnswers = [...answers, { questionId: question.id, selectedIndex: selected }];
+    setAnswers(nextAnswers);
+    if (isLast) {
+      await finish(nextAnswers);
+      return;
+    }
+    setIndex(index + 1);
+    setSelected(null);
+    setFeedback(null);
+    window.scrollTo({ top: 0 });
+  }
+
+  if (result) {
+    const freshAfter = dataUpdatedAt > submittedAt ? progress : undefined;
     return (
-      <div className="animate-scale-in px-4 pb-8 pt-8 text-center">
-        <div
-          className="mx-auto grid size-40 place-items-center rounded-full bg-[conic-gradient(var(--subject)_var(--score),var(--subject-tint)_0)] p-2"
-          style={{ "--score": `${pct * 3.6}deg` } as React.CSSProperties}
-        >
-          <div className="grid size-full place-items-center rounded-full bg-background">
-            <span>
-              <strong className="block font-display text-5xl font-normal text-foreground">
-                {result.score}/{result.total}
-              </strong>
-              <span className="text-xs font-semibold text-muted-foreground">{pct}%</span>
-            </span>
-          </div>
-        </div>
-        <h2 className="mt-5 font-display text-[34px] text-foreground">
-          {result.passed ? "Nicely done" : "Keep going"}
-        </h2>
-        <div className="mx-auto mt-2 max-w-[260px]">
-          <div className="flex items-baseline justify-between text-xs text-muted-foreground">
-            <span>Chapter mastery</span>
-            <span className="font-semibold tabular-nums text-foreground">
-              {result.masteryScore}%
-            </span>
-          </div>
-          <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-[var(--subject)]"
-              style={{ width: `${Math.max(3, result.masteryScore)}%` }}
-            />
-          </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Average of your last 3 quizzes</p>
-        </div>
-        <p className="animate-pop mx-auto mt-4 w-fit rounded-full bg-streak-bg px-3 py-1.5 text-xs font-bold text-streak-ink">
-          {result.awardedXp > 0
-            ? `+${result.awardedXp} XP`
-            : "Retakes still build mastery. XP for this chapter's quiz resets tomorrow."}
-        </p>
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-card p-4">
-            <strong className="block text-2xl text-success-ink">{result.score}</strong>
-            <span className="text-xs text-muted-foreground">Correct</span>
-          </div>
-          <div className="rounded-2xl bg-card p-4">
-            <strong className="block text-2xl text-destructive-ink">{mistakes}</strong>
-            <span className="text-xs text-muted-foreground">Missed</span>
-          </div>
-        </div>
-        <div className="mt-3 flex flex-col gap-2">
-          {mistakes > 0 && (
-            <Button
-              onClick={() => setReviewMode(true)}
-              className="h-13 rounded-2xl bg-[var(--subject)] text-white hover:bg-[var(--subject)]/90"
-            >
-              Review {mistakes} mistake{mistakes === 1 ? "" : "s"}
-            </Button>
-          )}
-          <Button onClick={onRetake}>Try another quiz</Button>
-          <Button variant="outline" asChild className="h-13 rounded-2xl">
-            <Link to="/chapters/$chapterId" params={{ chapterId }} search={{}}>
-              Back to chapter
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <QuizResults
+        result={result}
+        chapterId={chapterId}
+        before={before}
+        after={freshAfter}
+        onDone={() =>
+          onComplete ? onComplete({ score: result.score, total: result.total }) : onExit()
+        }
+      />
     );
   }
 
-  if (result && reviewMode) {
-    const wrong = result.review.filter((answer) => !answer.correct);
-    return (
-      <div className="mt-4 space-y-4">
-        {wrong.map((answer) => (
-          <div key={answer.questionId} className="rounded-xl bg-surface p-5">
-            <p className="font-medium text-primary">{answer.prompt}</p>
-            <div className="mt-3 space-y-2">
-              {answer.options.map((option, optionIndex) => {
-                const isCorrect = optionIndex === answer.correctIndex;
-                const isPicked = optionIndex === answer.selectedIndex;
-                return (
-                  <div
-                    key={optionIndex}
-                    className={cn(
-                      "rounded-md border p-3 text-sm",
-                      isCorrect && "border-success bg-success-bg",
-                      isPicked && !isCorrect && "border-destructive bg-destructive-bg",
-                    )}
-                  >
-                    {option}
-                    {isCorrect && <span className="ml-2 text-xs text-success-ink">Correct</span>}
-                    {isPicked && !isCorrect && (
-                      <span className="ml-2 text-xs text-destructive">Your answer</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            {answer.explanation && (
-              <p className="mt-3 text-sm text-muted-foreground">{answer.explanation}</p>
-            )}
-          </div>
-        ))}
-        <Button variant="outline" onClick={() => setReviewMode(false)} className="w-full">
-          Back to results
-        </Button>
-      </div>
-    );
-  }
+  const segments = questions.map((_, i) =>
+    i < index || (i === index && feedback)
+      ? outcomes[i] === false
+        ? ("wrong" as const)
+        : ("done" as const)
+      : i === index
+        ? ("current" as const)
+        : ("todo" as const),
+  );
 
   return (
-    <div className="min-h-dvh px-4 pb-8 pt-6 md:px-4">
-      <div className="flex items-center gap-3">
-        <Link
-          to="/chapters/$chapterId"
-          params={{ chapterId }}
-          search={{}}
-          aria-label="End quiz"
-          className="grid size-11 shrink-0 place-items-center rounded-[14px] border bg-card"
-        >
-          <X className="size-5" />
-        </Link>
-        <div className="flex flex-1 gap-1">
-          {questions.map((_, segment) => (
-            <span
-              key={segment}
-              className={cn(
-                "h-2 flex-1 rounded-full",
-                segment < index && "bg-[var(--subject)]",
-                segment === index && "bg-[var(--subject)]",
-                segment > index && "bg-[var(--subject-tint-2)]",
-              )}
-            />
-          ))}
-        </div>
-        <span className="text-xs font-bold text-[var(--subject-ink)]">
-          {index + 1} / {total}
-        </span>
-      </div>
+    <div className="flex min-h-[calc(100dvh-2rem)] flex-col pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <SessionHeader
+        title={`${subjectName ?? "Chapter"} · Quiz`}
+        position={index + 1}
+        total={total}
+        onExit={onExit}
+        exitLabel="End quiz"
+        segments={segments}
+      />
 
       {question.isDueMistake && (
-        <p className="mt-8 inline-flex items-center gap-1 rounded-full bg-streak-bg px-2.5 py-1 text-[11px] font-semibold text-streak-ink">
-          <RotateCcw className="size-3" /> You missed this one before
+        <p className="mt-6 inline-flex w-fit items-center gap-1.5 rounded-full bg-chip px-2.5 py-1 text-[12.5px] font-semibold text-chip-foreground">
+          <RotateCcw className="size-3.5" aria-hidden /> You missed this one before
         </p>
       )}
-      <p className="mt-8 text-xs font-bold tracking-[0.12em] text-[var(--subject-ink)]">
-        QUESTION {index + 1} OF {total}
-      </p>
-      <p className="mt-3 font-display text-[30px] leading-[1.15] text-foreground">
+      <h2 className={cn("fl-question text-foreground", question.isDueMistake ? "mt-3" : "mt-6")}>
         {question.prompt}
-      </p>
+      </h2>
 
-      <RadioGroup
-        value={selected !== null ? String(selected) : ""}
-        onValueChange={(value) => setSelected(Number(value))}
-        className="mt-4 space-y-2"
-      >
-        {question.options.map((option, optionIndex) => {
-          const isPicked = optionIndex === selected;
+      <div role="radiogroup" aria-label="Answer options" className="mt-5 space-y-2.5">
+        {question.options.map((option, i) => {
+          const isPicked = i === selected;
+          const isCorrect = feedback && i === feedback.correctIndex;
+          const isWrongPick = feedback && isPicked && !feedback.correct;
           return (
-            <label
-              key={optionIndex}
+            <button
+              key={i}
+              type="button"
+              role="radio"
+              aria-checked={isPicked}
+              disabled={Boolean(feedback) || busy}
+              onClick={() => setSelected(i)}
               className={cn(
-                "flex min-h-[58px] cursor-pointer items-center gap-3 rounded-2xl border bg-card p-3 text-sm transition-colors",
-                isPicked && "border-[var(--subject)] bg-[var(--subject-tint)]",
+                "flex min-h-[56px] w-full items-center gap-3 rounded-2xl border bg-card px-3.5 py-3 text-left text-[16px] leading-snug transition-colors disabled:cursor-default",
+                !feedback &&
+                  (isPicked
+                    ? "border-foreground ring-1 ring-foreground"
+                    : "border-border-strong/70"),
+                isCorrect && "border-success ring-1 ring-success",
+                isWrongPick && "border-destructive ring-1 ring-destructive",
+                feedback && !isCorrect && !isWrongPick && "border-border opacity-70",
               )}
             >
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-xs font-bold">
-                {String.fromCharCode(65 + optionIndex)}
+              <span
+                className={cn(
+                  "fl-number grid size-7 shrink-0 place-items-center rounded-lg text-[12px]",
+                  isPicked && !feedback
+                    ? "bg-foreground text-background"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
+                {optionLetter(i)}
               </span>
-              <RadioGroupItem value={String(optionIndex)} className="sr-only" />
-              <span className="flex-1">{option}</span>
-              {isPicked && <CheckCircle2 className="size-4 text-[var(--subject)]" />}
-            </label>
+              <span className="flex-1 font-medium">{option}</span>
+              {isWrongPick && (
+                <span className="inline-flex shrink-0 items-center gap-1 text-[12.5px] font-semibold text-destructive-ink">
+                  <X className="size-3.5" aria-hidden /> Your answer
+                </span>
+              )}
+              {isCorrect && (
+                <span className="inline-flex shrink-0 items-center gap-1 text-[12.5px] font-semibold text-success-ink">
+                  <Check className="size-3.5" aria-hidden /> Correct answer
+                </span>
+              )}
+            </button>
           );
         })}
-      </RadioGroup>
+      </div>
+
+      {feedback && (
+        <div className="animate-fade-up mt-4 rounded-2xl bg-muted px-4 py-3" aria-live="polite">
+          <p className="text-[14px] font-semibold">
+            {feedback.correct ? "That's right." : "Not quite."}
+          </p>
+          {feedback.explanation && (
+            <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
+              {feedback.explanation}
+            </p>
+          )}
+          <ReportProblem kind="question" itemId={question.id} className="-mb-2" />
+        </div>
+      )}
 
       {saveError && (
-        <p className="mt-4 rounded-xl bg-destructive-bg px-4 py-3 text-sm text-destructive">
+        <p
+          role="alert"
+          className="mt-4 rounded-xl bg-destructive-bg px-4 py-3 text-[13.5px] text-destructive-ink"
+        >
           {saveError}
         </p>
       )}
 
-      <Button
-        onClick={() => void continueQuiz()}
-        disabled={selected === null || saving}
-        className="mt-5 h-[52px] w-full rounded-2xl bg-[var(--subject)] text-white hover:bg-[var(--subject)]/90"
-      >
-        {saving ? "Submitting…" : index + 1 < total ? "Next question" : "Submit quiz"}
-      </Button>
-      <p className="mt-3 text-center text-xs text-muted-foreground">
-        Answers and explanations are shown after you submit.
+      <div className="mt-auto pt-6">
+        <button
+          type="button"
+          onClick={() => void primaryAction()}
+          disabled={selected === null || busy}
+          className="h-[52px] w-full rounded-full bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {busy
+            ? "One moment…"
+            : instant && !feedback
+              ? "Check answer"
+              : isLast
+                ? "See results"
+                : "Next question"}
+        </button>
+        {!instant && (
+          <p className="mt-2 text-center text-[12.5px] text-muted-foreground">
+            Answers and explanations appear after the last question.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function chapterPercent(p: ProgressPayload | undefined, chapterId: string) {
+  for (const s of p?.subjects ?? []) {
+    const c = s.chapters.find((ch) => ch.id === chapterId);
+    if (c) return { percent: c.percent, title: c.title };
+  }
+  return null;
+}
+
+function QuizResults({
+  result,
+  chapterId,
+  before,
+  after,
+  onDone,
+}: {
+  result: QuizResult;
+  chapterId: string;
+  before?: ProgressPayload;
+  after?: ProgressPayload;
+  onDone: () => void;
+}) {
+  const [practising, setPractising] = useState(false);
+  const missed = result.review.filter((a) => !a.correct);
+  const was = chapterPercent(before, chapterId);
+  const now = chapterPercent(after, chapterId);
+
+  if (practising && missed.length) {
+    return <PractiseMissed questions={missed} onDone={() => setPractising(false)} />;
+  }
+
+  return (
+    <div className="animate-scale-in flex min-h-[calc(100dvh-2rem)] flex-col pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 text-center">
+      <p className="text-[13px] font-semibold text-muted-foreground">Quiz complete</p>
+      <div className="mt-4 flex justify-center gap-2" aria-hidden>
+        {result.review.map((a) => (
+          <span
+            key={a.questionId}
+            className={cn(
+              "grid size-9 place-items-center rounded-full border-2",
+              a.correct
+                ? "border-success bg-success-bg text-success-ink"
+                : "border-destructive bg-destructive-bg text-destructive-ink",
+            )}
+          >
+            {a.correct ? <Check className="size-4" /> : <X className="size-4" />}
+          </span>
+        ))}
+      </div>
+      <h2 className="mt-4 font-display text-[34px] leading-tight">
+        {result.score} out of {result.total}
+      </h2>
+      <p className="mt-1 text-[14px] text-muted-foreground">
+        {now ? (
+          <>
+            {now.title}:{" "}
+            <span className="fl-number text-foreground">
+              {was && was.percent !== now.percent
+                ? `${was.percent}% to ${now.percent}%`
+                : `${now.percent}%`}
+            </span>
+          </>
+        ) : (
+          "Updating your progress…"
+        )}
       </p>
+
+      {missed.length > 0 && (
+        <div className="mt-6 text-left">
+          <p className="text-[13px] font-semibold text-muted-foreground">
+            {missed.length === 1 ? "The one you missed" : `The ${missed.length} you missed`}
+          </p>
+          <div className="mt-2 space-y-2.5">
+            {missed.map((a) => (
+              <div key={a.questionId} className="rounded-2xl border bg-card p-4">
+                <p className="text-[15px] font-semibold leading-snug">{a.prompt}</p>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
+                  You chose{" "}
+                  {a.options[a.selectedIndex]
+                    ? `“${a.options[a.selectedIndex]}”`
+                    : "another option"}
+                  . The answer is{" "}
+                  <span className="font-semibold text-foreground">{a.options[a.correctIndex]}</span>
+                  .{a.explanation ? ` ${a.explanation}` : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-auto space-y-2.5 pt-8">
+        {missed.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setPractising(true)}
+            className="h-[52px] w-full rounded-full bg-primary text-[15px] font-semibold text-primary-foreground"
+          >
+            {missed.length === 1 ? "Practise the missed question" : "Practise the missed questions"}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onDone}
+          className={cn(
+            "h-[52px] w-full rounded-full text-[15px] font-semibold",
+            missed.length > 0
+              ? "border border-border-strong"
+              : "bg-primary text-primary-foreground",
+          )}
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** A quick, ungraded second try at the questions just missed. */
+function PractiseMissed({ questions, onDone }: { questions: QuizReview[]; onDone: () => void }) {
+  const [index, setIndex] = useState(0);
+  const [picked, setPicked] = useState<number | null>(null);
+  const q = questions[index];
+  const last = index + 1 >= questions.length;
+  return (
+    <div className="flex min-h-[calc(100dvh-2rem)] flex-col pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <SessionHeader
+        title="Practice"
+        position={index + 1}
+        total={questions.length}
+        onExit={onDone}
+        exitLabel="Back to results"
+      />
+      <p className="mt-6 text-[12.5px] font-semibold text-muted-foreground">
+        Try it again. This one isn't scored.
+      </p>
+      <h2 className="fl-question mt-2">{q.prompt}</h2>
+      <div className="mt-5 space-y-2.5">
+        {q.options.map((option, i) => {
+          const show = picked !== null;
+          const correct = i === q.correctIndex;
+          return (
+            <button
+              key={i}
+              type="button"
+              disabled={show}
+              onClick={() => setPicked(i)}
+              className={cn(
+                "flex min-h-[56px] w-full items-center gap-3 rounded-2xl border bg-card px-3.5 py-3 text-left text-[16px] font-medium",
+                !show && "border-border-strong/70",
+                show && correct && "border-success ring-1 ring-success",
+                show && !correct && i === picked && "border-destructive ring-1 ring-destructive",
+                show && !correct && i !== picked && "opacity-70",
+              )}
+            >
+              <span className="fl-number grid size-7 shrink-0 place-items-center rounded-lg bg-muted text-[12px] text-muted-foreground">
+                {optionLetter(i)}
+              </span>
+              <span className="flex-1">{option}</span>
+              {show && correct && (
+                <Check className="size-4 text-success-ink" aria-label="Correct answer" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {picked !== null && (
+        <div className="animate-fade-up mt-4 rounded-2xl bg-muted px-4 py-3">
+          <p className="text-[14px] font-semibold">
+            {picked === q.correctIndex ? "That's right." : "Not quite."}
+          </p>
+          {q.explanation && (
+            <p className="mt-1 text-[14px] text-muted-foreground">{q.explanation}</p>
+          )}
+        </div>
+      )}
+      <div className="mt-auto pt-6">
+        <button
+          type="button"
+          disabled={picked === null}
+          onClick={() => {
+            if (last) onDone();
+            else {
+              setIndex(index + 1);
+              setPicked(null);
+            }
+          }}
+          className="h-[52px] w-full rounded-full bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {last ? "Back to results" : "Next question"}
+        </button>
+      </div>
     </div>
   );
 }

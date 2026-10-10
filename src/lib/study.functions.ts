@@ -14,7 +14,7 @@ import {
 } from "@/lib/activity.server";
 
 // Why these run server-side with the service-role client:
-// XP, streaks, quiz scores and chapter mastery feed the leaderboard, the
+// XP, streaks, quiz scores and chapter mastery feed the batch totals, the
 // exam-readiness signals and the B2B "improves outcomes" story. If the browser
 // can write them directly (it could, via the old `auth.uid() = user_id` ALL
 // policies), any student can forge them from the devtools console. These
@@ -96,6 +96,92 @@ export const getChapterQuiz = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
+// checkQuizAnswer — locks one answer on an issued paper and only then reveals
+// whether it was right, with the one-line reason (Florence shows a wrong
+// answer's correct option straight away). The first answer per question is
+// final: it is stored on the quiz session, a later different selection is
+// ignored, and submitQuiz grades the locked answers. If the
+// quiz_sessions.locked_answers column hasn't been migrated yet this returns
+// { available: false } and the client falls back to feedback after submit.
+// ---------------------------------------------------------------------------
+
+const CheckAnswerInput = z.object({
+  quizId: z.string().uuid(),
+  questionId: z.string().uuid(),
+  selectedIndex: z.number().int().min(0).max(9),
+});
+
+type LockedAnswers = Record<string, number>;
+
+async function readLockedAnswers(sessionId: string): Promise<LockedAnswers | null> {
+  const { data, error } = await supabaseAdmin
+    .from("quiz_sessions")
+    .select("locked_answers" as never)
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (error || !data) return null;
+  const value = (data as { locked_answers?: unknown }).locked_answers;
+  return value && typeof value === "object" ? (value as LockedAnswers) : {};
+}
+
+export const checkQuizAnswer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => CheckAnswerInput.parse(data))
+  .handler(async ({ data, context }) => {
+    const userId = context.userId;
+    if (!userId) throw new Error("Unauthorized");
+
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from("quiz_sessions")
+      .select("id, chapter_id, question_ids, created_at, submitted_at")
+      .eq("id", data.quizId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (sessionError) throw new Error(sessionError.message);
+    if (!session || session.submitted_at) throw new Error("Quiz is no longer available");
+    if (Date.now() - Date.parse(session.created_at) > 24 * 60 * 60 * 1000) {
+      throw new Error("Quiz has expired. Start another quiz.");
+    }
+    if (!session.question_ids.includes(data.questionId)) {
+      throw new Error("That question isn't part of this quiz");
+    }
+
+    const locked = await readLockedAnswers(session.id);
+    if (locked === null) return { available: false as const };
+
+    const { data: question, error: qErr } = await supabaseAdmin
+      .from("questions")
+      .select("id, options, correct_index, explanation")
+      .eq("id", data.questionId)
+      .eq("chapter_id", session.chapter_id)
+      .maybeSingle();
+    if (qErr) throw new Error(qErr.message);
+    if (!question) throw new Error("Question not found");
+
+    const already = locked[data.questionId];
+    const selectedIndex = typeof already === "number" ? already : data.selectedIndex;
+    const options = Array.isArray(question.options) ? question.options : [];
+    if (selectedIndex >= options.length) throw new Error("Invalid answer selection");
+
+    if (typeof already !== "number") {
+      const { error: lockError } = await supabaseAdmin
+        .from("quiz_sessions")
+        .update({ locked_answers: { ...locked, [data.questionId]: selectedIndex } } as never)
+        .eq("id", session.id)
+        .is("submitted_at", null);
+      if (lockError) return { available: false as const };
+    }
+
+    return {
+      available: true as const,
+      selectedIndex,
+      correct: selectedIndex === question.correct_index,
+      correctIndex: question.correct_index as number,
+      explanation: (question.explanation as string | null) ?? null,
+    };
+  });
+
+// ---------------------------------------------------------------------------
 // submitQuiz — grades a quiz attempt server-side and records score, mastery,
 // XP and streak. The client sends only its selections; it cannot set the score.
 // ---------------------------------------------------------------------------
@@ -134,13 +220,22 @@ export const submitQuiz = createServerFn({ method: "POST" })
     const chapterId = session.chapter_id;
     const issuedIds = session.question_ids;
 
-    // Deduplicate by questionId (keep first selection).
+    // Deduplicate by questionId (keep first selection). An answer already
+    // locked by checkQuizAnswer wins over whatever the client sends now, so
+    // seeing the correct option can't be used to change an answer.
+    const locked = (await readLockedAnswers(session.id)) ?? {};
     const seen = new Set<string>();
-    const submitted = data.answers.filter((a) => {
-      if (seen.has(a.questionId)) return false;
-      seen.add(a.questionId);
-      return true;
-    });
+    const submitted = data.answers
+      .filter((a) => {
+        if (seen.has(a.questionId)) return false;
+        seen.add(a.questionId);
+        return true;
+      })
+      .map((a) =>
+        typeof locked[a.questionId] === "number"
+          ? { ...a, selectedIndex: locked[a.questionId] }
+          : a,
+      );
     const questionIds = submitted.map((a) => a.questionId);
     if (
       submitted.length !== issuedIds.length ||

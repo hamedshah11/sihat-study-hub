@@ -1,8 +1,8 @@
-/* Sihat service worker — Workbox via CDN.
+/* Florence service worker — Workbox via CDN.
    Bump CACHE_VERSION on every deploy to invalidate old caches. */
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js");
 
-const CACHE_VERSION = "v6";
+const CACHE_VERSION = "v7";
 workbox.core.setCacheNameDetails({ prefix: "sihat", suffix: CACHE_VERSION });
 
 self.addEventListener("install", (event) => {

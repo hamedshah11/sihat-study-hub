@@ -9,22 +9,28 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import { BRAND } from "@/lib/brand";
+
+const DESCRIPTION =
+  "Florence: short daily reviews for BSN nursing students. Flashcards, MCQs and summaries, reviewed by SIHAT faculty.";
 
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <p className="fl-label text-muted-foreground">404</p>
+        <h1 className="mt-3 font-display text-[34px] leading-tight text-foreground">
+          This page isn't here.
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+          It may have moved. Let's take you back to today's review.
         </p>
         <div className="mt-6">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"
           >
-            Go home
+            Go to Today
           </Link>
         </div>
       </div>
@@ -39,11 +45,11 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+        <h1 className="font-display text-[28px] leading-tight text-foreground">
+          This page didn't load.
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Something went wrong on our side. Your progress is safe. Try again, or go back to Today.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -51,15 +57,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"
           >
             Try again
           </button>
           <a
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex h-12 items-center justify-center rounded-full border border-border-strong px-6 text-sm font-semibold text-foreground"
           >
-            Go home
+            Go to Today
           </a>
         </div>
       </div>
@@ -71,33 +77,36 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Sihat Study Hub is a mobile-first study app for nursing students." },
-      { name: "author", content: "Lovable" },
-      { name: "theme-color", content: "#1F4FD8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { title: BRAND.storeName },
+      { name: "description", content: DESCRIPTION },
+      { name: "author", content: "Florence, powered by SIHAT" },
+      { name: "theme-color", content: "#FBF6EC" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
-      { name: "apple-mobile-web-app-title", content: "Sihat" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Sihat Study Hub is a mobile-first study app for nursing students." },
+      { name: "apple-mobile-web-app-title", content: BRAND.name },
+      { name: "application-name", content: BRAND.name },
+      { property: "og:title", content: BRAND.storeName },
+      { property: "og:description", content: DESCRIPTION },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "twitter:title", content: "Lovable App" },
-      { name: "twitter:description", content: "Sihat Study Hub is a mobile-first study app for nursing students." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/48191fbc-f269-4cab-96e6-40c692b643d0/id-preview-706b3788--27ad12e2-91ea-4b6f-bda4-f12c99b68ffd.lovable.app-1780240653954.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/48191fbc-f269-4cab-96e6-40c692b643d0/id-preview-706b3788--27ad12e2-91ea-4b6f-bda4-f12c99b68ffd.lovable.app-1780240653954.png" },
+      { property: "og:image", content: "/og-florence.png" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: BRAND.storeName },
+      { name: "twitter:description", content: DESCRIPTION },
+      { name: "twitter:image", content: "/og-florence.png" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,600,100,0..1&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap",
       },
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "icon", type: "image/png", sizes: "48x48", href: "/favicon-48.png" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
     ],
   }),
@@ -113,7 +122,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('sihat-theme')||'system';var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.dataset.theme=t}catch(e){}})()`,
+            __html: THEME_BOOT_SCRIPT,
           }}
         />
         <HeadContent />
@@ -130,20 +139,24 @@ import { Toaster } from "@/components/ui/sonner";
 
 import { useEffect } from "react";
 import { registerServiceWorker } from "@/lib/register-sw";
-import { applyTheme, getThemePreference } from "@/lib/theme";
+import { applyTheme, getThemePreference, THEME_BOOT_SCRIPT } from "@/lib/theme";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
     registerServiceWorker();
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    // Automatic switches to Lamplight mode at 8 pm and back at 6 am; check
+    // each minute. applyTheme waits while a study session is open.
     const syncTheme = () => applyTheme(getThemePreference());
     syncTheme();
-    media.addEventListener("change", syncTheme);
+    const timer = window.setInterval(syncTheme, 60_000);
+    const onVisible = () => document.visibilityState === "visible" && syncTheme();
+    document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("storage", syncTheme);
     return () => {
-      media.removeEventListener("change", syncTheme);
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("storage", syncTheme);
     };
   }, []);

@@ -2,23 +2,33 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Home, BookOpen, Sparkles, TrendingUp, User, Shield, X } from "lucide-react";
+import { Home, BookOpen, Users, Shield, X, Settings } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { applyInviteCode } from "@/lib/invite.functions";
+import { FlorenceMark } from "@/components/brand/FlorenceMark";
+import { Lockup } from "@/components/brand/Lockup";
+import { OfflineBanner } from "@/components/OfflineBanner";
+import { invalidateProgress } from "@/lib/progress-data";
 
-const baseNav = [
-  { to: "/home", label: "Home", icon: Home },
+type IconComponent = (props: { className?: string }) => React.ReactNode;
+
+/** The Progress tab's icon is the rose itself, in one colour. */
+const RoseIcon: IconComponent = ({ className }) => (
+  <FlorenceMark size={20} variant="mono" className={className} />
+);
+
+const baseNav: NavItem[] = [
+  { to: "/home", label: "Today", icon: Home },
   { to: "/subjects", label: "Subjects", icon: BookOpen },
-  { to: "/tutor", label: "Tutor", icon: Sparkles },
-  { to: "/progress", label: "Progress", icon: TrendingUp },
-  { to: "/profile", label: "Profile", icon: User },
-] as const;
+  { to: "/progress", label: "Progress", icon: RoseIcon },
+  { to: "/batch", label: "Batch", icon: Users },
+];
 
-const adminNavItem = { to: "/admin", label: "Admin", icon: Shield } as const;
+const adminNavItem: NavItem = { to: "/admin", label: "Faculty", icon: Shield };
 
-type NavItem = { to: string; label: string; icon: typeof Home };
+type NavItem = { to: string; label: string; icon: IconComponent };
 
 function useNavItems(): NavItem[] {
   const { data: role } = useQuery({
@@ -47,14 +57,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="relative isolate min-h-dvh bg-background">
       <PendingInviteRedemption />
       <div
-        className={`mx-auto w-full max-w-[480px] px-4 pt-6 md:max-w-none md:pl-8 md:pr-8 ${focusMode ? "" : "md:ml-[220px]"}`}
+        className={`mx-auto w-full max-w-[480px] px-4 md:max-w-none md:px-8 ${focusMode ? "pt-[max(1rem,env(safe-area-inset-top))]" : "pt-[max(0.75rem,env(safe-area-inset-top))] md:ml-[232px] md:pt-8"}`}
         style={
-          focusMode
-            ? undefined
-            : { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6.5rem)" }
+          focusMode ? undefined : { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 6rem)" }
         }
       >
-        <div className={`md:max-w-[740px] ${focusMode ? "md:mx-auto" : ""}`}>{children}</div>
+        <div className={`md:max-w-[720px] ${focusMode ? "md:mx-auto" : ""}`}>
+          <OfflineBanner />
+          {children}
+        </div>
       </div>
       {focusMode ? <FocusModeClose /> : <BottomNav />}
       {!focusMode && <SideNav />}
@@ -90,13 +101,13 @@ function PendingInviteRedemption() {
         if (!profile?.batch_id) {
           const result = await apply({ data: { code: code.trim() } });
           if (result.ok) {
-            toast.success("Invite accepted — your batch is now assigned.");
+            toast.success("You've joined your batch.");
           } else {
             const messages = {
-              not_found: "That invite code isn't valid. You can enter another code in Profile.",
-              expired: "That invite code has expired. Ask your coordinator for a new one.",
-              exhausted: "That invite code has been used up. Ask your coordinator for a new one.",
-              already_enrolled: "Your batch is already assigned.",
+              not_found: "That batch code didn't work. You can enter another one in Settings.",
+              expired: "That batch code has expired. Ask your class coordinator for a new one.",
+              exhausted: "That batch code is full. Ask your class coordinator for a new one.",
+              already_enrolled: "You're already in a batch.",
             } as const;
             toast.error(messages[result.reason]);
           }
@@ -105,11 +116,11 @@ function PendingInviteRedemption() {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["app-shell-role"] }),
           queryClient.invalidateQueries({ queryKey: ["profile-page"] }),
-          queryClient.invalidateQueries({ queryKey: ["home-today"] }),
+          invalidateProgress(queryClient),
         ]);
       } catch (error) {
         console.error("Pending invite redemption failed", error);
-        toast.error("We couldn't assign your batch yet. Sihat will try again next time.");
+        toast.error("We couldn't join your batch yet. Florence will try again next time.");
         return;
       }
 
@@ -129,10 +140,13 @@ function PendingInviteRedemption() {
 
 function useFocusMode() {
   const location = useLocation();
-  const tab = (location.search as { tab?: string }).tab;
+  // Study screens get the whole screen: chapters (notes have their own
+  // bottom actions), review sessions, mistake review and exams.
   return (
     location.pathname.endsWith("/exam") ||
-    (location.pathname.includes("/chapters/") && (tab === "quiz" || tab === "flashcards"))
+    location.pathname === "/session" ||
+    location.pathname === "/review" ||
+    location.pathname.startsWith("/chapters/")
   );
 }
 
@@ -148,7 +162,7 @@ function FocusModeClose() {
       to="/subjects/$subjectId"
       params={{ subjectId: subjectMatch[1] }}
       aria-label="Close exam"
-      className="fixed top-[max(1rem,env(safe-area-inset-top))] left-4 z-50 grid size-11 place-items-center rounded-full border bg-card text-foreground shadow-soft"
+      className="fixed top-[max(1rem,env(safe-area-inset-top))] left-4 z-50 grid size-11 place-items-center rounded-full border border-border-strong bg-card text-foreground"
     >
       <X className="size-5" />
     </Link>
@@ -160,27 +174,25 @@ function BottomNav() {
   return (
     <nav
       aria-label="Primary navigation"
-      className="fixed inset-x-4 z-40 md:hidden"
-      style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 1.25rem)" }}
+      className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 backdrop-blur md:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
-      <div className="mx-auto flex h-16 max-w-[440px] items-center justify-around rounded-[22px] border bg-card px-2 shadow-lifted">
+      <div className="mx-auto flex h-[64px] max-w-[480px] items-stretch justify-around px-2">
         {items.map(({ to, label, icon: Icon }) => (
           <Link
             key={to}
             to={to as "/home"}
-            aria-label={label}
-            className="nav-pill group flex h-11 min-w-11 items-center justify-center gap-2 rounded-full px-3 text-muted-foreground data-[status=active]:bg-primary data-[status=active]:text-primary-foreground"
+            className="group flex min-w-[64px] flex-1 flex-col items-center justify-center gap-1 text-[11.5px] font-semibold text-muted-foreground data-[status=active]:text-accent-ink"
           >
-            <Icon className="size-5 shrink-0" />
-            <span className="hidden text-xs font-semibold group-data-[status=active]:inline">
-              {label}
-            </span>
+            <Icon className="size-[22px] shrink-0" />
+            <span>{label}</span>
           </Link>
         ))}
       </div>
     </nav>
   );
 }
+
 function SideNav() {
   const items = useNavItems();
   const navigate = useNavigate();
@@ -195,29 +207,28 @@ function SideNav() {
   return (
     <nav
       aria-label="Primary navigation"
-      className="fixed inset-y-0 left-0 hidden w-[220px] flex-col border-r bg-surface p-4 md:flex"
+      className="fixed inset-y-0 left-0 hidden w-[232px] flex-col border-r bg-card p-4 md:flex"
     >
-      <Link to="/home" className="mb-6 flex items-center gap-2.5 px-2 py-3">
-        <span className="grid size-10 place-items-center rounded-[14px] bg-primary font-display text-xl text-primary-foreground">
-          S
-        </span>
-        <span className="font-display text-2xl text-foreground">Sihat</span>
+      <Link to="/home" className="mb-8 px-2 pt-3 pb-2" aria-label="Florence, Today">
+        <Lockup height={32} />
       </Link>
       <div className="flex flex-col gap-1">
-        {items.map(({ to, label, icon: Icon }) => (
-          <Link
-            key={to}
-            to={to as "/home"}
-            className="group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-primary-tint hover:text-foreground data-[status=active]:bg-primary data-[status=active]:text-primary-foreground"
-          >
-            <Icon className="size-4" />
-            {label}
-          </Link>
-        ))}
+        {[...items, { to: "/profile", label: "Settings", icon: Settings }].map(
+          ({ to, label, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to as "/home"}
+              className="group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[status=active]:bg-muted data-[status=active]:text-foreground"
+            >
+              <Icon className="size-[18px]" />
+              {label}
+            </Link>
+          ),
+        )}
       </div>
       <button
         onClick={handleLogout}
-        className="mt-auto rounded-xl px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        className="mt-auto min-h-11 rounded-xl px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         Log out
       </button>

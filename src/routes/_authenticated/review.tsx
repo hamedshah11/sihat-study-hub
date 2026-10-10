@@ -1,18 +1,22 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowRight, CheckCircle2, ChevronLeft, RotateCcw, Sparkles, XCircle } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { answerMistake } from "@/lib/study.functions";
 import { MISTAKES_QUERY_KEY, useMistakes } from "@/lib/mistakes-data";
 import { MISTAKE_CLEAR_AFTER, MISTAKE_SECOND_GAP_DAYS } from "@/lib/mistakes";
-import { subjectColourVariables } from "@/lib/subject-colours";
+import { invalidateProgress } from "@/lib/progress-data";
+import { pageTitle } from "@/lib/brand";
+import { useStudySessionLock } from "@/hooks/use-study-session";
+import { SessionHeader } from "@/components/study/FlashcardDeck";
+import { ReportProblem } from "@/components/study/ReportProblem";
 
 export const Route = createFileRoute("/_authenticated/review")({
-  head: () => ({ meta: [{ title: "Fix your mistakes — Sihat" }] }),
+  head: () => ({ meta: [{ title: pageTitle("Questions to revisit") }] }),
   component: ReviewPage,
 });
 
@@ -70,49 +74,32 @@ function ReviewPage() {
     },
   });
 
-  return (
-    <div>
-      <header className="animate-fade-up">
-        <Link
-          to="/home"
-          className="inline-flex items-center gap-1 rounded-full border bg-card py-1.5 pl-2 pr-3.5 text-sm font-medium text-muted-foreground shadow-soft transition-colors hover:text-foreground"
-        >
-          <ChevronLeft className="size-4" /> Home
-        </Link>
-        <h1 className="font-display mt-4 text-2xl font-bold text-primary">Fix your mistakes</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Questions you got wrong come back after a day. Get each one right twice and it's cleared.
-        </p>
-      </header>
+  const navigate = useNavigate();
+  const exit = () => navigate({ to: "/home" });
 
-      {isLoading || (ids.length > 0 && questionsLoading) ? (
-        <Skeleton className="mt-6 h-64 rounded-2xl" />
-      ) : !questions || questions.length === 0 ? (
-        <NothingDue pending={mistakes?.pending ?? 0} />
-      ) : (
-        <ReviewRunner questions={questions} onStart={() => setSessionIds(ids)} />
-      )}
-    </div>
-  );
+  if (isLoading || (ids.length > 0 && questionsLoading)) {
+    return <Skeleton className="mt-2 h-[420px] rounded-[26px]" />;
+  }
+  if (!questions || questions.length === 0) {
+    return <NothingDue pending={mistakes?.pending ?? 0} />;
+  }
+  return <ReviewRunner questions={questions} onStart={() => setSessionIds(ids)} onExit={exit} />;
 }
 
 function NothingDue({ pending }: { pending: number }) {
   return (
-    <div className="mt-6 rounded-2xl border bg-card p-6 text-center shadow-soft">
-      <div className="mx-auto inline-flex items-center justify-center rounded-full bg-accent/10 p-4 text-accent">
-        <Sparkles className="size-7" />
-      </div>
-      <p className="mt-3 font-display text-lg font-bold text-primary">No mistakes due</p>
-      <p className="mt-1 text-sm text-muted-foreground">
+    <div className="mt-6 rounded-[24px] border bg-card p-6 text-center">
+      <h1 className="font-display text-[26px]">Nothing to revisit.</h1>
+      <p className="mx-auto mt-2 max-w-[300px] text-sm text-muted-foreground">
         {pending > 0
-          ? `${pending} question${pending === 1 ? " is" : "s are"} coming back over the next few days.`
-          : "When you get a quiz or exam question wrong, it will come back here the next day."}
+          ? `${pending} question${pending === 1 ? " comes" : "s come"} back over the next few days.`
+          : "When you miss a quiz or exam question, it comes back here the next day."}
       </p>
       <Link
-        to="/subjects"
-        className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft"
+        to="/home"
+        className="mt-5 inline-flex h-11 items-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground"
       >
-        Study a chapter <ArrowRight className="size-4" />
+        Back to Today
       </Link>
     </div>
   );
@@ -121,16 +108,18 @@ function NothingDue({ pending }: { pending: number }) {
 function ReviewRunner({
   questions,
   onStart,
+  onExit,
 }: {
   questions: ReviewQuestion[];
   onStart: () => void;
+  onExit: () => void;
 }) {
+  useStudySessionLock(true);
   const answerFn = useServerFn(answerMistake);
   const qc = useQueryClient();
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [results, setResults] = useState<boolean[]>([]);
-  const [xp, setXp] = useState(0);
   const [saveError, setSaveError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -155,7 +144,6 @@ function ReviewRunner({
         explanation: res.explanation,
       });
       setResults((r) => [...r, res.correct]);
-      if (res.awardedXp) setXp((x) => x + res.awardedXp);
     } catch {
       setSaveError(true);
     } finally {
@@ -170,7 +158,7 @@ function ReviewRunner({
     window.scrollTo({ top: 0 });
     if (index + 1 >= questions.length) {
       void qc.invalidateQueries({ queryKey: MISTAKES_QUERY_KEY });
-      void qc.invalidateQueries({ queryKey: ["home-today"] });
+      void invalidateProgress(qc);
     }
   }
 
@@ -185,28 +173,24 @@ function ReviewRunner({
       wrong > 0 && `${wrong} back tomorrow`,
     ].filter(Boolean) as string[];
     return (
-      <div className="mt-6 space-y-4">
-        <div className="animate-scale-in rounded-2xl border bg-card p-6 text-center shadow-soft">
-          <div className="mx-auto inline-flex items-center justify-center rounded-full bg-accent/10 p-4 text-accent">
-            <CheckCircle2 className="size-7" />
-          </div>
-          <p className="mt-3 text-3xl font-bold text-primary tabular-nums">
-            {right}/{results.length}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">right this time</p>
-          <ul className="mt-4 space-y-1 text-sm text-foreground">
-            {lines.map((l) => (
-              <li key={l}>{l}</li>
-            ))}
-          </ul>
-          {xp > 0 && <p className="mt-3 text-xs font-semibold text-accent">+{xp} XP</p>}
+      <div className="animate-scale-in flex min-h-[calc(100dvh-2rem)] flex-col pb-[max(1rem,env(safe-area-inset-bottom))] pt-6 text-center">
+        <p className="text-[13px] font-semibold text-muted-foreground">Questions to revisit</p>
+        <h1 className="mt-3 font-display text-[34px]">
+          {right} out of {results.length}
+        </h1>
+        <ul className="mx-auto mt-4 space-y-1.5 text-[15px]">
+          {lines.map((l) => (
+            <li key={l}>{l}</li>
+          ))}
+        </ul>
+        <div className="mt-auto pt-10">
+          <Link
+            to="/home"
+            className="flex h-[52px] w-full items-center justify-center rounded-full bg-primary text-[15px] font-semibold text-primary-foreground"
+          >
+            Done
+          </Link>
         </div>
-        <Link
-          to="/home"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft"
-        >
-          Done
-        </Link>
       </div>
     );
   }
@@ -215,26 +199,19 @@ function ReviewRunner({
   const isRight = feedback?.correct ?? false;
 
   return (
-    <div className="subject-colour mt-6 space-y-3" style={subjectColourVariables(q.subjectColour)}>
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>
-          {index + 1} of {questions.length}
-        </span>
-        <span className="inline-flex items-center gap-1">
-          <RotateCcw className="size-3" /> Missed before
-        </span>
-      </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full bg-[var(--subject)] transition-all"
-          style={{ width: `${((index + (revealed ? 1 : 0)) / questions.length) * 100}%` }}
-        />
-      </div>
-
+    <div className="flex min-h-[calc(100dvh-2rem)] flex-col pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <SessionHeader
+        title={q.chapterTitle ? `Revisit · ${q.chapterTitle}` : "Questions to revisit"}
+        position={index + 1}
+        total={questions.length}
+        onExit={onExit}
+      />
       <div key={q.id} className="animate-fade-up">
-        {q.chapterTitle && <p className="text-xs text-muted-foreground">{q.chapterTitle}</p>}
-        <p className="mt-3 font-display text-[30px] leading-[1.15] text-foreground">{q.prompt}</p>
-        <div className="mt-4 space-y-2">
+        <p className="mt-6 text-[12.5px] font-semibold text-muted-foreground">
+          You missed this one before
+        </p>
+        <h2 className="fl-question mt-2">{q.prompt}</h2>
+        <div className="mt-5 space-y-2.5">
           {q.options.map((opt, i) => {
             const correct = i === feedback?.correctIndex;
             const mine = i === picked;
@@ -244,45 +221,63 @@ function ReviewRunner({
                 disabled={revealed || busy}
                 onClick={() => void choose(i)}
                 className={cn(
-                  "flex min-h-[58px] w-full items-center gap-3 rounded-2xl border bg-card p-3 text-left text-sm transition-colors",
-                  !revealed && "hover:border-[var(--subject)] hover:bg-[var(--subject-tint)]",
-                  revealed && correct && "animate-pop border-2 border-success bg-success-bg",
-                  revealed && mine && !correct && "border-2 border-destructive bg-destructive-bg",
+                  "flex min-h-[56px] w-full items-center gap-3 rounded-2xl border bg-card px-3.5 py-3 text-left text-[16px] font-medium transition-colors",
+                  !revealed && "border-border-strong/70 hover:bg-muted",
+                  revealed && correct && "border-success ring-1 ring-success",
+                  revealed && mine && !correct && "border-destructive ring-1 ring-destructive",
                   revealed && !correct && !mine && "opacity-70",
                 )}
               >
-                <span className="font-bold text-muted-foreground">{LETTERS[i] ?? i + 1}</span>
+                <span className="fl-number grid size-7 shrink-0 place-items-center rounded-lg bg-muted text-[12px] text-muted-foreground">
+                  {LETTERS[i] ?? i + 1}
+                </span>
                 <span className="flex-1">{opt}</span>
-                {revealed && correct && <CheckCircle2 className="size-4 text-accent" />}
-                {revealed && mine && !correct && <XCircle className="size-4 text-destructive" />}
+                {revealed && correct && (
+                  <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-success-ink">
+                    <Check className="size-3.5" aria-hidden /> Correct answer
+                  </span>
+                )}
+                {revealed && mine && !correct && (
+                  <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-destructive-ink">
+                    <X className="size-3.5" aria-hidden /> Your answer
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
         {revealed && (
-          <div className={cn("mt-4 rounded-xl p-3 text-sm", "bg-[var(--subject-tint)]")}>
-            <p className="font-medium">{isRight ? "Correct!" : "Not quite."}</p>
+          <div className="animate-fade-up mt-4 rounded-2xl bg-muted px-4 py-3" aria-live="polite">
+            <p className="text-[14px] font-semibold">{isRight ? "That's right." : "Not quite."}</p>
             {feedback?.explanation && (
-              <p className="mt-1 text-muted-foreground">{feedback.explanation}</p>
+              <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">
+                {feedback.explanation}
+              </p>
             )}
+            <ReportProblem kind="question" itemId={q.id} className="-mb-2" />
           </div>
         )}
       </div>
 
       {saveError && (
-        <p className="rounded-xl bg-destructive/10 px-4 py-3 text-xs text-destructive">
+        <p
+          role="alert"
+          className="mt-4 rounded-xl bg-destructive-bg px-4 py-3 text-[13.5px] text-destructive-ink"
+        >
           This answer couldn't be checked. Check your connection and try again.
         </p>
       )}
 
-      {revealed && (
-        <button
-          onClick={next}
-          className="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[var(--subject)] px-5 text-sm font-semibold text-white shadow-soft"
-        >
-          {index + 1 < questions.length ? "Next" : "Finish"} <ArrowRight className="size-4" />
-        </button>
-      )}
+      <div className="mt-auto pt-6">
+        {revealed && (
+          <button
+            onClick={next}
+            className="h-[52px] w-full rounded-full bg-primary text-[15px] font-semibold text-primary-foreground"
+          >
+            {index + 1 < questions.length ? "Next question" : "Finish"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
