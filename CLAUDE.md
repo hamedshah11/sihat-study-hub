@@ -47,10 +47,14 @@ The brand book and screen sheets are the source of truth; see
   (`generate-content` — summaries, MCQs, flashcards from source material).
 - **Deploy**: Cloudflare (via `@cloudflare/vite-plugin` + `wrangler.jsonc`,
   entry `src/server.ts`).
-- **Offline**: `public/sw.js`, a hand-written Workbox service worker
-  (stale-while-revalidate for HTML and cache-first for static assets). It does
-  not cache authenticated Supabase REST responses because Workbox's URL-only
-  cache keys could leak RLS-scoped data between accounts on a shared device.
+- **Offline**: `public/sw.js`, a hand-written service worker using the plain
+  Cache API (no Workbox or CDN, so it installs with no outside network):
+  stale-while-revalidate for pages, cache-first for scripts, styles, fonts and
+  the app's images, and an app shell for pages it hasn't seen (see Offline
+  downloads below). It handles only same-origin requests and Google Fonts, so
+  it never caches Supabase REST, storage or auth responses (URL-only cache
+  keys could leak RLS-scoped data between accounts on a shared device), and
+  never server functions (`/_serverFn`, whose GET responses are personal).
   Bump `CACHE_VERSION` on every deploy.
 
 ## Security model — read this before touching progress/gamification tables
@@ -256,6 +260,69 @@ mistakes") serves due mistakes across all subjects, 10 per session, with
 review XP once per PKT day. Browser reads go through
 `src/lib/mistakes-data.ts`, which treats any read error as empty history.
 
+## Offline downloads
+
+A student can download a chapter (or a whole subject: every published
+chapter, plus ones published later) and read its notes and flip its
+flashcards with no signal.
+
+- **Storage** (`src/lib/offline-store.ts`, tested): IndexedDB database
+  `florence-downloads`, stores `chapters` (light metadata: title, subject,
+  sizes, version), `content` (notes, approved flashcards, diagram list),
+  `images` (the diagram image files as Blobs, from the private `diagrams`
+  bucket) and `subjects` (subjects downloaded whole). Every row is keyed by
+  and carries the user id, and every read checks the stored user id again,
+  so one account never sees another's downloads on a shared phone, even if
+  the first never logged out. Never put curriculum or personal data in the
+  service worker's runtime caches instead.
+- **Network side** (`src/lib/downloads.ts`): reads with the RLS-scoped
+  browser client (curriculum tables only; nothing is written to Supabase),
+  calls `navigator.storage.persist()` at the first download, shows
+  `navigator.storage.estimate()` in Settings, and after a download asks the
+  service worker (`florence:cache-pages` message) to keep `/home`,
+  `/subjects`, `/profile` and the subject and chapter pages, with the
+  scripts and styles each page names, so a cold start offline works.
+- **Refresh**: each download stores `chapters.updated_at` and a version
+  (`contentVersion`: updated time, approved card ids, diagram ids and update
+  times). `useKeepDownloadsFresh` (in the authenticated layout) checks at
+  most every 6 hours while online, downloads changed chapters again quietly,
+  removes unpublished ones, adds chapters newly published in a subject
+  downloaded whole, and downloads everything again weekly (card text edits
+  don't change the version). A failed refresh keeps the old copy.
+- **Reads with a fallback** (`src/lib/chapter-data.ts`): the chapter page and
+  its flashcards read from Supabase, or from the download when the device is
+  offline or the request fails (`readWithDownloadFallback`; queries use
+  `networkMode: "always"` because TanStack Query pauses queries offline).
+  The subject page and Subjects list fall back to downloaded chapters when
+  the progress snapshot can't load. Images come from the stored file when
+  the chapter is downloaded (`src/hooks/use-diagram-image.ts`), even online.
+- **Offline sign-in** (`src/lib/offline-session.ts`): with no signal,
+  supabase-js can't refresh an expired access token (and retries for up to
+  30 seconds). `useSession` (AppShell) then trusts the session stored on the
+  phone instead of sending the student to /login, and checks it with the
+  server once the signal returns; a session the server rejects signs out as
+  usual. `src/router.tsx` seeds TanStack Query's online state from
+  `navigator.onLine`.
+- **App shell**: the server renders the same signed-out "Loading…" shell for
+  every account, so cached pages hold no personal data. For a page it never
+  cached, the worker serves another cached page of the same route shape
+  (`/chapters/:id`), then `/home` (precached at install), then a plain
+  offline page.
+- **Log out** (`src/lib/log-out.ts`) removes the student's downloads before
+  ending the session; offline, the session is forgotten locally.
+- **UI**: `ChapterDownload` / `SubjectDownload`
+  (`src/components/DownloadForOffline.tsx`) with progress and size;
+  `OfflineChip` ("Available offline", in `StatusChip.tsx`) on downloaded
+  chapters in the subject page and chapter header; the Settings "Downloads"
+  row lists them with sizes and Remove / Remove all. Screens that need the
+  server use `NeedsInternet` (`OfflineBanner.tsx`) instead of failing
+  silently: quizzes, practice exams, Batch, Progress, Today, today's review
+  and Fix your mistakes; Ask Florence already says so. `FlashcardDeck`
+  disables the ratings offline ("Saving reviews needs internet") and offers
+  "Next card"; nothing is queued.
+- Not offline: quizzes, exams, Ask Florence, the Diagrams labelling tab and
+  videos.
+
 ## Speed
 
 - Every server function is timed by the global middleware `serverTiming`
@@ -312,8 +379,9 @@ review XP once per PKT day. Browser reads go through
   Supabase URL, and the browser can only reach this machine.
 - `e2e/seed.ts` is an idempotent TS seed (local service-role key, Node side
   only): batch code `SIHAT-E2E-26`, two Semester 1 subjects with published
-  chapters (one meets the publish checklist), a Semester 2 draft chapter for
-  the faculty tests, a student per journey and an instructor. Each test resets
+  chapters (one meets the publish checklist), an approved diagram in "The
+  cell" with a real image in the local `diagrams` bucket, a Semester 2 draft
+  chapter for the faculty tests, a student per journey and an instructor. Each test resets
   its own student first (`e2e/support/scenarios.ts`); one worker, one database.
 - Journeys run on a 390 × 844 phone viewport; the faculty tests on 1280 × 900.
   Security tests use the anon key plus a student's session, like devtools
@@ -328,6 +396,8 @@ review XP once per PKT day. Browser reads go through
 - CI: `.github/workflows/e2e.yml` runs the suite on every pull request and
   uploads the report and screenshot diffs when it fails.
 - Test files end in `.e2e.ts` so Vitest doesn't pick them up.
+- The config blocks service workers; `offline.e2e.ts` allows them, downloads
+  a chapter, goes offline with `context.setOffline(true)` and reloads cold.
 
 ## Content conventions
 
@@ -365,6 +435,3 @@ review XP once per PKT day. Browser reads go through
 - No offline write queue — the service worker deliberately never
   intercepts POST/PUT/PATCH/DELETE, so writes (quiz submits, reviews,
   tutor questions) simply fail offline rather than syncing later.
-- Curriculum API responses are not yet stored for offline reading. Add an
-  explicit, account-scoped IndexedDB download flow rather than restoring a
-  shared runtime cache for authenticated Supabase REST requests.

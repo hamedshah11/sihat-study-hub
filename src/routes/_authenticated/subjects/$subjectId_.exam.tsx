@@ -10,6 +10,7 @@ import { getExamResult, type ExamPayload, type ExamResult } from "@/lib/exam.fun
 import { ExamSetup } from "@/components/exam/ExamSetup";
 import { ExamRunner } from "@/components/exam/ExamRunner";
 import { ExamResults } from "@/components/exam/ExamResults";
+import { NeedsInternet, useOnline } from "@/components/OfflineBanner";
 import { MISTAKES_QUERY_KEY } from "@/lib/mistakes-data";
 import { subjectColourVariables } from "@/lib/subject-colours";
 
@@ -31,6 +32,7 @@ function ExamPage() {
   const [exam, setExam] = useState<ExamPayload | null>(null);
   const [freshResult, setFreshResult] = useState<ExamResult | null>(null);
   const fetchResult = useServerFn(getExamResult);
+  const online = useOnline();
 
   const { data: subject } = useQuery({
     queryKey: ["subject-name", subjectId],
@@ -105,7 +107,13 @@ function ExamPage() {
         </Link>
       </header>
 
-      {resultId && !shownResult ? (
+      {!online && !shownResult ? (
+        <NeedsInternet title="Practice exams need internet." className="mt-6">
+          <p className="mt-1 text-sm text-muted-foreground">
+            Each paper is picked and marked on the server. Downloaded chapters still open.
+          </p>
+        </NeedsInternet>
+      ) : resultId && !shownResult ? (
         pastResult.isError ? (
           <div className="mt-6 rounded-2xl border bg-card p-6 text-sm text-muted-foreground shadow-soft">
             Couldn't load this result.{" "}

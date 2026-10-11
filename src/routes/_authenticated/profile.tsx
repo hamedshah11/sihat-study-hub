@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-r
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Switch } from "@/components/ui/switch";
@@ -15,6 +15,16 @@ import {
 } from "@/lib/settings.functions";
 import { getThemePreference, setThemePreference, type ThemePreference } from "@/lib/theme";
 import { invalidateProgress } from "@/lib/progress-data";
+import { useSessionUserId } from "@/hooks/use-session-user";
+import {
+  formatBytes,
+  invalidateDownloads,
+  removeAllDownloads,
+  removeChapterDownload,
+  storageEstimate,
+  useDownloads,
+} from "@/lib/downloads";
+import { logOut } from "@/lib/log-out";
 import { pageTitle } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
@@ -88,8 +98,10 @@ function SettingsPage() {
     }
   }
 
+  const userId = useSessionUserId();
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    // Removes this account's downloads from the phone first.
+    await logOut(userId);
     qc.clear();
     router.invalidate();
     navigate({ to: "/login" });
@@ -197,6 +209,10 @@ function SettingsPage() {
         <BatchRow batch={account?.batch ?? null} />
       </Group>
 
+      <Group title="For offline">
+        <DownloadsRow />
+      </Group>
+
       <Group title="Account">
         <Row label="Name">
           <span className="max-w-[55%] truncate text-[14px] text-muted-foreground">
@@ -268,6 +284,106 @@ function Row({
         {hint && <p className="text-[12.5px] leading-snug text-muted-foreground">{hint}</p>}
       </div>
       {children}
+    </div>
+  );
+}
+
+/** What's downloaded to this phone, the space it takes, and removing it. */
+function DownloadsRow() {
+  const userId = useSessionUserId();
+  const qc = useQueryClient();
+  const { data } = useDownloads();
+  const [open, setOpen] = useState(false);
+  const [usage, setUsage] = useState<number | null>(null);
+  const chapters = data?.chapters ?? [];
+  const bytes = chapters.reduce((sum, c) => sum + c.bytes, 0);
+
+  useEffect(() => {
+    if (open) void storageEstimate().then((estimate) => setUsage(estimate?.usage ?? null));
+  }, [open, data]);
+
+  async function remove(chapterId?: string) {
+    if (!userId) return;
+    try {
+      if (chapterId) await removeChapterDownload(userId, chapterId);
+      else await removeAllDownloads(userId);
+    } catch {
+      toast.error("That download wasn't removed. Try again.");
+    } finally {
+      await invalidateDownloads(qc);
+    }
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15.5px] font-semibold">Downloads</span>
+          <span className="block text-[12.5px] leading-snug text-muted-foreground">
+            {chapters.length === 0
+              ? "Nothing downloaded"
+              : `${chapters.length} chapter${chapters.length === 1 ? "" : "s"} · ${formatBytes(bytes)}`}
+          </span>
+        </span>
+        <ChevronDown
+          className={cn(
+            "size-5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+          aria-hidden
+        />
+      </button>
+      {open && (
+        <div className="border-t px-4 pb-4">
+          {chapters.length === 0 ? (
+            <p className="pt-3 text-[13.5px] leading-snug text-muted-foreground">
+              Open a chapter or a subject and choose Download for offline to read it with no signal.
+            </p>
+          ) : (
+            <ul aria-label="Downloaded chapters" className="divide-y">
+              {chapters.map((c) => (
+                <li key={c.chapterId} className="flex items-center gap-3 py-2.5">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14.5px] font-medium">{c.title}</span>
+                    <span className="block text-[12.5px] text-muted-foreground">
+                      {c.subject ? `${c.subject.name} · ` : ""}
+                      <span className="fl-number">{formatBytes(c.bytes)}</span>
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void remove(c.chapterId)}
+                    aria-label={`Remove ${c.title}`}
+                    className="min-h-11 shrink-0 px-2 text-[14px] font-semibold text-accent-ink"
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {usage != null && (
+            <p className="mt-2 text-[12.5px] leading-snug text-muted-foreground">
+              Florence uses <span className="fl-number">{formatBytes(usage)}</span> on this phone in
+              all, with the pages it keeps for offline.
+            </p>
+          )}
+          {chapters.length > 0 && (
+            <button
+              type="button"
+              onClick={() => void remove()}
+              className="mt-3 h-11 w-full rounded-full border border-border-strong text-[14px] font-semibold"
+            >
+              Remove all downloads
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { X } from "lucide-react";
+import { WifiOff, X } from "lucide-react";
 import { recordReview } from "@/lib/study.functions";
 import { schedule, type Rating, type ReviewState } from "@/lib/spacedRepetition";
 import { useStudySessionLock } from "@/hooks/use-study-session";
+import { useOnline } from "@/components/OfflineBanner";
 import { RatingHelp } from "./RatingHelp";
 import { ReportProblem } from "./ReportProblem";
 import { cn } from "@/lib/utils";
@@ -18,7 +19,12 @@ export type DeckCard = {
   previous?: Partial<ReviewState> | null;
 };
 
-export type DeckResult = { reviewed: number; subjectIds?: string[] };
+export type DeckResult = {
+  reviewed: number;
+  /** Cards flipped past without a rating because there was no connection. */
+  skipped?: number;
+  subjectIds?: string[];
+};
 
 // The four FSRS ratings, each with its plain-word meaning underneath. The
 // words carry the meaning; the colour (from the screen sheets) only helps.
@@ -111,41 +117,60 @@ export function SessionHeader({
  * the answer, then Again / Hard / Good / Easy with their plain words
  * (Forgot, Barely, Got it, Instant). When each card comes back is in the
  * button's label and title, and "What do these mean?" explains them. FSRS scheduling and the review write happen on the server.
+ *
+ * With no connection the cards can still be flipped: the ratings are
+ * disabled with a plain message (there is no offline save queue) and "Next
+ * card" moves on without saving.
  */
 export function FlashcardDeck({
   cards,
   title,
+  offline: offlineSource = false,
   onExit,
   onFinish,
 }: {
   cards: DeckCard[];
   title: string;
+  /** The cards came from a download: ratings can't be saved. */
+  offline?: boolean;
   onExit: () => void;
   onFinish: (result: DeckResult) => void;
 }) {
   useStudySessionLock(true);
   const review = useServerFn(recordReview);
+  const online = useOnline();
+  const offline = offlineSource || !online;
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const [saved, setSaved] = useState(0);
+  const [skipped, setSkipped] = useState(0);
   const card = cards[index];
+
+  const advance = useCallback(
+    (result: { saved: number; skipped: number }) => {
+      if (index + 1 >= cards.length) {
+        onFinish({ reviewed: result.saved, skipped: result.skipped || undefined });
+      } else {
+        setIndex(index + 1);
+        setRevealed(false);
+        setShowHint(false);
+      }
+    },
+    [cards.length, index, onFinish],
+  );
 
   const rate = useCallback(
     async (rating: Rating) => {
-      if (busy || !card) return;
+      if (busy || !card || offline) return;
       setBusy(true);
       setSaveError(false);
       try {
         await review({ data: { flashcardId: card.id, rating } });
-        if (index + 1 >= cards.length) {
-          onFinish({ reviewed: cards.length });
-        } else {
-          setIndex(index + 1);
-          setRevealed(false);
-          setShowHint(false);
-        }
+        setSaved(saved + 1);
+        advance({ saved: saved + 1, skipped });
       } catch (e) {
         console.error("Failed to save review", e);
         setSaveError(true);
@@ -153,8 +178,14 @@ export function FlashcardDeck({
         setBusy(false);
       }
     },
-    [busy, card, cards.length, index, onFinish, review],
+    [advance, busy, card, offline, review, saved, skipped],
   );
+
+  const skip = useCallback(() => {
+    setSaveError(false);
+    setSkipped(skipped + 1);
+    advance({ saved, skipped: skipped + 1 });
+  }, [advance, saved, skipped]);
 
   // Space reveals; 1–4 rate. Handy on laptops, harmless on phones.
   useEffect(() => {
@@ -231,7 +262,7 @@ export function FlashcardDeck({
         )}
       </div>
 
-      {saveError && (
+      {saveError && !offline && (
         <p
           role="alert"
           className="mt-3 rounded-xl bg-destructive-bg px-4 py-3 text-[13.5px] text-destructive-ink"
@@ -257,14 +288,17 @@ export function FlashcardDeck({
               </p>
               <RatingHelp />
             </div>
-            <div className="grid grid-cols-4 gap-2">
+            <div
+              className="grid grid-cols-4 gap-2"
+              aria-describedby={offline ? "ratings-offline" : undefined}
+            >
               {RATINGS.map(({ rating, label, fsrs, tone }) => {
                 const back = whenBack(card.previous, rating);
                 return (
                   <button
                     key={rating}
                     type="button"
-                    disabled={busy}
+                    disabled={busy || offline}
                     onClick={() => void rate(rating)}
                     title={`Comes back in ${back}`}
                     aria-label={`${fsrs}: ${label}. Comes back in ${back}`}
@@ -279,6 +313,25 @@ export function FlashcardDeck({
                 );
               })}
             </div>
+            {offline && (
+              <>
+                <p
+                  id="ratings-offline"
+                  role="status"
+                  className="mt-3 flex items-center gap-2 rounded-xl bg-muted px-3 py-2.5 text-[13.5px]"
+                >
+                  <WifiOff className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  Saving reviews needs internet
+                </p>
+                <button
+                  type="button"
+                  onClick={skip}
+                  className="mt-2 h-[50px] w-full rounded-full border border-border-strong text-[15px] font-semibold"
+                >
+                  {index + 1 >= cards.length ? "Finish" : "Next card"}
+                </button>
+              </>
+            )}
           </>
         )}
       </div>

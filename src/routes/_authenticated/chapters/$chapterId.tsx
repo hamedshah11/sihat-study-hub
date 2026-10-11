@@ -1,13 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
-import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ImageIcon } from "lucide-react";
 import { FlorenceMark } from "@/components/brand/FlorenceMark";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DiagramMarkdownImage, diagramUrlTransform } from "@/components/DiagramMarkdownImage";
+import { DownloadedImagesContext } from "@/hooks/use-diagram-image";
 import { ChapterNotesTable } from "@/components/ChapterNotesTable";
 import { ChapterQuiz } from "@/components/ChapterQuiz";
 import { ChapterFlashcards } from "@/components/ChapterFlashcards";
@@ -15,6 +14,12 @@ import { ChapterTutor } from "@/components/ChapterTutor";
 import { ChapterDiagramTest } from "@/components/ChapterDiagramTest";
 import { ChapterNoteDiagrams } from "@/components/ChapterNoteDiagrams";
 import { ChapterVideos } from "@/components/ChapterVideos";
+import { ChapterDownload } from "@/components/DownloadForOffline";
+import { NeedsInternet } from "@/components/OfflineBanner";
+import { useSessionUserId } from "@/hooks/use-session-user";
+import { useChapterDetail } from "@/lib/chapter-data";
+import { NotDownloadedError } from "@/lib/downloads";
+import { embeddedImagePaths } from "@/lib/offline-store";
 import { useProgress } from "@/lib/progress-data";
 import { petalColour } from "@/lib/subject-colours";
 import { pageTitle } from "@/lib/brand";
@@ -49,32 +54,9 @@ function ChapterDetail() {
 
   const { data: progress } = useProgress();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["chapter-detail", chapterId],
-    queryFn: async () => {
-      const { data: chapter } = await supabase
-        .from("chapters")
-        .select("id, title, summary_md, status, updated_at, subject_id, display_order")
-        .eq("id", chapterId)
-        .maybeSingle();
-      if (!chapter) return { chapter: null, subject: null, diagrams: 0 };
-      const [{ data: subject }, { count }] = await Promise.all([
-        chapter.subject_id
-          ? supabase
-              .from("subjects")
-              .select("id, name, colour")
-              .eq("id", chapter.subject_id)
-              .maybeSingle()
-          : Promise.resolve({ data: null }),
-        supabase
-          .from("diagram_labels")
-          .select("id", { count: "exact", head: true })
-          .eq("chapter_id", chapterId)
-          .eq("status", "approved"),
-      ]);
-      return { chapter, subject, diagrams: count ?? 0 };
-    },
-  });
+  const userId = useSessionUserId();
+  // From Supabase, or from the student's download with no signal.
+  const { data, isLoading, error } = useChapterDetail(chapterId);
 
   if (isLoading) {
     return (
@@ -96,14 +78,26 @@ function ChapterDetail() {
         >
           <ChevronLeft className="size-5" /> Subjects
         </Link>
-        <div className="mt-4 rounded-[22px] border bg-card p-6 text-sm text-muted-foreground">
-          This chapter isn't available.
-        </div>
+        {error instanceof NotDownloadedError ? (
+          <NeedsInternet title="This chapter isn't downloaded." className="mt-4">
+            <p className="mt-1 text-sm text-muted-foreground">
+              Connect to the internet to open it, then choose Download for offline to keep it on
+              this phone.
+            </p>
+          </NeedsInternet>
+        ) : (
+          <div className="mt-4 rounded-[22px] border bg-card p-6 text-sm text-muted-foreground">
+            {error
+              ? "This chapter didn't load. Check your connection and try again."
+              : "This chapter isn't available."}
+          </div>
+        )}
       </div>
     );
   }
 
   const { chapter, subject } = data;
+  const fromDownload = data.source === "download";
   const subjectSnapshot = progress?.subjects.find((s) => s.id === subject?.id);
   const chapterSnapshot = subjectSnapshot?.chapters.find((c) => c.id === chapterId);
   const backToChapter = () => setTab("notes");
@@ -142,10 +136,7 @@ function ChapterDetail() {
     );
   }
 
-  const embeddedDiagramPaths = Array.from(
-    chapter.summary_md?.matchAll(/diagram:\/\/([^\s)]+)/g) ?? [],
-    (match) => match[1],
-  );
+  const embeddedDiagramPaths = embeddedImagePaths(chapter.summary_md);
   const updated = chapter.updated_at
     ? new Date(chapter.updated_at).toLocaleDateString("en-GB", {
         day: "numeric",
@@ -158,14 +149,19 @@ function ChapterDetail() {
     { value: "notes", label: "Notes" },
     { value: "flashcards", label: "Flashcards" },
     { value: "quiz", label: "Quiz" },
-    ...(data.diagrams > 0 ? [{ value: "diagrams" as const, label: "Diagrams" }] : []),
+    // Labelling the diagrams loads them from the server, so not from a download.
+    ...(data.diagrams.length > 0 && !fromDownload
+      ? [{ value: "diagrams" as const, label: "Diagrams" }]
+      : []),
   ];
 
   const due = chapterSnapshot?.cardsDue ?? 0;
   const fresh = chapterSnapshot?.cardsNew ?? 0;
-  const practiseTab: ChapterTab = due > 0 || fresh > 0 ? "flashcards" : "quiz";
-  const practiseDetail =
-    due > 0
+  // From a download (no signal), practising means flipping through the cards.
+  const practiseTab: ChapterTab = fromDownload || due > 0 || fresh > 0 ? "flashcards" : "quiz";
+  const practiseDetail = fromDownload
+    ? " · Flashcards"
+    : due > 0
       ? ` · ${due} card${due === 1 ? "" : "s"} due`
       : fresh > 0
         ? ` · ${Math.min(fresh, 10)} new cards`
@@ -199,6 +195,7 @@ function ChapterDetail() {
         )}
         <h1 className="font-display text-[28px] leading-[1.12] md:text-[34px]">{chapter.title}</h1>
       </div>
+      <ChapterDownload chapterId={chapterId} className="mt-3" />
 
       <div
         role="tablist"
@@ -228,35 +225,37 @@ function ChapterDetail() {
         </div>
       ) : (
         <>
-          <article className="mt-5">
-            <div className="prose max-w-none prose-p:text-[15.5px] prose-p:leading-[1.7]">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                urlTransform={diagramUrlTransform}
-                components={{
-                  img: DiagramMarkdownImage,
-                  table: ChapterNotesTable,
-                  blockquote: ({ children }) => (
-                    <blockquote className="not-prose my-4 text-[13.5px] leading-relaxed text-muted-foreground [&_p]:mb-1.5 [&_p]:text-[13.5px] [&_p]:leading-relaxed [&_p]:text-muted-foreground [&_strong]:text-foreground">
-                      {children}
-                    </blockquote>
-                  ),
-                }}
-              >
-                {chapter.summary_md || "_These notes are still being reviewed by your teachers._"}
-              </ReactMarkdown>
-            </div>
-            <ChapterNoteDiagrams chapterId={chapterId} excludedPaths={embeddedDiagramPaths} />
-            {data.diagrams > 0 && (
-              <button
-                onClick={() => setTab("diagrams")}
-                className="mt-4 flex min-h-11 w-full items-center gap-2 rounded-xl border border-dashed border-border-strong px-4 py-2.5 text-left text-[14px] font-semibold"
-              >
-                <ImageIcon className="size-4 text-muted-foreground" aria-hidden />
-                Label the diagrams to test yourself
-              </button>
-            )}
-          </article>
+          <DownloadedImagesContext.Provider value={userId ? { userId, chapterId } : null}>
+            <article className="mt-5">
+              <div className="prose max-w-none prose-p:text-[15.5px] prose-p:leading-[1.7]">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  urlTransform={diagramUrlTransform}
+                  components={{
+                    img: DiagramMarkdownImage,
+                    table: ChapterNotesTable,
+                    blockquote: ({ children }) => (
+                      <blockquote className="not-prose my-4 text-[13.5px] leading-relaxed text-muted-foreground [&_p]:mb-1.5 [&_p]:text-[13.5px] [&_p]:leading-relaxed [&_p]:text-muted-foreground [&_strong]:text-foreground">
+                        {children}
+                      </blockquote>
+                    ),
+                  }}
+                >
+                  {chapter.summary_md || "_These notes are still being reviewed by your teachers._"}
+                </ReactMarkdown>
+              </div>
+              <ChapterNoteDiagrams diagrams={data.diagrams} excludedPaths={embeddedDiagramPaths} />
+              {data.diagrams.length > 0 && !fromDownload && (
+                <button
+                  onClick={() => setTab("diagrams")}
+                  className="mt-4 flex min-h-11 w-full items-center gap-2 rounded-xl border border-dashed border-border-strong px-4 py-2.5 text-left text-[14px] font-semibold"
+                >
+                  <ImageIcon className="size-4 text-muted-foreground" aria-hidden />
+                  Label the diagrams to test yourself
+                </button>
+              )}
+            </article>
+          </DownloadedImagesContext.Provider>
           <ChapterVideos chapterId={chapterId} />
           {updated && (
             <p className="mt-4 text-center text-[12.5px] text-muted-foreground">
