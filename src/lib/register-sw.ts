@@ -26,9 +26,13 @@ export function registerServiceWorker() {
     return;
   }
 
-  window.addEventListener("load", () => {
+  const register = () => {
     navigator.serviceWorker.register("/sw.js").catch((err) => {
       console.error("SW registration failed", err);
     });
-  });
+  };
+  // Called after hydration, which can finish after the load event (a page
+  // served from cache loads fast): then register straight away.
+  if (document.readyState === "complete") register();
+  else window.addEventListener("load", register, { once: true });
 }

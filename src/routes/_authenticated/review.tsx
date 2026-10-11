@@ -13,6 +13,7 @@ import { useStudySessionLock } from "@/hooks/use-study-session";
 import { SessionHeader } from "@/components/study/FlashcardDeck";
 import { ReportProblem } from "@/components/study/ReportProblem";
 import { AnswerFeedback, AnswerOption } from "@/components/study/AnswerOption";
+import { NeedsInternet, useOnline } from "@/components/OfflineBanner";
 
 export const Route = createFileRoute("/_authenticated/review")({
   head: () => ({ meta: [{ title: pageTitle("Questions to revisit") }] }),
@@ -75,6 +76,23 @@ function ReviewPage() {
 
   const navigate = useNavigate();
   const exit = () => navigate({ to: "/home" });
+  const online = useOnline();
+
+  if (!online && !questions && sessionIds === null) {
+    return (
+      <NeedsInternet title="Fixing mistakes needs internet." className="mt-6">
+        <p className="mt-1 text-sm text-muted-foreground">
+          Each answer is checked on the server. Your questions will be here when you're back online.
+        </p>
+        <button
+          onClick={exit}
+          className="mt-4 h-11 rounded-full border border-border-strong px-5 text-sm font-semibold"
+        >
+          Back to Today
+        </button>
+      </NeedsInternet>
+    );
+  }
 
   if (isLoading || (ids.length > 0 && questionsLoading)) {
     return <Skeleton className="mt-2 h-[420px] rounded-[26px]" />;

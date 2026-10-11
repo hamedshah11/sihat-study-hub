@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TopBar } from "@/components/TopBar";
 import { ProgressRose } from "@/components/brand/ProgressRose";
 import { InstallPrompt } from "@/components/InstallPrompt";
-import { useOnline } from "@/components/OfflineBanner";
+import { NeedsInternet, useOnline } from "@/components/OfflineBanner";
 import { DaysInRow } from "@/components/DaysInRow";
 import { useProgress } from "@/lib/progress-data";
 import { useMistakes } from "@/lib/mistakes-data";
@@ -169,6 +169,25 @@ function TodayPage() {
         <Skeleton className="h-10 w-2/3 rounded-xl" />
         <Skeleton className="h-[200px] rounded-[24px]" />
         <Skeleton className="h-[96px] rounded-[22px]" />
+      </div>
+    );
+  }
+
+  if (!data && !online) {
+    return (
+      <div className="space-y-4">
+        <TopBar />
+        <NeedsInternet title="Today's review needs internet.">
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your cards and progress load when you're back online. Downloaded chapters still open.
+          </p>
+          <Link
+            to="/subjects"
+            className="mt-4 inline-flex h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground"
+          >
+            Open downloads
+          </Link>
+        </NeedsInternet>
       </div>
     );
   }

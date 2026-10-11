@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, RotateCcw, X } from "lucide-react";
+import { Check, RotateCcw, WifiOff, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   checkQuizAnswer,
@@ -22,6 +22,7 @@ import {
   lowerFirst,
   type OptionState,
 } from "@/components/study/AnswerOption";
+import { NeedsInternet, useOnline } from "@/components/OfflineBanner";
 import { cn } from "@/lib/utils";
 
 const QUIZ_SIZE = 5;
@@ -73,8 +74,27 @@ export function ChapterQuiz({
     refetchOnMount: "always",
     refetchOnWindowFocus: false,
   });
+  const online = useOnline();
   const exit =
     onExit ?? (() => navigate({ to: "/chapters/$chapterId", params: { chapterId }, search: {} }));
+
+  // The paper is picked and marked on the server: no quiz without a connection.
+  if (!online && !data) {
+    return (
+      <NeedsInternet title="Quizzes need internet." className="mt-4">
+        <p className="mt-1 text-sm text-muted-foreground">
+          Florence picks and marks each quiz on the server. Downloaded notes and flashcards still
+          open.
+        </p>
+        <button
+          onClick={exit}
+          className="mt-4 h-11 rounded-full border border-border-strong px-5 text-sm font-semibold"
+        >
+          {onComplete ? "Continue" : "Back to the chapter"}
+        </button>
+      </NeedsInternet>
+    );
+  }
 
   if (isLoading) return <Skeleton className="mt-4 h-[420px] rounded-[26px]" />;
 
@@ -139,6 +159,7 @@ function QuizRunner({
   onComplete?: (outcome: QuizOutcome) => void;
 }) {
   useStudySessionLock(true);
+  const online = useOnline();
   const submit = useServerFn(submitQuiz);
   const check = useServerFn(checkQuizAnswer);
   const queryClient = useQueryClient();
@@ -273,7 +294,7 @@ function QuizRunner({
               index={i}
               text={option}
               state={state}
-              disabled={Boolean(feedback) || busy}
+              disabled={Boolean(feedback) || busy || !online}
               onClick={() => void choose(i)}
             />
           );
@@ -286,13 +307,23 @@ function QuizRunner({
         </AnswerFeedback>
       )}
 
-      {saveError && (
+      {!online ? (
         <p
-          role="alert"
-          className="mt-4 rounded-xl bg-destructive-bg px-4 py-3 text-[13.5px] text-destructive-ink"
+          role="status"
+          className="mt-4 flex items-center gap-2 rounded-xl bg-muted px-4 py-3 text-[13.5px]"
         >
-          {saveError}
+          <WifiOff className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          Quizzes need internet to check answers
         </p>
+      ) : (
+        saveError && (
+          <p
+            role="alert"
+            className="mt-4 rounded-xl bg-destructive-bg px-4 py-3 text-[13.5px] text-destructive-ink"
+          >
+            {saveError}
+          </p>
+        )
       )}
 
       <div className="mt-auto pt-6">
@@ -300,7 +331,7 @@ function QuizRunner({
           <button
             type="button"
             onClick={() => void next()}
-            disabled={busy}
+            disabled={busy || (!online && isLast)}
             className="h-[52px] w-full rounded-full bg-primary text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {busy ? "One moment…" : isLast ? "See results" : "Next question"}

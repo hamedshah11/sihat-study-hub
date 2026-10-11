@@ -18,8 +18,8 @@ export function useOnline() {
 
 /**
  * Says plainly what works without a connection. There is no offline save
- * queue yet, so it does not promise one: reviews and quizzes need a
- * connection to save.
+ * queue, so it does not promise one: reviews and quizzes need a connection
+ * to save.
  */
 export function OfflineBanner() {
   const online = useOnline();
@@ -33,10 +33,31 @@ export function OfflineBanner() {
       <div>
         <p className="font-semibold">You're offline</p>
         <p className="text-muted-foreground">
-          Pages you've already opened may still show. Reviews and quizzes save, and Ask Florence
-          answers, once you're back online.
+          Downloaded chapters still open. Saving reviews and quizzes, and Ask Florence, need
+          internet.
         </p>
       </div>
+    </div>
+  );
+}
+
+/** A plain card for screens that need the server, shown instead of failing silently. */
+export function NeedsInternet({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`rounded-[22px] border bg-card p-5 ${className ?? ""}`}>
+      <p className="flex items-center gap-2 text-[13px] font-semibold text-muted-foreground">
+        <WifiOff className="size-4" aria-hidden /> Offline
+      </p>
+      <h2 className="mt-2 font-display text-[22px] leading-tight">{title}</h2>
+      {children}
     </div>
   );
 }

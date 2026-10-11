@@ -50,6 +50,30 @@ export function StateGlyph({ state, className }: { state: PetalState; className?
   }
 }
 
+/** "Available offline": the chapter is downloaded to this phone. Same chip, its own glyph. */
+export function OfflineChip({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full bg-chip px-2.5 text-[12.5px] font-semibold leading-none text-chip-foreground",
+        className,
+      )}
+    >
+      <svg width={12} height={12} viewBox="0 0 12 12" aria-hidden>
+        <path
+          d="M6 1.5v6M3.4 5 6 7.6 8.6 5M2 10.25h8"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      Available offline
+    </span>
+  );
+}
+
 export function StatusChip({ state, className }: { state: PetalState; className?: string }) {
   return (
     <span

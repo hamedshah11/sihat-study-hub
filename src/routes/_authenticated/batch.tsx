@@ -6,6 +6,7 @@ import { Check, Copy, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TopBar } from "@/components/TopBar";
+import { NeedsInternet, useOnline } from "@/components/OfflineBanner";
 import { useProgress } from "@/lib/progress-data";
 import {
   createCircle,
@@ -37,6 +38,7 @@ function BatchPage() {
     queryFn: () => load(),
     staleTime: 60_000,
   });
+  const online = useOnline();
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-4">
@@ -56,7 +58,13 @@ function BatchPage() {
         )}
       </header>
 
-      {isLoading || !data ? (
+      {!online && !data ? (
+        <NeedsInternet title="Your batch needs internet.">
+          <p className="mt-1 text-sm text-muted-foreground">
+            Class totals and your study circle load when you're back online.
+          </p>
+        </NeedsInternet>
+      ) : isLoading || !data ? (
         <>
           <Skeleton className="h-[140px] rounded-[24px]" />
           <Skeleton className="h-[110px] rounded-[22px]" />

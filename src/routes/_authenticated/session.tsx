@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FlashcardDeck, type DeckCard } from "@/components/study/FlashcardDeck";
 import { SessionComplete } from "@/components/study/SessionComplete";
 import { ChapterQuiz } from "@/components/ChapterQuiz";
+import { NeedsInternet, useOnline } from "@/components/OfflineBanner";
 import { useProgress, invalidateProgress, PROGRESS_QUERY_KEY } from "@/lib/progress-data";
 import { REVIEW_SESSION_SIZE } from "@/lib/progress-snapshot";
 import type { ProgressPayload } from "@/lib/progress.functions";
@@ -127,6 +128,24 @@ function ReviewSession() {
   });
 
   const exit = () => navigate({ to: "/home" });
+  const online = useOnline();
+
+  if (!online && (!plan || !cards) && stage === null) {
+    return (
+      <NeedsInternet title="Today's review needs internet." className="mt-6">
+        <p className="mt-1 text-sm text-muted-foreground">
+          Your due cards are chosen and saved on the server. Downloaded chapters still open, and
+          their flashcards can be flipped through.
+        </p>
+        <button
+          onClick={exit}
+          className="mt-4 h-11 rounded-full border border-border-strong px-5 text-sm font-semibold"
+        >
+          Back to Today
+        </button>
+      </NeedsInternet>
+    );
+  }
 
   if (loadingPlan || (plan && loadingCards)) {
     return <Skeleton className="mt-2 h-[480px] rounded-[26px]" />;

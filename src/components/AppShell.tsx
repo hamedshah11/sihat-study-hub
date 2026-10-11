@@ -11,6 +11,9 @@ import { FlorenceMark } from "@/components/brand/FlorenceMark";
 import { Lockup } from "@/components/brand/Lockup";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { invalidateProgress } from "@/lib/progress-data";
+import { resolveSession, verifySessionOnline, type SessionCheck } from "@/lib/offline-session";
+import { logOut } from "@/lib/log-out";
+import { useSessionUserId } from "@/hooks/use-session-user";
 
 type IconComponent = (props: { className?: string }) => React.ReactNode;
 
@@ -207,8 +210,9 @@ function SideNav() {
   const navigate = useNavigate();
   const router = useRouter();
   const qc = useQueryClient();
+  const userId = useSessionUserId();
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await logOut(userId);
     qc.clear();
     router.invalidate();
     navigate({ to: "/login" });
@@ -320,21 +324,46 @@ function FacultySidebar() {
   );
 }
 
+/**
+ * Who is signed in. Offline, the session stored on the phone is trusted (a
+ * dropped signal is not a reason to sign out); when the signal comes back it
+ * is checked with the server.
+ */
 export function useSession() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
+    let trustedOffline = false;
+    const apply = ({ userId: id, trustedOffline: offline }: SessionCheck) => {
+      if (!active) return;
+      trustedOffline = offline;
+      setUserId(id);
+      setLoading(false);
+    };
+    const check = () => resolveSession().then(apply);
+
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user?.id ?? null);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) apply({ userId: session.user.id, trustedOffline: false });
+      else if (event === "SIGNED_OUT") apply({ userId: null, trustedOffline: false });
+      // No session without a sign-out (e.g. a refresh that failed offline):
+      // fall back to the stored session.
+      else void check();
     });
-    supabase.auth.getSession().then(({ data }) => {
-      setUserId(data.session?.user?.id ?? null);
-      setLoading(false);
-    });
-    return () => subscription.unsubscribe();
+    void check();
+
+    const onOnline = () => {
+      if (trustedOffline) void verifySessionOnline().then(apply);
+    };
+    window.addEventListener("online", onOnline);
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+      window.removeEventListener("online", onOnline);
+    };
   }, []);
 
   return { loading, userId };

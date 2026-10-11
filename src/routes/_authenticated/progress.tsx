@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TopBar } from "@/components/TopBar";
+import { NeedsInternet, useOnline } from "@/components/OfflineBanner";
 import { ProgressRose } from "@/components/brand/ProgressRose";
 import { StatusChip } from "@/components/brand/StatusChip";
 import { RecentExams } from "@/components/exam/RecentExams";
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/_authenticated/progress")({
  */
 function ProgressPage() {
   const { data, isLoading } = useProgress();
+  const online = useOnline();
   const [sharing, setSharing] = useState(false);
 
   async function share() {
@@ -43,6 +45,21 @@ function ProgressPage() {
     } finally {
       setSharing(false);
     }
+  }
+
+  if (!online && !data) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4 pb-4">
+        <TopBar />
+        <h1 className="pt-1 font-display text-[30px] leading-tight md:text-[36px]">Progress</h1>
+        <NeedsInternet title="Your rose needs internet.">
+          <p className="mt-1 text-sm text-muted-foreground">
+            Progress is worked out on the server from your reviews and quizzes. It loads when you're
+            back online.
+          </p>
+        </NeedsInternet>
+      </div>
+    );
   }
 
   if (isLoading || !data) {

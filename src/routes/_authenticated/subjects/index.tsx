@@ -2,7 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TopBar } from "@/components/TopBar";
-import { StatusChip } from "@/components/brand/StatusChip";
+import { OfflineChip, StatusChip } from "@/components/brand/StatusChip";
+import { NeedsInternet, useOnline } from "@/components/OfflineBanner";
+import { useDownloads, type DownloadList } from "@/lib/downloads";
 import { useProgress } from "@/lib/progress-data";
 import { petalColour } from "@/lib/subject-colours";
 import { pageTitle } from "@/lib/brand";
@@ -14,7 +16,11 @@ export const Route = createFileRoute("/_authenticated/subjects/")({
 
 /** One row per subject: petal colour, state, what's due today, and mastery. */
 function SubjectsList() {
-  const { data, isLoading } = useProgress();
+  const { data, isLoading, isError } = useProgress();
+  const online = useOnline();
+  const { data: downloads } = useDownloads();
+
+  if (!data && (!online || isError)) return <DownloadedSubjects downloads={downloads} />;
 
   return (
     <div className="mx-auto max-w-2xl pb-4">
@@ -106,6 +112,66 @@ function SubjectsList() {
             ))}
           </div>
         </section>
+      )}
+    </div>
+  );
+}
+
+/** With no signal: the subjects that have downloaded chapters. */
+function DownloadedSubjects({ downloads }: { downloads: DownloadList | undefined }) {
+  const subjects = new Map<string, { name: string; colour: string | null; chapters: number }>();
+  for (const chapter of downloads?.chapters ?? []) {
+    if (!chapter.subject) continue;
+    const entry = subjects.get(chapter.subject.id) ?? { ...chapter.subject, chapters: 0 };
+    entry.chapters++;
+    subjects.set(chapter.subject.id, entry);
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl pb-4">
+      <TopBar />
+      <h1 className="animate-fade-up pt-1 font-display text-[30px] leading-tight md:text-[36px]">
+        Subjects
+      </h1>
+      {!downloads ? null : subjects.size === 0 ? (
+        <NeedsInternet title="Nothing is downloaded yet." className="mt-5">
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your subjects load when you're back online. Download a chapter or a subject to read it
+            with no signal.
+          </p>
+        </NeedsInternet>
+      ) : (
+        <>
+          <p className="mt-2 text-[14px] text-muted-foreground">
+            You're offline. These are downloaded to this phone.
+          </p>
+          <div className="mt-5 space-y-2.5">
+            {[...subjects].map(([id, subject], i) => (
+              <Link
+                key={id}
+                to="/subjects/$subjectId"
+                params={{ subjectId: id }}
+                className="flex min-h-[76px] items-center gap-3 rounded-[20px] border bg-card py-3 pl-3 pr-3"
+              >
+                <span
+                  aria-hidden
+                  className="h-12 w-[5px] shrink-0 rounded-full"
+                  style={{ backgroundColor: petalColour(subject.colour, i) }}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-semibold">{subject.name}</span>
+                  <span className="mt-1.5 flex flex-wrap items-center gap-2">
+                    <OfflineChip />
+                    <span className="text-[13px] text-muted-foreground">
+                      {subject.chapters} chapter{subject.chapters === 1 ? "" : "s"}
+                    </span>
+                  </span>
+                </span>
+                <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+              </Link>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
