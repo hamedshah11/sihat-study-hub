@@ -728,6 +728,22 @@ export const VITALS_DRAFT: ChapterSeed = {
 
 export const CHAPTERS = [MICRO_CH1, MICRO_CH2, ANAT_CH1, VITALS_DRAFT];
 
+/**
+ * An approved diagram in "The cell", shown as a figure under the notes. Its
+ * image is a real file in the local `diagrams` bucket (the seed uploads the
+ * app icon), so the offline test can check the image itself is stored.
+ */
+export const CELL_DIAGRAM = {
+  id: e2eId(9, 1),
+  chapter_id: ANAT_CH1.id,
+  title: "Parts of a cell",
+  image_path: "e2e/parts-of-a-cell.png",
+  status: "approved",
+  display_order: 1,
+  pins: [],
+  updated_at: CONTENT_UPDATED_AT,
+};
+
 /** Question ids: group 6, chapter number in the high bits. */
 export function questionId(chapter: ChapterSeed, index: number): string {
   return e2eId(6, chapterNumber(chapter) * 1000 + index);

@@ -12,6 +12,7 @@ import {
   CONTENT_UPDATED_AT,
   FUNDAMENTALS_2,
   ANATOMY,
+  CELL_DIAGRAM,
   MICROBIOLOGY,
   PROGRAMME,
   SEMESTER_1,
@@ -19,6 +20,7 @@ import {
   flashcardId,
   questionId,
 } from "./fixtures/curriculum.ts";
+import { readFileSync } from "node:fs";
 import { adminClient, must } from "./support/admin.ts";
 import { resetDraftChapter, resetStudent } from "./support/scenarios.ts";
 
@@ -115,6 +117,22 @@ async function seedCurriculum() {
   }
 }
 
+/** The diagram figure in "The cell", with its image in the private diagrams bucket. */
+async function seedDiagram() {
+  const db = adminClient();
+  const { data: bucket } = await db.storage.getBucket("diagrams");
+  if (!bucket) {
+    const { error } = await db.storage.createBucket("diagrams", { public: false });
+    if (error) throw new Error(`diagrams bucket: ${error.message}`);
+  }
+  const image = readFileSync(new URL("../public/icon-192.png", import.meta.url));
+  const { error } = await db.storage
+    .from("diagrams")
+    .upload(CELL_DIAGRAM.image_path, image, { contentType: "image/png", upsert: true });
+  if (error) throw new Error(`diagram image: ${error.message}`);
+  await must("diagram", db.from("diagram_labels").upsert(CELL_DIAGRAM));
+}
+
 type AuthUser = { id: string; email?: string; phone?: string };
 
 async function listUsers(): Promise<AuthUser[]> {
@@ -190,6 +208,7 @@ async function seedAccounts() {
 
 export async function seed() {
   await seedCurriculum();
+  await seedDiagram();
   await resetDraftChapter();
   await seedAccounts();
 }

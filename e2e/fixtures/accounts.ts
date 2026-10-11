@@ -39,6 +39,10 @@ export const ACCOUNTS = {
   theme: student(8, "rabia", "Rabia Chandio"),
   securityA: student(9, "sadia", "Sadia Qureshi"),
   securityB: student(10, "nadia", "Nadia Lashari"),
+  /** Downloads a chapter, reads it with no signal, then logs out. */
+  offline: student(11, "maryam", "Maryam Mahar"),
+  /** Signs in on the same phone afterwards and must see no downloads. */
+  offlineSecond: student(12, "kashif", "Kashif Jamali"),
   faculty: {
     key: "saima",
     id: e2eId(8, 100),
