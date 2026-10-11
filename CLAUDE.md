@@ -120,7 +120,8 @@ views go through trusted server/MCP paths.
 
 Quiz XP is capped per chapter per PKT day in `submitQuiz`: the first attempt
 earns quiz XP (or pass XP), and a later attempt earns pass XP only if it is
-the first pass that day. Exam XP is capped once per subject per day.
+the first pass that day (`quizXpSource` in `src/lib/quiz-grading.ts`, with the
+other pure submit rules). Exam XP is capped once per subject per day.
 
 **RLS helpers** (`public.` schema, defined across
 `supabase/migrations/`):
@@ -202,11 +203,11 @@ env-var split (`VITE_`-prefixed = public/bundled, unprefixed = server-only).
   `_authenticated.tsx` is a pathless layout route gating everything under
   `src/routes/_authenticated/` (home = Today, session = today's review,
   subjects/$subjectId, chapters/$chapterId, progress, batch, profile =
-  Settings, intro, review, tutor, admin/*). Each route file exports
+  Settings, intro, review, tutor, speed (unlisted), admin/*). Each route file exports
   `Route = createFileRoute("/path")({ head, component })`.
 - **Server functions**: one file per domain in `src/lib/*.functions.ts`
   (`study.functions.ts`, `exam.functions.ts`, `admin.functions.ts`,
-  `invite.functions.ts`).
+  `invite.functions.ts`, `diagnostics.functions.ts`).
   Pattern: `createServerFn({ method })`, `.middleware([requireSupabaseAuth])`
   when the caller must be identified, `.inputValidator((data: unknown) =>
   ZodSchema.parse(data))` to validate untrusted input, `.handler(async ({
@@ -254,6 +255,38 @@ quiz, then unseen, then least recently seen). `/review` ("Fix your
 mistakes") serves due mistakes across all subjects, 10 per session, with
 review XP once per PKT day. Browser reads go through
 `src/lib/mistakes-data.ts`, which treats any read error as empty history.
+
+## Speed
+
+- Every server function is timed by the global middleware `serverTiming`
+  (`src/lib/server-timing.ts`, first in `src/start.ts`, so the time includes
+  auth). `src/lib/timing.server.ts` wraps `fetch` to count requests to
+  `SUPABASE_URL` and their **waits** (the longest chain that ran one after
+  another), adds a `Server-Timing` header, logs one JSON line (function name
+  and numbers only, no user data) and saves a row to `public.server_timings`
+  after the response (`afterResponse`, `src/lib/request-scope.server.ts`,
+  using the Workers `waitUntil` from `src/server.ts`). Pure parts:
+  `src/lib/timing.ts`.
+- `server_timings` (`20261010150000_server_timings.sql`): service role only,
+  no user ids; the app keeps about three days. `server_timing_summary(since)`
+  gives median, 95th percentile and slowest per function; staff read it via
+  `getServerSpeed` (`src/lib/diagnostics.functions.ts`) on
+  /admin/diagnostics. Saving is skipped until the table exists.
+- `/speed` (unlisted, any signed-in user) and /admin/diagnostics show the
+  phone's own timings, recorded per tab in sessionStorage by
+  `src/lib/phone-speed.ts`. Phone checklist: `docs/measuring-speed.md`.
+- Each wait costs a full round trip from the Worker to the Supabase region.
+  In hot paths, start independent reads together (`Promise.all`), follow
+  foreign keys with PostgREST embeds instead of one read per step (profile →
+  batch → semester → subjects → chapters is one read in
+  `getProgressSnapshot`), write different tables together, and use
+  `readStreak`/`writeStreak` to read the streak with the other reads
+  (`bumpStreak` does both; same rules). `e2e/tests/speed.e2e.ts` fails if
+  Today, Batch or a review goes above 3 waits. Batch tab rules are in
+  `src/lib/batch-overview.ts`, curriculum helpers in `progress-snapshot.ts`.
+- Cloudflare placement is the default (the Worker runs near the student).
+  Smart or targeted placement near Supabase is not switched on; see
+  `docs/measuring-speed.md`.
 
 ## Commands
 

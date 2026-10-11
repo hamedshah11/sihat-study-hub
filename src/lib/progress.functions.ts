@@ -4,6 +4,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { FOUNDING_PARTNER } from "@/lib/brand";
 import {
   buildSnapshot,
+  countByChapter,
+  earlierSubjectsFrom,
+  earliestSemesterSubjects,
+  type EarlierSubject,
+  type ProgrammeSemester,
   type ProgressSnapshot,
   type RawChapter,
   type RawProgress,
@@ -29,53 +34,13 @@ export type StudentContext = {
   college: string;
 };
 
-export type EarlierSubject = {
-  id: string;
-  name: string;
-  colour: string | null;
-  semesterName: string;
-};
+export type { EarlierSubject };
 
 export type ProgressPayload = ProgressSnapshot & {
   student: StudentContext;
   /** Subjects from semesters already finished, for revision. */
   earlierSubjects: EarlierSubject[];
 };
-
-async function loadEarlierSubjects(
-  programId: string | null,
-  currentSemesterId: string | null,
-): Promise<EarlierSubject[]> {
-  if (!programId || !currentSemesterId) return [];
-  const { data: semesters } = await supabaseAdmin
-    .from("semesters")
-    .select("id, name, number")
-    .eq("program_id", programId);
-  const current = (semesters ?? []).find((s) => s.id === currentSemesterId);
-  const earlier = (semesters ?? []).filter((s) => current && s.number < current.number);
-  if (earlier.length === 0) return [];
-  const { data: subjects } = await supabaseAdmin
-    .from("subjects")
-    .select("id, name, colour, display_order, semester_id")
-    .in(
-      "semester_id",
-      earlier.map((s) => s.id),
-    );
-  const nameOf = new Map(earlier.map((s) => [s.id, s.name]));
-  const numberOf = new Map(earlier.map((s) => [s.id, s.number]));
-  return (subjects ?? [])
-    .sort(
-      (a, b) =>
-        (numberOf.get(a.semester_id ?? "") ?? 0) - (numberOf.get(b.semester_id ?? "") ?? 0) ||
-        (a.display_order ?? 0) - (b.display_order ?? 0),
-    )
-    .map((s) => ({
-      id: s.id,
-      name: s.name,
-      colour: s.colour,
-      semesterName: nameOf.get(s.semester_id ?? "") ?? "",
-    }));
-}
 
 const PAGE = 1000;
 
@@ -103,30 +68,102 @@ function chunks<T>(items: T[], size = 300): T[][] {
   return out;
 }
 
-async function loadSemesterSubjects(batchSemesterId: string | null): Promise<RawSubject[]> {
-  if (batchSemesterId) {
-    const { data, error } = await supabaseAdmin
-      .from("subjects")
-      .select("id, name, colour, display_order")
-      .eq("semester_id", batchSemesterId);
-    if (error) throw new Error(error.message);
-    return data ?? [];
-  }
-  // No batch yet: show the earliest semester that has published content.
-  const { data: semesters } = await supabaseAdmin.from("semesters").select("id, number");
-  const { data: subjects } = await supabaseAdmin
-    .from("subjects")
-    .select("id, name, colour, display_order, semester_id");
-  const { data: published } = await supabaseAdmin
-    .from("chapters")
-    .select("subject_id")
-    .eq("status", "published");
-  const withContent = new Set((published ?? []).map((c) => c.subject_id));
-  const numberOf = new Map((semesters ?? []).map((s) => [s.id, s.number]));
-  const candidates = (subjects ?? []).filter((s) => withContent.has(s.id));
-  if (candidates.length === 0) return [];
-  const lowest = Math.min(...candidates.map((s) => numberOf.get(s.semester_id ?? "") ?? 99));
-  return candidates.filter((s) => (numberOf.get(s.semester_id ?? "") ?? 99) === lowest);
+// The student's profile, batch and the curriculum the screens show, in one
+// read: semester and programme names, this semester's subjects with their
+// published chapters in teaching order, and the programme's semesters (for
+// revision subjects from earlier ones).
+const PROFILE_AND_CURRICULUM = `display_name, batch_id, batches(
+  name, current_semester_id, program_id,
+  semesters(name, subjects(id, name, colour, display_order,
+    chapters(id, title, subject_id, display_order))),
+  programs(name, semesters(id, name, number,
+    subjects(id, name, colour, display_order, semester_id)))
+)`.replace(/\s+/g, "");
+
+type ProfileAndCurriculum = {
+  display_name: string | null;
+  batch_id: string | null;
+  batches: {
+    name: string;
+    current_semester_id: string | null;
+    program_id: string | null;
+    semesters: { name: string; subjects: (RawSubject & { chapters: RawChapter[] })[] } | null;
+    programs: { name: string; semesters: ProgrammeSemester[] } | null;
+  } | null;
+};
+
+async function readProfileAndCurriculum(userId: string): Promise<ProfileAndCurriculum | null> {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select(PROFILE_AND_CURRICULUM)
+    .eq("id", userId)
+    .eq("batches.semesters.subjects.chapters.status", "published")
+    .order("display_order", {
+      referencedTable: "batches.semesters.subjects.chapters",
+      ascending: true,
+    })
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data as unknown as ProfileAndCurriculum | null;
+}
+
+/** No batch yet: the earliest semester that has published content. */
+async function loadEarliestCurriculum(): Promise<{
+  subjects: RawSubject[];
+  chapters: RawChapter[];
+}> {
+  const [{ data: semesters }, { data: allSubjects }, { data: published }] = await Promise.all([
+    supabaseAdmin.from("semesters").select("id, number"),
+    supabaseAdmin.from("subjects").select("id, name, colour, display_order, semester_id"),
+    supabaseAdmin.from("chapters").select("subject_id").eq("status", "published"),
+  ]);
+  const subjects = earliestSemesterSubjects(semesters ?? [], allSubjects ?? [], published ?? []);
+  const subjectIds = subjects.map((s) => s.id);
+  const chapters: RawChapter[] = subjectIds.length
+    ? await fetchAll<RawChapter>(
+        (from, to) =>
+          supabaseAdmin
+            .from("chapters")
+            .select("id, title, subject_id, display_order")
+            .in("subject_id", subjectIds)
+            .eq("status", "published")
+            .order("display_order", { ascending: true })
+            .range(from, to) as never,
+      )
+    : [];
+  return { subjects, chapters };
+}
+
+/** Approved cards and question counts for the chapters, all chunks at once. */
+async function loadCardsAndQuestions(chapterIds: string[]) {
+  const perChunk = await Promise.all(
+    chunks(chapterIds).map((ids) =>
+      Promise.all([
+        fetchAll<{ id: string; chapter_id: string }>(
+          (from, to) =>
+            supabaseAdmin
+              .from("flashcards")
+              .select("id, chapter_id")
+              .in("chapter_id", ids)
+              .eq("status", "approved")
+              .range(from, to) as never,
+        ),
+        fetchAll<{ chapter_id: string }>(
+          (from, to) =>
+            supabaseAdmin
+              .from("questions")
+              .select("chapter_id")
+              .in("chapter_id", ids)
+              .eq("status", "approved")
+              .range(from, to) as never,
+        ),
+      ]),
+    ),
+  );
+  return {
+    cards: perChunk.flatMap(([cards]) => cards),
+    questionCounts: countByChapter(perChunk.flatMap(([, questions]) => questions)),
+  };
 }
 
 export const getProgressSnapshot = createServerFn({ method: "GET" })
@@ -186,83 +223,27 @@ export const getProgressSnapshot = createServerFn({ method: "GET" })
     // error from leaving this promise's failure unhandled.
     userReads.catch(() => undefined);
 
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("display_name, batch_id")
-      .eq("id", userId)
-      .maybeSingle();
+    const profile = await readProfileAndCurriculum(userId);
+    const batch = profile?.batches ?? null;
+    const semesterId = batch?.current_semester_id ?? null;
 
-    let batch: {
-      name: string;
-      current_semester_id: string | null;
-      program_id: string | null;
-    } | null = null;
-    if (profile?.batch_id) {
-      const { data } = await supabaseAdmin
-        .from("batches")
-        .select("name, current_semester_id, program_id")
-        .eq("id", profile.batch_id)
-        .maybeSingle();
-      batch = data ?? null;
+    let subjects: RawSubject[];
+    let chapters: RawChapter[];
+    if (semesterId) {
+      const semesterSubjects = batch?.semesters?.subjects ?? [];
+      subjects = semesterSubjects.map(({ id, name, colour, display_order }) => ({
+        id,
+        name,
+        colour,
+        display_order,
+      }));
+      chapters = semesterSubjects.flatMap((subject) => subject.chapters);
+    } else {
+      ({ subjects, chapters } = await loadEarliestCurriculum());
     }
-    const [{ data: semester }, { data: programme }, subjects, earlierSubjects] = await Promise.all([
-      batch?.current_semester_id
-        ? supabaseAdmin
-            .from("semesters")
-            .select("name")
-            .eq("id", batch.current_semester_id)
-            .maybeSingle()
-        : Promise.resolve({ data: null }),
-      batch?.program_id
-        ? supabaseAdmin.from("programs").select("name").eq("id", batch.program_id).maybeSingle()
-        : Promise.resolve({ data: null }),
-      loadSemesterSubjects(batch?.current_semester_id ?? null),
-      loadEarlierSubjects(batch?.program_id ?? null, batch?.current_semester_id ?? null),
-    ]);
-    const subjectIds = subjects.map((s) => s.id);
+    const earlierSubjects = earlierSubjectsFrom(batch?.programs?.semesters ?? [], semesterId);
 
-    const chapters: RawChapter[] = subjectIds.length
-      ? await fetchAll<RawChapter>(
-          (from, to) =>
-            supabaseAdmin
-              .from("chapters")
-              .select("id, title, subject_id, display_order")
-              .in("subject_id", subjectIds)
-              .eq("status", "published")
-              .order("display_order", { ascending: true })
-              .range(from, to) as never,
-        )
-      : [];
-    const chapterIds = chapters.map((c) => c.id);
-
-    const cards: { id: string; chapter_id: string }[] = [];
-    const questionCounts = new Map<string, number>();
-    for (const ids of chunks(chapterIds)) {
-      const [chapterCards, questions] = await Promise.all([
-        fetchAll<{ id: string; chapter_id: string }>(
-          (from, to) =>
-            supabaseAdmin
-              .from("flashcards")
-              .select("id, chapter_id")
-              .in("chapter_id", ids)
-              .eq("status", "approved")
-              .range(from, to) as never,
-        ),
-        fetchAll<{ chapter_id: string }>(
-          (from, to) =>
-            supabaseAdmin
-              .from("questions")
-              .select("chapter_id")
-              .in("chapter_id", ids)
-              .eq("status", "approved")
-              .range(from, to) as never,
-        ),
-      ]);
-      cards.push(...chapterCards);
-      for (const q of questions) {
-        questionCounts.set(q.chapter_id, (questionCounts.get(q.chapter_id) ?? 0) + 1);
-      }
-    }
+    const { cards, questionCounts } = await loadCardsAndQuestions(chapters.map((c) => c.id));
 
     const [reviews, progress, quizAttempts, streakResult, activity] = await userReads;
 
@@ -289,8 +270,8 @@ export const getProgressSnapshot = createServerFn({ method: "GET" })
         initial: (displayName[0] ?? "?").toUpperCase(),
         batchId: profile?.batch_id ?? null,
         batchName: batch?.name ?? null,
-        programmeName: programme?.name ?? null,
-        semesterName: semester?.name ?? null,
+        programmeName: batch?.programs?.name ?? null,
+        semesterName: batch?.semesters?.name ?? null,
         college: FOUNDING_PARTNER.display,
       },
     };

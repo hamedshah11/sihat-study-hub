@@ -15,6 +15,7 @@ import { Route as McpRouteImport } from './routes/mcp'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedSpeedRouteImport } from './routes/_authenticated/speed'
 import { Route as AuthenticatedTutorRouteImport } from './routes/_authenticated/tutor'
 import { Route as AuthenticatedSessionRouteImport } from './routes/_authenticated/session'
 import { Route as AuthenticatedReviewRouteImport } from './routes/_authenticated/review'
@@ -69,6 +70,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedSpeedRoute = AuthenticatedSpeedRouteImport.update({
+  id: '/speed',
+  path: '/speed',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedTutorRoute = AuthenticatedTutorRouteImport.update({
   id: '/tutor',
@@ -227,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/progress': typeof AuthenticatedProgressRoute
   '/review': typeof AuthenticatedReviewRoute
   '/session': typeof AuthenticatedSessionRoute
+  '/speed': typeof AuthenticatedSpeedRoute
   '/tutor': typeof AuthenticatedTutorRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -258,6 +265,7 @@ export interface FileRoutesByTo {
   '/progress': typeof AuthenticatedProgressRoute
   '/review': typeof AuthenticatedReviewRoute
   '/session': typeof AuthenticatedSessionRoute
+  '/speed': typeof AuthenticatedSpeedRoute
   '/tutor': typeof AuthenticatedTutorRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -292,6 +300,7 @@ export interface FileRoutesById {
   '/_authenticated/progress': typeof AuthenticatedProgressRoute
   '/_authenticated/review': typeof AuthenticatedReviewRoute
   '/_authenticated/session': typeof AuthenticatedSessionRoute
+  '/_authenticated/speed': typeof AuthenticatedSpeedRoute
   '/_authenticated/tutor': typeof AuthenticatedTutorRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -326,6 +335,7 @@ export interface FileRouteTypes {
     | '/progress'
     | '/review'
     | '/session'
+    | '/speed'
     | '/tutor'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -357,6 +367,7 @@ export interface FileRouteTypes {
     | '/progress'
     | '/review'
     | '/session'
+    | '/speed'
     | '/tutor'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -390,6 +401,7 @@ export interface FileRouteTypes {
     | '/_authenticated/progress'
     | '/_authenticated/review'
     | '/_authenticated/session'
+    | '/_authenticated/speed'
     | '/_authenticated/tutor'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -462,6 +474,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/speed': {
+      id: '/_authenticated/speed'
+      path: '/speed'
+      fullPath: '/speed'
+      preLoaderRoute: typeof AuthenticatedSpeedRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/tutor': {
       id: '/_authenticated/tutor'
@@ -675,6 +694,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedProgressRoute: typeof AuthenticatedProgressRoute
   AuthenticatedReviewRoute: typeof AuthenticatedReviewRoute
   AuthenticatedSessionRoute: typeof AuthenticatedSessionRoute
+  AuthenticatedSpeedRoute: typeof AuthenticatedSpeedRoute
   AuthenticatedTutorRoute: typeof AuthenticatedTutorRoute
   AuthenticatedChaptersChapterIdRoute: typeof AuthenticatedChaptersChapterIdRoute
   AuthenticatedSubjectsSubjectIdRoute: typeof AuthenticatedSubjectsSubjectIdRoute
@@ -692,6 +712,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedProgressRoute: AuthenticatedProgressRoute,
   AuthenticatedReviewRoute: AuthenticatedReviewRoute,
   AuthenticatedSessionRoute: AuthenticatedSessionRoute,
+  AuthenticatedSpeedRoute: AuthenticatedSpeedRoute,
   AuthenticatedTutorRoute: AuthenticatedTutorRoute,
   AuthenticatedChaptersChapterIdRoute: AuthenticatedChaptersChapterIdRoute,
   AuthenticatedSubjectsSubjectIdRoute: AuthenticatedSubjectsSubjectIdRoute,

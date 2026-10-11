@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { studyDay } from "@/lib/streak";
 import { studyWeek } from "@/lib/progress-snapshot";
+import { circleMembersFrom, hardestSubjectFrom, type CircleMember } from "@/lib/batch-overview";
 
 // The Batch tab. Progress is private by default: the batch screen shows
 // class totals only (never a list of students, never a ranking), and the
@@ -22,7 +23,7 @@ const db = supabaseAdmin as unknown as {
   from: (table: string) => ReturnType<typeof supabaseAdmin.from>;
 };
 
-export type CircleMember = { firstName: string; studiedToday: boolean | null; isMe: boolean };
+export type { CircleMember };
 
 export type BatchOverview = {
   batchName: string | null;
@@ -36,34 +37,33 @@ export type BatchOverview = {
     | { available: true; code: string | null; members: CircleMember[]; showInCircles: boolean };
 };
 
+type CircleRow = {
+  circle_id: string;
+  study_circles: { code: string; study_circle_members: { user_id: string }[] } | null;
+};
+
+// The student's circle (its code and members in joined order, in one read)
+// and their own setting load together; then the members' names, settings
+// and today's activity load together.
 async function circleFor(userId: string): Promise<BatchOverview["circle"]> {
-  const { data: membership, error } = await db
-    .from("study_circle_members")
-    .select("circle_id")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const [{ data: membership, error }, { data: settings }] = await Promise.all([
+    db
+      .from("study_circle_members")
+      .select("circle_id, study_circles(code, study_circle_members(user_id, joined_at))")
+      .eq("user_id", userId)
+      .order("joined_at", { referencedTable: "study_circles.study_circle_members" })
+      .maybeSingle(),
+    db.from("student_settings").select("show_in_circles").eq("user_id", userId).maybeSingle(),
+  ]);
   // Tables arrive with the Florence migration.
   if (error) return { available: false };
-  const { data: settings } = await db
-    .from("student_settings")
-    .select("show_in_circles")
-    .eq("user_id", userId)
-    .maybeSingle();
   const showInCircles = Boolean(
     (settings as { show_in_circles?: boolean } | null)?.show_in_circles,
   );
-  const circleId = (membership as { circle_id?: string } | null)?.circle_id;
-  if (!circleId) return { available: true, code: null, members: [], showInCircles };
+  const row = membership as CircleRow | null;
+  if (!row?.circle_id) return { available: true, code: null, members: [], showInCircles };
 
-  const [{ data: circle }, { data: rows }] = await Promise.all([
-    db.from("study_circles").select("code").eq("id", circleId).maybeSingle(),
-    db
-      .from("study_circle_members")
-      .select("user_id, joined_at")
-      .eq("circle_id", circleId)
-      .order("joined_at"),
-  ]);
-  const ids = ((rows ?? []) as { user_id: string }[]).map((r) => r.user_id);
+  const ids = (row.study_circles?.study_circle_members ?? []).map((r) => r.user_id);
   const [{ data: profiles }, { data: visible }, { data: activity }] = await Promise.all([
     supabaseAdmin.from("profiles").select("id, display_name").in("id", ids),
     db.from("student_settings").select("user_id, show_in_circles").in("user_id", ids),
@@ -73,122 +73,106 @@ async function circleFor(userId: string): Promise<BatchOverview["circle"]> {
       .in("user_id", ids)
       .gte("occurred_at", studyDayStart(studyDay())),
   ]);
-  const nameOf = new Map(
-    (profiles ?? []).map((p) => [p.id, (p.display_name ?? "").trim().split(/\s+/)[0] || "Friend"]),
-  );
-  const shows = new Set(
-    ((visible ?? []) as { user_id: string; show_in_circles: boolean }[])
-      .filter((v) => v.show_in_circles)
-      .map((v) => v.user_id),
-  );
-  const studied = new Set((activity ?? []).map((a) => a.user_id));
   return {
     available: true,
-    code: (circle as { code?: string } | null)?.code ?? null,
+    code: row.study_circles?.code ?? null,
     showInCircles,
-    // Joined order, never sorted by activity.
-    members: ids.map((id) => ({
-      firstName: nameOf.get(id) ?? "Friend",
-      studiedToday: shows.has(id) ? studied.has(id) : null,
-      isMe: id === userId,
-    })),
+    members: circleMembersFrom(
+      ids,
+      userId,
+      profiles ?? [],
+      (visible ?? []) as { user_id: string; show_in_circles: boolean }[],
+      (activity ?? []).map((a) => a.user_id),
+    ),
   };
 }
 
-export const getBatchOverview = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<BatchOverview> => {
-    const userId = context.userId;
-    if (!userId) throw new Error("Unauthorized");
+// The student's batch, programme, classmates and the current semester's
+// subjects and chapters, in one read.
+const BATCH_AND_CLASSMATES = `batch_id, batches(
+  name, current_semester_id, programs(name), profiles(id),
+  semesters(subjects(id, name, chapters(id, subject_id)))
+)`.replace(/\s+/g, "");
 
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("batch_id")
-      .eq("id", userId)
-      .maybeSingle();
-    const circle = await circleFor(userId);
-    if (!profile?.batch_id) {
-      return {
-        batchName: null,
-        programmeName: null,
-        students: 0,
-        reviewsThisWeek: 0,
-        hardestSubject: null,
-        circle,
-      };
-    }
+type BatchRow = {
+  batch_id: string | null;
+  batches: {
+    name: string;
+    current_semester_id: string | null;
+    programs: { name: string } | null;
+    profiles: { id: string }[];
+    semesters: {
+      subjects: { id: string; name: string; chapters: { id: string; subject_id: string }[] }[];
+    } | null;
+  } | null;
+};
 
-    const { data: batch } = await supabaseAdmin
-      .from("batches")
-      .select("name, program_id, current_semester_id")
-      .eq("id", profile.batch_id)
-      .maybeSingle();
-    const { data: programme } = batch?.program_id
-      ? await supabaseAdmin.from("programs").select("name").eq("id", batch.program_id).maybeSingle()
-      : { data: null };
+type BatchTotals = Omit<BatchOverview, "circle">;
 
-    const { data: classmates } = await supabaseAdmin
-      .from("profiles")
-      .select("id")
-      .eq("batch_id", profile.batch_id)
-      .eq("role", "student");
-    const ids = (classmates ?? []).map((c) => c.id);
+async function batchTotals(userId: string): Promise<BatchTotals> {
+  const { data } = await supabaseAdmin
+    .from("profiles")
+    .select(BATCH_AND_CLASSMATES)
+    .eq("id", userId)
+    .eq("batches.profiles.role", "student")
+    .maybeSingle();
+  const profile = data as unknown as BatchRow | null;
+  if (!profile?.batch_id) {
+    return {
+      batchName: null,
+      programmeName: null,
+      students: 0,
+      reviewsThisWeek: 0,
+      hardestSubject: null,
+    };
+  }
 
-    const weekStart = studyDayStart(studyWeek(new Set())[0].date);
-    const { count: reviews } = ids.length
-      ? await supabaseAdmin
+  const batch = profile.batches;
+  const ids = (batch?.profiles ?? []).map((c) => c.id);
+  const subjects = batch?.semesters?.subjects ?? [];
+  const chapters = subjects.flatMap((s) => s.chapters);
+  const compareSubjects = Boolean(batch?.current_semester_id) && ids.length >= 3;
+
+  const weekStart = studyDayStart(studyWeek(new Set())[0].date);
+  const [{ count: reviews }, { data: progress }] = await Promise.all([
+    ids.length
+      ? supabaseAdmin
           .from("xp_events")
           .select("id", { count: "exact", head: true })
           .in("user_id", ids)
           .eq("source", "flashcard")
           .gte("occurred_at", weekStart)
-      : { count: 0 };
+      : { count: 0 },
+    compareSubjects && chapters.length
+      ? supabaseAdmin
+          .from("chapter_progress")
+          .select("user_id, chapter_id, mastery_score")
+          .in("user_id", ids)
+          .in(
+            "chapter_id",
+            chapters.map((c) => c.id),
+          )
+      : { data: [] },
+  ]);
 
-    let hardestSubject: string | null = null;
-    if (batch?.current_semester_id && ids.length >= 3) {
-      const { data: subjects } = await supabaseAdmin
-        .from("subjects")
-        .select("id, name")
-        .eq("semester_id", batch.current_semester_id);
-      const subjectIds = (subjects ?? []).map((s) => s.id);
-      const { data: chapters } = subjectIds.length
-        ? await supabaseAdmin.from("chapters").select("id, subject_id").in("subject_id", subjectIds)
-        : { data: [] };
-      const subjectOf = new Map((chapters ?? []).map((c) => [c.id, c.subject_id]));
-      const { data: progress } = subjectOf.size
-        ? await supabaseAdmin
-            .from("chapter_progress")
-            .select("user_id, chapter_id, mastery_score")
-            .in("user_id", ids)
-            .in("chapter_id", [...subjectOf.keys()])
-        : { data: [] };
-      const bySubject = new Map<string, { sum: number; n: number; students: Set<string> }>();
-      for (const p of progress ?? []) {
-        const sid = subjectOf.get(p.chapter_id);
-        if (!sid || p.mastery_score == null) continue;
-        const agg = bySubject.get(sid) ?? { sum: 0, n: 0, students: new Set<string>() };
-        agg.sum += Number(p.mastery_score);
-        agg.n += 1;
-        agg.students.add(p.user_id);
-        bySubject.set(sid, agg);
-      }
-      const ranked = [...bySubject.entries()]
-        .filter(([, a]) => a.students.size >= 3)
-        .map(([sid, a]) => ({ sid, avg: a.sum / a.n }))
-        .sort((a, b) => a.avg - b.avg);
-      if (ranked.length >= 2) {
-        hardestSubject = (subjects ?? []).find((s) => s.id === ranked[0].sid)?.name ?? null;
-      }
-    }
+  return {
+    batchName: batch?.name ?? null,
+    programmeName: batch?.programs?.name ?? null,
+    students: ids.length,
+    reviewsThisWeek: reviews ?? 0,
+    hardestSubject: compareSubjects ? hardestSubjectFrom(subjects, chapters, progress ?? []) : null,
+  };
+}
 
-    return {
-      batchName: batch?.name ?? null,
-      programmeName: programme?.name ?? null,
-      students: ids.length,
-      reviewsThisWeek: reviews ?? 0,
-      hardestSubject,
-      circle,
-    };
+// The circle and the batch totals don't depend on each other, so they load
+// at the same time.
+export const getBatchOverview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<BatchOverview> => {
+    const userId = context.userId;
+    if (!userId) throw new Error("Unauthorized");
+    const [totals, circle] = await Promise.all([batchTotals(userId), circleFor(userId)]);
+    return { ...totals, circle };
   });
 
 // --- Study circles --------------------------------------------------------------

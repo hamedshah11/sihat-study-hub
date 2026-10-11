@@ -3,8 +3,9 @@
 Playwright tests that use Florence the way students and faculty do: join with a
 batch code, sign in, review cards, take a quiz, fix mistakes, ask Florence,
 review drafts as faculty, and switch themes. They also check the security
-model from a student's browser, and compare screenshots of the main screens
-in Light and Dark.
+model from a student's browser, check that the busiest server functions keep
+their Supabase round trips down (`speed.e2e.ts`), and compare screenshots of
+the main screens in Light and Dark.
 
 They run against the **production build**, served on this machine by the
 Cloudflare Workers runtime (`wrangler dev`), and a **local Supabase stack** in

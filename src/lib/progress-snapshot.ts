@@ -301,3 +301,72 @@ export function buildSnapshot(input: {
     firstDay: chaptersStarted === 0 && input.activityAt.length === 0,
   };
 }
+
+// --- Curriculum helpers for getProgressSnapshot ------------------------------
+
+export type EarlierSubject = {
+  id: string;
+  name: string;
+  colour: string | null;
+  semesterName: string;
+};
+
+export type ProgrammeSemester = {
+  id: string;
+  name: string;
+  number: number;
+  subjects: (RawSubject & { semester_id: string | null })[];
+};
+
+/**
+ * Subjects from the programme's semesters before the current one, for
+ * revision: earliest semester first, then in teaching order.
+ */
+export function earlierSubjectsFrom(
+  semesters: ProgrammeSemester[],
+  currentSemesterId: string | null,
+): EarlierSubject[] {
+  if (!currentSemesterId) return [];
+  const current = semesters.find((s) => s.id === currentSemesterId);
+  const earlier = semesters.filter((s) => current && s.number < current.number);
+  if (earlier.length === 0) return [];
+  const nameOf = new Map(earlier.map((s) => [s.id, s.name]));
+  const numberOf = new Map(earlier.map((s) => [s.id, s.number]));
+  return earlier
+    .flatMap((s) => s.subjects)
+    .sort(
+      (a, b) =>
+        (numberOf.get(a.semester_id ?? "") ?? 0) - (numberOf.get(b.semester_id ?? "") ?? 0) ||
+        (a.display_order ?? 0) - (b.display_order ?? 0),
+    )
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      colour: s.colour,
+      semesterName: nameOf.get(s.semester_id ?? "") ?? "",
+    }));
+}
+
+/**
+ * For a student without a batch yet: the subjects of the earliest semester
+ * that has published content.
+ */
+export function earliestSemesterSubjects<S extends RawSubject & { semester_id: string | null }>(
+  semesters: { id: string; number: number }[],
+  subjects: S[],
+  publishedChapters: { subject_id: string | null }[],
+): S[] {
+  const withContent = new Set(publishedChapters.map((c) => c.subject_id));
+  const numberOf = new Map(semesters.map((s) => [s.id, s.number]));
+  const candidates = subjects.filter((s) => withContent.has(s.id));
+  if (candidates.length === 0) return [];
+  const lowest = Math.min(...candidates.map((s) => numberOf.get(s.semester_id ?? "") ?? 99));
+  return candidates.filter((s) => (numberOf.get(s.semester_id ?? "") ?? 99) === lowest);
+}
+
+/** Approved questions per chapter, from one row per question. */
+export function countByChapter(rows: { chapter_id: string }[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const row of rows) counts.set(row.chapter_id, (counts.get(row.chapter_id) ?? 0) + 1);
+  return counts;
+}

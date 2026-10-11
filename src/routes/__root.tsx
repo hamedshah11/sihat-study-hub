@@ -139,6 +139,7 @@ import { Toaster } from "@/components/ui/sonner";
 
 import { useEffect } from "react";
 import { registerServiceWorker } from "@/lib/register-sw";
+import { recordPhoneSpeed } from "@/lib/phone-speed";
 import { applyTheme, getThemePreference, THEME_BOOT_SCRIPT } from "@/lib/theme";
 
 function RootComponent() {
@@ -146,6 +147,8 @@ function RootComponent() {
 
   useEffect(() => {
     registerServiceWorker();
+    // Request timings for the speed page (/speed, /admin/diagnostics).
+    const stopRecordingSpeed = recordPhoneSpeed();
     // Automatic switches to Lamplight mode at 8 pm and back at 6 am; check
     // each minute. applyTheme waits while a study session is open.
     const syncTheme = () => applyTheme(getThemePreference());
@@ -158,6 +161,7 @@ function RootComponent() {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("storage", syncTheme);
+      stopRecordingSpeed();
     };
   }, []);
 
