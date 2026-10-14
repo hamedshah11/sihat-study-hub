@@ -20,8 +20,12 @@ test("a new student joins with the batch code and lands on Today", async ({ page
   await expect(found).toContainText("2, with 3 chapters ready");
 
   await page.getByLabel("Your name").fill("Mehwish Khan");
-  await page.getByRole("button", { name: "Use email instead" }).click();
+  // Email only until PHONE_SIGN_IN is switched on (src/lib/auth-otp.ts).
   await page.getByLabel("Email").fill(email);
+  // Joining needs the privacy notice ticked.
+  await page.getByRole("button", { name: "Join batch" }).click();
+  await expect(page.getByText("Please read the privacy notice")).toBeVisible();
+  await page.getByRole("checkbox").check();
   const sentAt = new Date();
   await page.getByRole("button", { name: "Join batch" }).click();
 
@@ -43,6 +47,11 @@ test("a new student joins with the batch code and lands on Today", async ({ page
     .eq("email", email)
     .single();
   expect(profile).toEqual({ batch_id: BATCH.id, display_name: "Mehwish Khan" });
+
+  // The agreement travelled with the sign-up.
+  const { data: users } = await adminClient().auth.admin.listUsers();
+  const joined = users.users.find((u) => u.email === email);
+  expect(joined?.user_metadata?.privacy_version).toBe(1);
 });
 
 test("a returning student signs in with an email code", async ({ page }) => {
@@ -50,8 +59,8 @@ test("a returning student signs in with an email code", async ({ page }) => {
   const { email } = ACCOUNTS.signIn;
 
   await page.goto("/");
-  await page.getByRole("link", { name: "Sign in with phone or email" }).click();
-  await page.getByLabel("Phone number or email").fill(email);
+  await page.getByRole("link", { name: "Sign in with email" }).click();
+  await page.getByLabel("Email", { exact: true }).fill(email);
   // Leaving the password empty asks for a code instead.
   await expect(page.getByLabel("Password")).toBeVisible();
   const sentAt = new Date();
@@ -67,7 +76,9 @@ test("a returning student signs in with an email code", async ({ page }) => {
   );
 });
 
-test("a returning student signs in with the test phone number", async ({ page }) => {
+// Phone sign-in is off until an SMS provider is set up (PHONE_SIGN_IN in
+// src/lib/auth-otp.ts); un-skip this when it is switched on.
+test.skip("a returning student signs in with the test phone number", async ({ page }) => {
   await resetStudent("phone");
 
   await page.goto("/login");

@@ -22,7 +22,7 @@
    - Server functions (/_serverFn/...): their GET responses are personal.
    - POST/PUT/PATCH/DELETE: they fail offline; there is no offline write queue. */
 
-const CACHE_VERSION = "v8";
+const CACHE_VERSION = "v9";
 const PAGES = `sihat-html-${CACHE_VERSION}`;
 const ASSETS = `sihat-assets-${CACHE_VERSION}`;
 const FONTS = `sihat-fonts-${CACHE_VERSION}`;

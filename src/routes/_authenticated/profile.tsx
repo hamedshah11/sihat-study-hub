@@ -25,6 +25,17 @@ import {
   useDownloads,
 } from "@/lib/downloads";
 import { logOut } from "@/lib/log-out";
+import { deleteMyAccount } from "@/lib/account.functions";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { pageTitle } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
@@ -224,6 +235,11 @@ function SettingsPage() {
             {account?.email || "–"}
           </span>
         </Row>
+        <Row label="Privacy notice">
+          <Link to="/privacy" className="text-[14px] font-semibold text-accent-ink">
+            Read
+          </Link>
+        </Row>
         {staff && (
           <Row label="Faculty console">
             <Link to="/admin" className="text-[14px] font-semibold text-accent-ink">
@@ -239,6 +255,8 @@ function SettingsPage() {
       >
         Log out
       </button>
+
+      {!staff && account && <DeleteAccount userId={userId} />}
 
       <footer className="mt-12 flex flex-col items-center gap-2.5 text-center">
         <Lockup height={30} />
@@ -461,5 +479,90 @@ function BatchRow({ batch }: { batch: string | null }) {
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * "Delete my account": typed confirmation, then the server removes the account
+ * and everything kept with it (account.functions.ts), and the phone forgets
+ * the session and downloads.
+ */
+function DeleteAccount({ userId }: { userId: string | null }) {
+  const remove = useServerFn(deleteMyAccount);
+  const qc = useQueryClient();
+  const router = useRouter();
+  const navigate = useNavigate();
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  async function confirm() {
+    setBusy(true);
+    try {
+      const res = await remove({ data: { confirm: "DELETE" } });
+      if (!res.ok) {
+        toast.error(
+          res.reason === "staff"
+            ? "Faculty accounts are removed by an admin."
+            : "Your account wasn't deleted. Check your connection and try again.",
+        );
+        setBusy(false);
+        return;
+      }
+    } catch {
+      toast.error("Your account wasn't deleted. Check your connection and try again.");
+      setBusy(false);
+      return;
+    }
+    await logOut(userId);
+    qc.clear();
+    router.invalidate();
+    toast.success("Your account and everything kept with it have been deleted.");
+    navigate({ to: "/" });
+  }
+
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={(v) => {
+        if (busy) return;
+        setOpen(v);
+        if (!v) setTyped("");
+      }}
+    >
+      <AlertDialogTrigger asChild>
+        <button className="mt-3 flex min-h-11 w-full items-center justify-center text-[14.5px] font-semibold text-destructive-ink">
+          Delete my account
+        </button>
+      </AlertDialogTrigger>
+      <AlertDialogContent className="max-w-[400px] rounded-[24px]">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This permanently removes your progress, flashcard reviews, quiz and exam history, Ask
+            Florence chats and settings. It can&apos;t be undone. Type DELETE to confirm.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <input
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          autoCapitalize="characters"
+          autoComplete="off"
+          aria-label="Type DELETE to confirm"
+          placeholder="DELETE"
+          className="fl-number h-12 w-full rounded-[14px] border border-border-strong/55 bg-card px-4 text-[16px] outline-none focus-visible:border-foreground"
+        />
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>Keep my account</AlertDialogCancel>
+          <button
+            onClick={() => void confirm()}
+            disabled={busy || typed.trim().toUpperCase() !== "DELETE"}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-destructive px-5 text-[14.5px] font-semibold text-destructive-foreground disabled:opacity-50"
+          >
+            {busy && <Loader2 className="size-4 animate-spin" />}Delete account
+          </button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

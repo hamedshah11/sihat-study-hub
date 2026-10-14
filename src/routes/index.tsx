@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Endorsement, Lockup, Wordmark } from "@/components/brand/Lockup";
 import { FlorenceMark } from "@/components/brand/FlorenceMark";
 import { BRAND } from "@/lib/brand";
+import { PHONE_SIGN_IN } from "@/lib/auth-otp";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -91,7 +92,7 @@ function Welcome() {
           to="/login"
           className="flex h-[54px] w-full items-center justify-center rounded-full border border-border-strong/70 text-[16px] font-semibold"
         >
-          Sign in with phone or email
+          {PHONE_SIGN_IN ? "Sign in with phone or email" : "Sign in with email"}
         </Link>
         <div className="mt-auto flex justify-center pt-10">
           <Endorsement tone="night" className="!text-[11px]" />

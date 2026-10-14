@@ -14,6 +14,8 @@ import { invalidateProgress } from "@/lib/progress-data";
 import { resolveSession, verifySessionOnline, type SessionCheck } from "@/lib/offline-session";
 import { logOut } from "@/lib/log-out";
 import { useSessionUserId } from "@/hooks/use-session-user";
+import { ConsentGate } from "@/components/PrivacyAgreement";
+import { hasCurrentConsent } from "@/lib/privacy";
 
 type IconComponent = (props: { className?: string }) => React.ReactNode;
 
@@ -60,6 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="relative isolate min-h-dvh bg-background">
       <PendingInviteRedemption />
+      <PrivacyConsentCheck />
       <div
         className={`mx-auto w-full max-w-[480px] px-4 md:w-auto md:max-w-none md:px-8 ${
           focusMode
@@ -82,6 +85,43 @@ export function AppShell({ children }: { children: ReactNode }) {
       {focusMode ? <FocusModeClose /> : <BottomNav />}
       {!focusMode && (faculty ? <FacultySidebar /> : <SideNav />)}
     </div>
+  );
+}
+
+/**
+ * Accounts that haven't agreed to the current privacy notice (made before it
+ * existed, or after PRIVACY_VERSION went up) are asked once. Skipped offline,
+ * where the answer couldn't be saved; it asks next time instead.
+ */
+function PrivacyConsentCheck() {
+  const [needed, setNeeded] = useState(false);
+  const navigate = useNavigate();
+  const router = useRouter();
+  const qc = useQueryClient();
+  const userId = useSessionUserId();
+
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+    let cancelled = false;
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled && data.user && !hasCurrentConsent(data.user.user_metadata)) setNeeded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  if (!needed) return null;
+  return (
+    <ConsentGate
+      onAgreed={() => setNeeded(false)}
+      onLogOut={async () => {
+        await logOut(userId);
+        qc.clear();
+        router.invalidate();
+        navigate({ to: "/login" });
+      }}
+    />
   );
 }
 

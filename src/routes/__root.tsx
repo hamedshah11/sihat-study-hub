@@ -41,6 +41,7 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  useEffect(() => reportError("render", error), [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -141,12 +142,15 @@ import { useEffect } from "react";
 import { registerServiceWorker } from "@/lib/register-sw";
 import { recordPhoneSpeed } from "@/lib/phone-speed";
 import { applyTheme, getThemePreference, THEME_BOOT_SCRIPT } from "@/lib/theme";
+import { installErrorReporting, reportError } from "@/lib/error-reporting";
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
     registerServiceWorker();
+    // Errors on phones reach staff on /admin/diagnostics.
+    const stopReportingErrors = installErrorReporting();
     // Request timings for the speed page (/speed, /admin/diagnostics).
     const stopRecordingSpeed = recordPhoneSpeed();
     // Automatic switches to Lamplight mode at 8 pm and back at 6 am; check
@@ -162,6 +166,7 @@ function RootComponent() {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("storage", syncTheme);
       stopRecordingSpeed();
+      stopReportingErrors();
     };
   }, []);
 

@@ -181,10 +181,32 @@ env-var split (`VITE_`-prefixed = public/bundled, unprefixed = server-only).
   in `AppShell.tsx` → `applyInviteCode` → the `redeem_invite_code` database
   function). `invite_codes` is keyed by `code`; it has no `id` column
   (fixed in `20261010130000_fix_invite_redemption.sql`).
-- Phone codes need a Supabase SMS provider; until one is set up, phone
-  attempts show a plain "use your email" message. Email codes need
-  `{{ .Token }}` in the Supabase email templates; the link in the email
-  works either way.
+- Phone codes need a Supabase SMS provider. Until one is set up and tested,
+  `PHONE_SIGN_IN` in `src/lib/auth-otp.ts` stays `false` and the welcome,
+  join and sign-in screens ask for an email only. Email codes need
+  `{{ .Token }}` in the auth email templates (Lovable Cloud → Emails); the
+  link in the email works either way.
+
+## Privacy, account deletion and error reports
+
+- `/privacy` (public) is the privacy notice. Joining needs its tick box
+  (`PrivacyAgreement`); the agreement is saved on the auth user's metadata
+  (`privacy_version`, `privacy_accepted_at`, `src/lib/privacy.ts`). Anyone
+  signed in without the current version sees `ConsentGate` once (AppShell's
+  `PrivacyConsentCheck`). Bump `PRIVACY_VERSION` when the notice changes in a
+  way students should agree to again. `PRIVACY_CONTACT_EMAIL` is shown on the
+  page once set.
+- Settings → "Delete my account" (students only) calls `deleteMyAccount`
+  (`src/lib/account.functions.ts`): every user table cascades from
+  `auth.users`, `user_badges` (no foreign key) is cleared first, and a study
+  circle the student started passes to its longest-standing member.
+- `client_errors` (`20261014090000_pilot_readiness.sql`, service role only)
+  collects errors from phones: `installErrorReporting()` in the root route
+  (window errors and unhandled rejections) plus the root `ErrorComponent`,
+  sent through `reportClientError` (`src/lib/client-errors.functions.ts`;
+  rate-limited, works signed out, identity from the verified token only).
+  Staff see them grouped on /admin/diagnostics ("Problems on phones").
+  Rows older than 30 days are removed as new ones arrive.
 
 ## Answer colours
 

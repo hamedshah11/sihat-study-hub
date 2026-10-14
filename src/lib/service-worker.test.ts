@@ -139,7 +139,7 @@ describe("service worker privacy", () => {
   });
 
   it("bumps the cache version so the old caches are removed", () => {
-    expect(serviceWorker).toContain('const CACHE_VERSION = "v8"');
+    expect(serviceWorker).toContain('const CACHE_VERSION = "v9"');
   });
 
   it("loads no code from a CDN, so it installs with no outside network", () => {
@@ -180,7 +180,7 @@ describe("service worker offline behaviour", () => {
     server.online = false;
     const response = await worker.navigate(`/chapters/${CHAPTER_A}?tab=flashcards`);
     expect(await response?.text()).toBe(html("chapter shell A"));
-    const assets = await worker.caches.open("sihat-assets-v8");
+    const assets = await worker.caches.open("sihat-assets-v9");
     expect(await assets.match(`${ORIGIN}/assets/index-abc.js`)).toBeDefined();
     expect(await assets.match(`${ORIGIN}/assets/styles-abc.css`)).toBeDefined();
   });
@@ -229,7 +229,7 @@ describe("service worker offline behaviour", () => {
     expect(
       await worker.send(new Request(`${ORIGIN}/assets/a.js`, { method: "POST", body: "{}" })),
     ).toBeUndefined();
-    expect(worker.caches.stores.get("sihat-html-v8")?.entries.size ?? 0).toBe(0);
+    expect(worker.caches.stores.get("sihat-html-v9")?.entries.size ?? 0).toBe(0);
   });
 
   it("caches the app's scripts first, from the network once", async () => {
