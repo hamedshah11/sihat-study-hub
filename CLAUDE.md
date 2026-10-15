@@ -417,6 +417,13 @@ flashcards with no signal.
   the git-ignored `supabase/functions/.env`.
 - CI: `.github/workflows/e2e.yml` runs the suite on every pull request and
   uploads the report and screenshot diffs when it fails.
+- CI installs with `npm install --no-package-lock` (bun.lock points at
+  Lovable's private registry), so every caret range floats to the newest
+  release. `@tanstack/react-start`, `@tanstack/react-router` and
+  `@tanstack/router-plugin` are pinned exactly in `package.json` because
+  react-start 1.169+ breaks `@lovable.dev/vite-tanstack-config` 2.23.1 (the
+  client build finds no entry: "Could not resolve entry module index.html").
+  Move them only together with the Lovable config, and check `vite build`.
 - Test files end in `.e2e.ts` so Vitest doesn't pick them up.
 - The config blocks service workers; `offline.e2e.ts` allows them, downloads
   a chapter, goes offline with `context.setOffline(true)` and reloads cold.
