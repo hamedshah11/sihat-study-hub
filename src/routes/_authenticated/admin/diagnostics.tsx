@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Shield, CheckCircle2, XCircle, Loader2, Shuffle } from "lucide-react";
 import { ServerSpeed } from "@/components/admin/ServerSpeed";
+import { ClientErrors } from "@/components/admin/ClientErrors";
 import { SpeedOnThisPhone } from "@/components/SpeedOnThisPhone";
 
 export const Route = createFileRoute("/_authenticated/admin/diagnostics")({
@@ -167,10 +168,11 @@ function DiagnosticsPage() {
         <h1 className="text-2xl font-bold text-primary">Diagnostics</h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Speed and system health checks.
+        Problems on phones, speed and system health checks.
       </p>
 
       <div className="mt-6 space-y-4">
+        <ClientErrors />
         <ServerSpeed />
         <SpeedOnThisPhone />
       </div>

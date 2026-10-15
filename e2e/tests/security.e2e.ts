@@ -178,6 +178,24 @@ test("a student can't change their own role or batch", async () => {
   await adminClient().from("profiles").update({ display_name: A.name }).eq("id", A.id);
 });
 
+test("no rankings, no error logs and no self-made profiles", async () => {
+  // The leaderboard function is gone; progress is never ranked.
+  const ranking = await student.rpc("batch_weekly_leaderboard" as never);
+  expect(ranking.error, "leaderboard function").not.toBeNull();
+
+  // Errors from phones are for staff, through the server only.
+  const errors = await student.from("client_errors" as never).select("*");
+  expect(errors.error?.code, "client_errors read").toBe("42501");
+  const forged = await student
+    .from("client_errors" as never)
+    .insert({ kind: "error", message: "forged" } as never);
+  expect(forged.error?.code, "client_errors insert").toBe("42501");
+
+  // Profiles come from the sign-up trigger, never from the browser.
+  const profile = await student.from("profiles").insert({ id: A.id, role: "admin" } as never);
+  expect(profile.error?.code, "profile insert").toBe("42501");
+});
+
 test("question answer keys can't be read directly", async () => {
   for (const columns of ["correct_index", "explanation", "*", "id, correct_index"]) {
     const res = await student.from("questions").select(columns).eq("chapter_id", MICRO_CH1.id);

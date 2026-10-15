@@ -165,7 +165,9 @@ async function seedAccount(account: Account, existing: AuthUser[]) {
     password: E2E_PASSWORD,
     email_confirm: Boolean(account.email),
     phone_confirm: Boolean(account.phone),
-    user_metadata: { display_name: account.name },
+    // Seeded students have agreed to the privacy notice (src/lib/privacy.ts),
+    // so the one-time consent sheet doesn't cover every journey.
+    user_metadata: { display_name: account.name, privacy_version: 1 },
   };
   if (existing.some((u) => u.id === account.id)) {
     const { error } = await db.auth.admin.updateUserById(account.id, attributes);

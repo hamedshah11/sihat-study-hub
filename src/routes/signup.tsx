@@ -6,8 +6,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, Field, primaryButton } from "@/components/AuthShell";
 import { CodeStep } from "@/components/CodeStep";
 import { previewBatchCode, type BatchPreview } from "@/lib/invite.functions";
-import { displayPhone, isEmail, isPhoneUnavailable, normalisePhone } from "@/lib/auth-otp";
+import {
+  displayPhone,
+  isEmail,
+  isPhoneUnavailable,
+  normalisePhone,
+  PHONE_SIGN_IN,
+} from "@/lib/auth-otp";
 import { pageTitle } from "@/lib/brand";
+import { PrivacyAgreement } from "@/components/PrivacyAgreement";
+import { consentMetadata } from "@/lib/privacy";
 
 export const Route = createFileRoute("/signup")({
   head: () => ({ meta: [{ title: pageTitle("Join your batch") }] }),
@@ -39,8 +47,9 @@ function JoinBatch() {
   const [checking, setChecking] = useState(false);
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
-  const [useEmail, setUseEmail] = useState(false);
-  const [errors, setErrors] = useState<{ name?: string; contact?: string }>({});
+  const [useEmail, setUseEmail] = useState(!PHONE_SIGN_IN);
+  const [agreed, setAgreed] = useState(false);
+  const [errors, setErrors] = useState<{ name?: string; contact?: string; agree?: string }>({});
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<Sent | null>(null);
 
@@ -77,7 +86,11 @@ function JoinBatch() {
     };
   }, [code, preview]);
 
-  const metadata = () => ({ display_name: name.trim(), pending_invite_code: code.trim() });
+  const metadata = () => ({
+    display_name: name.trim(),
+    pending_invite_code: code.trim(),
+    ...consentMetadata(),
+  });
 
   async function send(): Promise<string | null> {
     if (useEmail) {
@@ -122,6 +135,7 @@ function JoinBatch() {
         ? "Enter a valid email address."
         : "Enter your mobile number, for example 0300 1234567.";
     }
+    if (!agreed) next.agree = "Please read the privacy notice and tick the box to continue.";
     setErrors(next);
     if (Object.keys(next).length) return;
     setBusy(true);
@@ -259,20 +273,32 @@ function JoinBatch() {
               error={errors.contact}
               hint={
                 <>
-                  For signing in. We never show it to classmates.{" "}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUseEmail((v) => !v);
-                      setContact("");
-                      setErrors({});
-                    }}
-                    className="font-semibold text-accent-ink"
-                  >
-                    {useEmail ? "Use a phone number" : "Use email instead"}
-                  </button>
+                  {useEmail
+                    ? "We'll email you a 6-digit code. We never show it to classmates."
+                    : "For signing in. We never show it to classmates."}{" "}
+                  {PHONE_SIGN_IN && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUseEmail((v) => !v);
+                        setContact("");
+                        setErrors({});
+                      }}
+                      className="font-semibold text-accent-ink"
+                    >
+                      {useEmail ? "Use a phone number" : "Use email instead"}
+                    </button>
+                  )}
                 </>
               }
+            />
+            <PrivacyAgreement
+              checked={agreed}
+              onChange={(v) => {
+                setAgreed(v);
+                if (v) setErrors((e) => ({ ...e, agree: undefined }));
+              }}
+              error={errors.agree}
             />
           </>
         )}

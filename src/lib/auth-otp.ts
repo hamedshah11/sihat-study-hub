@@ -2,8 +2,11 @@
 // email address and a one-time code; no college email is needed.
 //
 // Phone codes need an SMS provider switched on in Supabase (Auth → Providers
-// → Phone). Until it is, phone attempts fail with a clear message and the
-// screens offer email instead, which works out of the box.
+// → Phone). Until it is, PHONE_SIGN_IN stays false and the join and sign-in
+// screens ask for an email only, so nobody types a number that can't work.
+
+/** Flip to true once an SMS provider is set up and tested in production. */
+export const PHONE_SIGN_IN = false;
 
 /** "0300 1234567", "92300…", "+92 300…" → "+923001234567". Null if not a phone number. */
 export function normalisePhone(raw: string): string | null {
