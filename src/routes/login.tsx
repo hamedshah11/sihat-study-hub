@@ -4,7 +4,13 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthShell, Field, primaryButton } from "@/components/AuthShell";
 import { CodeStep } from "@/components/CodeStep";
-import { displayPhone, isEmail, isPhoneUnavailable, normalisePhone } from "@/lib/auth-otp";
+import {
+  displayPhone,
+  isEmail,
+  isPhoneUnavailable,
+  normalisePhone,
+  PHONE_SIGN_IN,
+} from "@/lib/auth-otp";
 import { pageTitle } from "@/lib/brand";
 
 export const Route = createFileRoute("/login")({
@@ -44,7 +50,7 @@ function Login() {
   }, [navigate, next]);
 
   const email = isEmail(contact) ? contact.trim() : null;
-  const phone = email ? null : normalisePhone(contact);
+  const phone = email || !PHONE_SIGN_IN ? null : normalisePhone(contact);
 
   const done = () => {
     if (next) window.location.href = next;
@@ -76,7 +82,7 @@ function Login() {
       setSent({ method: "email", to: email });
       return null;
     }
-    return "Enter your phone number or email.";
+    return PHONE_SIGN_IN ? "Enter your phone number or email." : "Enter your email.";
   }
 
   async function submit(e: React.FormEvent) {
@@ -84,7 +90,11 @@ function Login() {
     if (busy) return;
     setError(undefined);
     if (!email && !phone) {
-      setError("Enter your phone number (0300 1234567) or your email.");
+      setError(
+        PHONE_SIGN_IN
+          ? "Enter your phone number (0300 1234567) or your email."
+          : "Enter the email you joined with.",
+      );
       return;
     }
     setBusy(true);
@@ -163,11 +173,13 @@ function Login() {
       <form id="sign-in" onSubmit={submit} noValidate className="space-y-5">
         <Field
           id="contact"
-          label="Phone number or email"
+          label={PHONE_SIGN_IN ? "Phone number or email" : "Email"}
           value={contact}
           onChange={(e) => setContact(e.target.value)}
-          autoComplete="username"
-          placeholder="0300 1234567"
+          autoComplete={PHONE_SIGN_IN ? "username" : "email"}
+          type={PHONE_SIGN_IN ? "text" : "email"}
+          inputMode={PHONE_SIGN_IN ? "text" : "email"}
+          placeholder={PHONE_SIGN_IN ? "0300 1234567" : "you@example.com"}
           error={error}
         />
         {email && (
