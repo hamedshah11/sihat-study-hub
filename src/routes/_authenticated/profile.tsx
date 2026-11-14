@@ -25,6 +25,7 @@ import {
   useDownloads,
 } from "@/lib/downloads";
 import { logOut } from "@/lib/log-out";
+import { hintsResetMetadata, resetHintsHere } from "@/lib/tutorial";
 import { deleteMyAccount } from "@/lib/account.functions";
 import {
   AlertDialog,
@@ -234,6 +235,19 @@ function SettingsPage() {
           <span className="max-w-[60%] truncate text-[14px] text-muted-foreground">
             {account?.email || "–"}
           </span>
+        </Row>
+        <Row label="App tour" hint="How Florence works">
+          <button
+            onClick={() => {
+              // The hints that follow the tour come back too.
+              resetHintsHere();
+              void supabase.auth.updateUser({ data: hintsResetMetadata() }).catch(() => undefined);
+              void navigate({ to: "/intro" });
+            }}
+            className="min-h-11 text-[14px] font-semibold text-accent-ink"
+          >
+            Show again
+          </button>
         </Row>
         <Row label="Privacy notice">
           <Link to="/privacy" className="text-[14px] font-semibold text-accent-ink">
