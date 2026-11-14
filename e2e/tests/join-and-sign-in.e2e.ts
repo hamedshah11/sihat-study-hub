@@ -33,9 +33,30 @@ test("a new student joins with the batch code and lands on Today", async ({ page
   await page.getByLabel("Code").fill(await latestCode(email, sentAt));
   await page.getByRole("button", { name: "Continue" }).click();
 
-  // A new student meets the rose first, then Today.
-  await expect(page.getByRole("heading", { name: "Each petal is a subject." })).toBeVisible();
+  // A new student takes the five-screen tour first, then Today.
+  await expect(page.getByRole("heading", { name: "Welcome to Florence." })).toBeVisible();
   await expect(page.getByText("You've joined your batch.")).toBeVisible();
+  await expect(page.getByText("Step 1 of 5")).toBeVisible();
+  for (const heading of [
+    "Start with today's review.",
+    "Every chapter, four ways.",
+    "Stuck? Ask Florence.",
+    "Each petal is a subject.",
+  ]) {
+    await page.getByRole("button", { name: "Next" }).click();
+    await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+  }
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByRole("heading", { name: "Stuck? Ask Florence." })).toBeVisible();
+  await page.getByRole("button", { name: "Next" }).click();
+
+  // Finishing saves "seen" on the account, so the tour doesn't come back.
+  const saved = page.waitForResponse(
+    (r) => r.url().includes("/auth/v1/user") && r.request().method() === "PUT",
+  );
+  await page.getByRole("button", { name: /Start my first review/ }).click();
+  await saved;
+  await expect(page).toHaveURL(/\/session$/);
   await page.goto("/home");
   await expect(page.getByRole("heading", { name: "Welcome, Mehwish." })).toBeVisible();
   await expect(page.getByText("Your first review", { exact: true })).toBeVisible();
@@ -52,6 +73,17 @@ test("a new student joins with the batch code and lands on Today", async ({ page
   const { data: users } = await adminClient().auth.admin.listUsers();
   const joined = users.users.find((u) => u.email === email);
   expect(joined?.user_metadata?.privacy_version).toBe(1);
+  expect(joined?.user_metadata?.tutorial_version).toBe(1);
+
+  // After the tour, each main screen shows its tip once.
+  await page.goto("/subjects");
+  const tip = page.getByRole("complementary", { name: "Tip: Pick a subject, then a chapter." });
+  await expect(tip).toBeVisible();
+  await tip.getByRole("button", { name: "Got it" }).click();
+  await expect(tip).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Subjects" })).toBeVisible();
+  await expect(tip).toBeHidden();
 });
 
 test("a returning student signs in with an email code", async ({ page }) => {

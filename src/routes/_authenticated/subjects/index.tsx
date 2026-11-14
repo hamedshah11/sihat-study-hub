@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TutorialHint } from "@/components/TutorialHint";
 import { TopBar } from "@/components/TopBar";
 import { OfflineChip, StatusChip } from "@/components/brand/StatusChip";
 import { NeedsInternet, useOnline } from "@/components/OfflineBanner";
@@ -31,6 +32,10 @@ function SubjectsList() {
           {data?.student.semesterName ?? (data ? "Semester 1" : "")}
         </p>
       </header>
+
+      <TutorialHint id="subjects" title="Pick a subject, then a chapter." className="mt-4">
+        Each chapter has notes, flashcards and a quiz. Each subject also has a timed practice exam.
+      </TutorialHint>
 
       <div className="mt-5 space-y-2.5">
         {isLoading &&

@@ -11,7 +11,8 @@ import { useProgress } from "@/lib/progress-data";
 import { useMistakes } from "@/lib/mistakes-data";
 import { pageTitle } from "@/lib/brand";
 import type { ProgressPayload } from "@/lib/progress.functions";
-import { INTRO_SEEN_KEY } from "./intro";
+import { supabase } from "@/integrations/supabase/client";
+import { hasSeenTutorial, introSeenHere, markIntroSeenHere } from "@/lib/tutorial";
 
 export const Route = createFileRoute("/_authenticated/home")({
   head: () => ({ meta: [{ title: pageTitle("Today") }] }),
@@ -152,14 +153,20 @@ function TodayPage() {
   const navigate = useNavigate();
   const online = useOnline();
 
-  // A brand-new student meets the rose once, before their first review.
+  // A brand-new student takes the tour once, before their first review. This
+  // phone's copy answers first; otherwise the account says whether they took
+  // it on another device (read from the stored session, no request).
   useEffect(() => {
-    if (!data?.firstDay) return;
-    try {
-      if (!localStorage.getItem(INTRO_SEEN_KEY)) navigate({ to: "/intro" });
-    } catch {
-      // No storage: skip the introduction rather than loop.
-    }
+    if (!data?.firstDay || introSeenHere()) return;
+    let cancelled = false;
+    void supabase.auth.getSession().then(({ data: auth }) => {
+      if (cancelled || !auth.session) return;
+      if (hasSeenTutorial(auth.session.user.user_metadata)) markIntroSeenHere();
+      else void navigate({ to: "/intro" });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [data?.firstDay, navigate]);
 
   if (isLoading) {

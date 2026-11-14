@@ -187,6 +187,22 @@ env-var split (`VITE_`-prefixed = public/bundled, unprefixed = server-only).
   `{{ .Token }}` in the auth email templates (Lovable Cloud → Emails); the
   link in the email works either way.
 
+## The tour and first-visit hints
+
+- `/intro` is a five-screen Night tour (welcome, today's review, what a
+  chapter holds, Ask Florence, the progress rose) with Next, Back and Skip.
+  A first-day student is sent there from Today and after joining; Settings →
+  "App tour" opens it again. Finishing or skipping saves "seen" on this phone
+  (localStorage `florence:intro-seen`) and on the account (auth user metadata
+  `tutorial_version`), so it doesn't repeat on a second device. Rules and
+  storage helpers: `src/lib/tutorial.ts` (tested). Bump `TUTORIAL_VERSION` to
+  show it to everyone once more.
+- `TutorialHint` (`src/components/TutorialHint.tsx`) is a one-time tip on
+  Subjects, the chapter page, Ask Florence and Batch. Hints only show to
+  accounts that took the tour, each until "Got it" (metadata `tutorial_hints`
+  plus localStorage). The seeded e2e students never took the tour, so
+  screenshot baselines show no hints.
+
 ## Privacy, account deletion and error reports
 
 - `/privacy` (public) is the privacy notice. Joining needs its tick box
@@ -229,7 +245,7 @@ env-var split (`VITE_`-prefixed = public/bundled, unprefixed = server-only).
   `_authenticated.tsx` is a pathless layout route gating everything under
   `src/routes/_authenticated/` (home = Today, session = today's review,
   subjects/$subjectId, chapters/$chapterId, progress, batch, profile =
-  Settings, intro, review, tutor, speed (unlisted), admin/*). Each route file exports
+  Settings, intro = the tour, review, tutor, speed (unlisted), admin/*). Each route file exports
   `Route = createFileRoute("/path")({ head, component })`.
 - **Server functions**: one file per domain in `src/lib/*.functions.ts`
   (`study.functions.ts`, `exam.functions.ts`, `admin.functions.ts`,

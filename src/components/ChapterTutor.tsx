@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TutorialHint } from "@/components/TutorialHint";
 import { FlorenceMark } from "@/components/brand/FlorenceMark";
 import { useOnline } from "@/components/OfflineBanner";
 import { awardBadgesIfNeeded } from "@/lib/award-badges";
@@ -143,6 +144,10 @@ export function ChapterTutor({
         <span className="font-semibold text-foreground">AI tutor.</span> Answers only from this
         chapter's notes, which your teachers approved. Check anything important with your teacher.
       </p>
+      <TutorialHint id="ask" title="Ask in your own words." className="mt-2">
+        Short questions work best, such as "Why does this happen?" or "Explain this more simply."
+        You can ask 50 questions a day.
+      </TutorialHint>
 
       <div className="mt-4 flex flex-1 flex-col gap-4 pb-4">
         {isLoading ? (

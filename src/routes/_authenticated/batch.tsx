@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Check, Copy, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TutorialHint } from "@/components/TutorialHint";
 import { TopBar } from "@/components/TopBar";
 import { NeedsInternet, useOnline } from "@/components/OfflineBanner";
 import { useProgress } from "@/lib/progress-data";
@@ -57,6 +58,10 @@ function BatchPage() {
           </p>
         )}
       </header>
+      <TutorialHint id="batch" title="Your scores stay private.">
+        This tab shows what the whole batch did together. Classmates never see your scores, and
+        nobody is ranked.
+      </TutorialHint>
 
       {!online && !data ? (
         <NeedsInternet title="Your batch needs internet.">

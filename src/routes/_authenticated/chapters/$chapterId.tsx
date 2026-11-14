@@ -14,6 +14,7 @@ import { ChapterTutor } from "@/components/ChapterTutor";
 import { ChapterDiagramTest } from "@/components/ChapterDiagramTest";
 import { ChapterNoteDiagrams } from "@/components/ChapterNoteDiagrams";
 import { ChapterVideos } from "@/components/ChapterVideos";
+import { TutorialHint } from "@/components/TutorialHint";
 import { ChapterDownload } from "@/components/DownloadForOffline";
 import { NeedsInternet } from "@/components/OfflineBanner";
 import { useSessionUserId } from "@/hooks/use-session-user";
@@ -196,6 +197,10 @@ function ChapterDetail() {
         <h1 className="font-display text-[28px] leading-[1.12] md:text-[34px]">{chapter.title}</h1>
       </div>
       <ChapterDownload chapterId={chapterId} className="mt-3" />
+      <TutorialHint id="chapter" title="Read first, then practise." className="mt-3">
+        Download the chapter to read it with no signal. If a card or question looks wrong, tap
+        Report a problem under it and your teachers will see it.
+      </TutorialHint>
 
       <div
         role="tablist"
