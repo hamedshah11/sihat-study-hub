@@ -233,6 +233,92 @@ export type Database = {
           },
         ]
       }
+      client_errors: {
+        Row: {
+          app_version: string | null
+          created_at: string
+          id: number
+          kind: string
+          message: string
+          path: string | null
+          stack: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          app_version?: string | null
+          created_at?: string
+          id?: never
+          kind: string
+          message: string
+          path?: string | null
+          stack?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          app_version?: string | null
+          created_at?: string
+          id?: never
+          kind?: string
+          message?: string
+          path?: string | null
+          stack?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      content_reports: {
+        Row: {
+          chapter_id: string | null
+          created_at: string
+          id: string
+          item_id: string
+          kind: string
+          note: string | null
+          reason: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          chapter_id?: string | null
+          created_at?: string
+          id?: string
+          item_id: string
+          kind: string
+          note?: string | null
+          reason: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          chapter_id?: string | null
+          created_at?: string
+          id?: string
+          item_id?: string
+          kind?: string
+          note?: string | null
+          reason?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_reports_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       diagram_labels: {
         Row: {
           base_image_path: string | null
@@ -533,37 +619,47 @@ export type Database = {
         }
         Relationships: []
       }
-      quiz_sessions: {
+      question_answers: {
         Row: {
-          chapter_id: string
-          created_at: string
+          answered_at: string
+          chapter_id: string | null
+          correct: boolean
           id: string
-          question_ids: string[]
-          submitted_at: string | null
+          question_id: string
+          source: string
           user_id: string
         }
         Insert: {
-          chapter_id: string
-          created_at?: string
+          answered_at?: string
+          chapter_id?: string | null
+          correct: boolean
           id?: string
-          question_ids: string[]
-          submitted_at?: string | null
+          question_id: string
+          source: string
           user_id: string
         }
         Update: {
-          chapter_id?: string
-          created_at?: string
+          answered_at?: string
+          chapter_id?: string | null
+          correct?: boolean
           id?: string
-          question_ids?: string[]
-          submitted_at?: string | null
+          question_id?: string
+          source?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "quiz_sessions_chapter_id_fkey"
+            foreignKeyName: "question_answers_chapter_id_fkey"
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
             referencedColumns: ["id"]
           },
         ]
@@ -612,51 +708,6 @@ export type Database = {
           },
         ]
       }
-      question_answers: {
-        Row: {
-          answered_at: string
-          chapter_id: string | null
-          correct: boolean
-          id: string
-          question_id: string
-          source: string
-          user_id: string
-        }
-        Insert: {
-          answered_at?: string
-          chapter_id?: string | null
-          correct: boolean
-          id?: string
-          question_id: string
-          source: string
-          user_id: string
-        }
-        Update: {
-          answered_at?: string
-          chapter_id?: string | null
-          correct?: boolean
-          id?: string
-          question_id?: string
-          source?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "question_answers_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "question_answers_chapter_id_fkey"
-            columns: ["chapter_id"]
-            isOneToOne: false
-            referencedRelation: "chapters"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       quiz_attempts: {
         Row: {
           answers: Json | null
@@ -688,6 +739,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "quiz_attempts_chapter_id_fkey"
+            columns: ["chapter_id"]
+            isOneToOne: false
+            referencedRelation: "chapters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_sessions: {
+        Row: {
+          chapter_id: string
+          created_at: string
+          id: string
+          locked_answers: Json
+          question_ids: string[]
+          submitted_at: string | null
+          user_id: string
+        }
+        Insert: {
+          chapter_id: string
+          created_at?: string
+          id?: string
+          locked_answers?: Json
+          question_ids: string[]
+          submitted_at?: string | null
+          user_id: string
+        }
+        Update: {
+          chapter_id?: string
+          created_at?: string
+          id?: string
+          locked_answers?: Json
+          question_ids?: string[]
+          submitted_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_sessions_chapter_id_fkey"
             columns: ["chapter_id"]
             isOneToOne: false
             referencedRelation: "chapters"
@@ -727,6 +816,36 @@ export type Database = {
           },
         ]
       }
+      server_timings: {
+        Row: {
+          created_at: string
+          duration_ms: number
+          fn: string
+          id: number
+          ok: boolean
+          supabase_calls: number
+          supabase_waits: number
+        }
+        Insert: {
+          created_at?: string
+          duration_ms: number
+          fn: string
+          id?: never
+          ok?: boolean
+          supabase_calls?: number
+          supabase_waits?: number
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number
+          fn?: string
+          id?: never
+          ok?: boolean
+          supabase_calls?: number
+          supabase_waits?: number
+        }
+        Relationships: []
+      }
       streaks: {
         Row: {
           current_streak: number | null
@@ -748,6 +867,80 @@ export type Database = {
           last_active_date?: string | null
           longest_streak?: number | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      student_settings: {
+        Row: {
+          reminder_enabled: boolean
+          reminder_time: string
+          show_in_circles: boolean
+          updated_at: string
+          user_id: string
+          whatsapp_opt_in: boolean
+        }
+        Insert: {
+          reminder_enabled?: boolean
+          reminder_time?: string
+          show_in_circles?: boolean
+          updated_at?: string
+          user_id: string
+          whatsapp_opt_in?: boolean
+        }
+        Update: {
+          reminder_enabled?: boolean
+          reminder_time?: string
+          show_in_circles?: boolean
+          updated_at?: string
+          user_id?: string
+          whatsapp_opt_in?: boolean
+        }
+        Relationships: []
+      }
+      study_circle_members: {
+        Row: {
+          circle_id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          circle_id: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          circle_id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_circle_members_circle_id_fkey"
+            columns: ["circle_id"]
+            isOneToOne: false
+            referencedRelation: "study_circles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_circles: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string
+          id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by: string
+          id?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string
+          id?: string
         }
         Relationships: []
       }
@@ -882,21 +1075,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      batch_weekly_leaderboard: {
-        Args: never
-        Returns: {
-          first_name: string
-          user_id: string
-          weekly_xp: number
-        }[]
-      }
+      has_role_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_staff: { Args: { _user_id: string }; Returns: boolean }
       redeem_invite_code: {
         Args: { p_code: string; p_user_id: string }
         Returns: string
       }
-      has_role_admin: { Args: { _user_id: string }; Returns: boolean }
-      is_admin: { Args: { _user_id: string }; Returns: boolean }
-      is_staff: { Args: { _user_id: string }; Returns: boolean }
+      server_timing_summary: {
+        Args: { p_since: string }
+        Returns: {
+          calls: number
+          failures: number
+          fn: string
+          max_ms: number
+          median_ms: number
+          median_supabase_calls: number
+          median_supabase_waits: number
+          p95_ms: number
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
     }
